@@ -1,0 +1,122 @@
+{% set hw_modal_is_dashboard = selected_date_iso is defined %}
+{% set hw_modal_due_date = default_due_date if default_due_date is defined else selected_date_iso %}
+{% set hw_modal_auto_open = auto_open if auto_open is defined else false %}
+
+<!-- Add Homework Modal (shared by Homework page and Dashboard) -->
+<div id="add-hw-modal" data-modal class="fixed inset-0 z-50 {% if hw_modal_auto_open %}flex{% else %}hidden{% endif %} items-end sm:items-center justify-center p-0 sm:p-4">
+  <!-- Backdrop -->
+  <div class="fixed inset-0 bg-black/80 backdrop-blur-sm cursor-pointer" onclick="closeModal('add-hw-modal')"></div>
+
+  <!-- Dialog Window -->
+  <div class="relative z-10 w-full sm:max-w-md bg-[#121214] sm:border border-zinc-800 rounded-t-[32px] sm:rounded-[32px] shadow-2xl overflow-hidden max-h-[92dvh] sm:max-h-[90vh] flex flex-col pb-[calc(env(safe-area-inset-bottom,0px)+0.75rem)] sm:pb-0">
+
+    <!-- Green Header Card -->
+    <div class="relative bg-gradient-to-b from-[#28c76f] via-[#22b561] to-[#1ca254] p-5 sm:p-6 pb-6 sm:pb-7 text-white overflow-hidden shrink-0 select-none rounded-b-[28px] sm:rounded-b-[32px] shadow-lg shadow-black/20">
+      <!-- Decorative ripple rings -->
+      <div class="absolute -right-8 -top-8 w-60 h-60 pointer-events-none select-none">
+        <svg viewBox="0 0 200 200" class="w-full h-full" fill="none">
+          <circle cx="120" cy="80" r="95" stroke="rgba(255,255,255,0.06)" stroke-width="26" />
+          <circle cx="120" cy="80" r="54" stroke="rgba(255,255,255,0.14)" stroke-width="22" />
+          <circle cx="120" cy="80" r="22" fill="rgba(255,255,255,0.10)" />
+        </svg>
+      </div>
+
+      <div class="flex items-center justify-between relative z-10">
+        <span class="text-xs sm:text-sm font-semibold text-white/95 tracking-wide">
+          Домашнее задание
+        </span>
+        <button type="button"
+                onclick="closeModal('add-hw-modal')"
+                class="w-9 h-9 sm:w-10 sm:h-10 rounded-2xl bg-white/20 hover:bg-white/30 backdrop-blur-md text-white flex items-center justify-center transition active:scale-95 shadow-sm touch-manipulation"
+                aria-label="Закрыть">
+          <svg class="w-4 h-4 sm:w-5 sm:h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
+      </div>
+
+      <h2 class="text-2xl sm:text-3xl font-extrabold text-white tracking-tight mt-3 relative z-10 leading-tight">
+        {{ 'Записать домашнее задание' if hw_modal_is_dashboard else 'Новое домашнее задание' }}
+      </h2>
+      <p class="text-xs sm:text-sm text-emerald-50/90 font-medium mt-1 relative z-10">
+        {{ date_title if date_title is defined else 'Добавьте задачу в свой список' }}
+      </p>
+    </div>
+
+    <!-- Scrollable Body -->
+    <div class="px-4 pt-3 pb-4 sm:px-5 sm:pt-3 sm:pb-5 overflow-y-auto flex-1 bg-[#121214]">
+      <form method="post" action="/homework" class="space-y-3">
+        {% if next_lesson is defined and next_lesson %}
+        <button type="button"
+                data-next-lesson-btn
+                data-lesson-id="{{ next_lesson.target_lesson_id }}"
+                data-subject-id="{{ next_lesson.subject_id }}"
+                data-due-date="{{ next_lesson.next_date_iso }}"
+                data-auto-apply="{{ 'true' if next_lesson.auto_apply else 'false' }}"
+                class="group w-full flex items-center bg-[#202023] hover:bg-[#26262a] active:scale-[0.99] border border-zinc-800 hover:border-emerald-500/50 rounded-2xl px-4 py-3 text-left transition touch-manipulation">
+          <span class="min-w-0">
+            <span class="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-emerald-400">
+              <svg class="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.2" d="M13 7l5 5m0 0l-5 5m5-5H6" />
+              </svg>
+              На следующий урок
+            </span>
+            <span class="mt-1 block text-sm font-semibold text-white truncate">{{ next_lesson.subject_name }}</span>
+            <span class="mt-0.5 block text-xs text-zinc-400">{{ next_lesson.next_date_label }}</span>
+          </span>
+        </button>
+        {% endif %}
+
+        <div class="bg-[#202023] rounded-2xl p-4 space-y-3.5">
+          <div>
+            <label for="subject_id" class="block text-xs text-zinc-400 font-medium mb-1.5">Предмет *</label>
+            <select id="subject_id" name="subject_id" required
+                    class="w-full bg-[#121214] border border-zinc-800 rounded-xl px-3 py-2.5 text-sm text-white focus:outline-none focus:border-emerald-500 transition">
+              {% for sub in subjects %}
+              <option value="{{ sub.id }}">{{ sub.name }}</option>
+              {% endfor %}
+            </select>
+            {% if not subjects %}
+            <p class="text-xs text-amber-400 mt-1.5">Сначала добавьте предметы в разделе «Предметы»</p>
+            {% endif %}
+          </div>
+
+          <div>
+            <label for="title" class="block text-xs text-zinc-400 font-medium mb-1.5">Задание / Номера *</label>
+            <input type="text" id="title" name="title" required autocomplete="off"
+                   class="w-full bg-[#121214] border border-zinc-800 rounded-xl px-3 py-2.5 text-sm text-white focus:outline-none focus:border-emerald-500 placeholder-zinc-500 transition"
+                   placeholder="§ 13 - 14, конспект урока. ВИЗ.">
+          </div>
+
+          <div>
+            <label for="due_date" class="block text-xs text-zinc-400 font-medium mb-1.5">Срок сдачи *</label>
+            <div class="relative">
+              <input type="date" id="due_date" name="due_date" required value="{{ hw_modal_due_date }}"
+                     class="hw-date-input w-full bg-[#121214] border border-zinc-800 rounded-xl px-3 py-2.5 text-sm text-white focus:outline-none focus:border-emerald-500 transition">
+              <span class="hw-date-display pointer-events-none absolute inset-y-0 left-3 items-center text-base text-white" aria-hidden="true"></span>
+            </div>
+          </div>
+        </div>
+
+        <input type="hidden" id="hw_lesson_id" name="lesson_id" value="">
+        {% if hw_modal_is_dashboard %}
+        <input type="hidden" name="return_url" value="/?date={{ selected_date_iso }}">
+        {% elif return_url is defined and return_url %}
+        <input type="hidden" name="return_url" value="{{ return_url }}">
+        {% endif %}
+
+        <div class="flex items-center justify-end space-x-2.5 pt-1">
+          <button type="button" onclick="closeModal('add-hw-modal')"
+                  class="px-4 py-2.5 rounded-xl text-xs sm:text-sm font-medium text-zinc-400 hover:text-white hover:bg-zinc-800 transition">
+            Отмена
+          </button>
+          <button type="submit"
+                  class="px-5 py-2.5 rounded-xl text-xs sm:text-sm font-bold bg-emerald-500 hover:bg-emerald-600 active:scale-95 text-white shadow-md shadow-emerald-500/20 transition">
+            Сохранить
+          </button>
+        </div>
+      </form>
+    </div>
+
+  </div>
+</div>

@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="ru" class="dark" style="background-color: #000000;">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>{% block title %}Locus - Дневник{% endblock %}</title>
+
+  <!-- PWA Meta Tags -->
+  <link rel="manifest" href="/static/manifest.json">
+  <meta name="theme-color" content="#000000">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="Locus">
+  <link rel="apple-touch-icon" href="/static/icons/icon-192.png?v={{ asset_version('icons/icon-192.png') }}">
+  <link rel="icon" type="image/svg+xml" href="/static/icons/icon.svg?v={{ asset_version('icons/icon.svg') }}">
+
+  <!-- Tailwind CSS & HTMX -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/htmx.org@2.0.4"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            surface: {
+              DEFAULT: '#000000',
+              panel: '#000000',
+              card: '#000000',
+              subtle: '#121214',
+            },
+            accent: {
+              DEFAULT: '#2ea35b',
+              hover: '#247c45',
+              dark: '#1d6537',
+            },
+            emerald: {
+              50: '#f0fdf4',
+              100: '#dcfce7',
+              200: '#bbf7d0',
+              300: '#86efac',
+              400: '#34b566',
+              500: '#2ea35b',
+              600: '#247c45',
+              700: '#1d6537',
+              800: '#17522c',
+              900: '#134324',
+              950: '#0a2614',
+            }
+          }
+        }
+      }
+    }
+  </script>
+
+  <link rel="stylesheet" href="/static/css/app.css?v={{ asset_version('css/app.css') }}">
+  <script defer src="/static/js/app.js?v={{ asset_version('js/app.js') }}"></script>
+  {% block head %}{% endblock %}
+</head>
+<body class="bg-black text-zinc-100 min-h-screen flex antialiased selection:bg-emerald-500 selection:text-white" style="background-color: #000000;">
+
+  <!-- iOS PWA Status Bar Top Cover (Prevents content scrolling behind notch from showing through) -->
+  <div class="md:hidden fixed top-0 left-0 right-0 z-50 bg-black pointer-events-none" style="height: env(safe-area-inset-top, 0px);"></div>
+
+  {% if current_user %}
+  <!-- Desktop Sidebar (Visible on md and larger screens) -->
+  <aside class="hidden md:flex flex-col w-64 bg-black border-r border-zinc-800/80 p-5 shrink-0 select-none">
+    <!-- Brand Header with balanced spacing -->
+    <a href="/" data-nav-dashboard class="flex items-center space-x-2.5 pb-3.5 border-b border-zinc-800/60">
+      <img src="/static/icons/icon.svg?v={{ asset_version('icons/icon.svg') }}"
+           alt="" aria-hidden="true"
+           class="w-8 h-8 shrink-0 shadow-lg shadow-emerald-500/10">
+      <div class="flex flex-col justify-center">
+        <span class="font-extrabold text-base tracking-tight text-white leading-tight">Locus</span>
+        <span class="text-[10px] text-zinc-500 font-medium leading-none mt-1">Школьный дневник</span>
+      </div>
+    </a>
+
+    <!-- Navigation Links -->
+    <nav class="mt-3.5 flex-1 space-y-1 text-sm font-semibold">
+      <!-- 1. Дневник -->
+      <a href="/"
+         data-nav-dashboard
+         class="flex items-center space-x-3 px-3.5 py-2.5 rounded-xl transition whitespace-nowrap
+                {% if active_page == 'dashboard' %}bg-emerald-500 text-white shadow-md shadow-emerald-500/25 font-bold{% else %}text-zinc-400 hover:text-white hover:bg-zinc-800/60{% endif %}">
+        <svg class="w-5 h-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+        </svg>
+        <span>Дневник</span>
+      </a>
+
+      <!-- 2. Задания -->
+      <a href="/homework"
+         class="flex items-center space-x-3 px-3.5 py-2.5 rounded-xl transition whitespace-nowrap
+                {% if active_page == 'homework' %}bg-emerald-500 text-white shadow-md shadow-emerald-500/25 font-bold{% else %}text-zinc-400 hover:text-white hover:bg-zinc-800/60{% endif %}">
+        <svg class="w-5 h-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
+        </svg>
+        <span>Задания</span>
+      </a>
+
+      <!-- 3. Предметы -->
+      <a href="/subjects"
+         class="flex items-center space-x-3 px-3.5 py-2.5 rounded-xl transition whitespace-nowrap
+                {% if active_page == 'subjects' %}bg-emerald-500 text-white shadow-md shadow-emerald-500/25 font-bold{% else %}text-zinc-400 hover:text-white hover:bg-zinc-800/60{% endif %}">
+        <svg class="w-5 h-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+        </svg>
+        <span>Предметы</span>
+      </a>
+
+      <!-- 4. Сетка недели -->
+      <a href="/schedule"
+         class="flex items-center space-x-3 px-3.5 py-2.5 rounded-xl transition whitespace-nowrap
+                {% if active_page == 'schedule' %}bg-emerald-500 text-white shadow-md shadow-emerald-500/25 font-bold{% else %}text-zinc-400 hover:text-white hover:bg-zinc-800/60{% endif %}">
+        <svg class="w-5 h-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
+        </svg>
+        <span>Сетка звонков</span>
+      </a>
+
+      {% if current_user.is_admin %}
+      <!-- 5. Пользователи -->
+      <a href="/admin/users"
+         class="flex items-center space-x-3 px-3.5 py-2.5 rounded-xl transition whitespace-nowrap
+                {% if active_page == 'admin' %}bg-emerald-500 text-white shadow-md shadow-emerald-500/25 font-bold{% else %}text-zinc-400 hover:text-white hover:bg-zinc-800/60{% endif %}">
+        <svg class="w-5 h-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+        </svg>
+        <span>Пользователи</span>
+      </a>
+      {% endif %}
+    </nav>
+
+    <!-- Sidebar Footer -->
+    <div class="pt-4 border-t border-zinc-800/60 text-xs text-zinc-400">
+      <form action="/auth/logout" method="post">
+        <button type="submit" class="w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl hover:text-rose-400 hover:bg-rose-500/10 transition" title="Выйти">
+          <span>Выйти</span>
+          <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+          </svg>
+        </button>
+      </form>
+    </div>
+  </aside>
+  {% endif %}
+
+  <!-- Main Content Wrapper -->
+  <div class="flex-1 flex flex-col min-w-0 min-h-screen">
+
+    <!-- Content Area (Clean safe-area top on mobile, spacious container on desktop) -->
+    <main class="flex-1 w-full max-w-4xl lg:max-w-5xl mx-auto px-3.5 sm:px-6 md:px-8 {% block main_padding %}page-main{% endblock %} pb-28 md:pb-8 animate-fade-in">
+      {% block content %}{% endblock %}
+    </main>
+
+  </div>
+
+  {% if current_user %}
+  <!-- Mobile Floating Bottom Navigation Dock (3 buttons: Расписание, ДЗ, Меню) -->
+  <nav id="mobile-bottom-nav" class="md:hidden fixed bottom-5 left-0 right-0 z-40 px-4 pointer-events-none select-none flex justify-center pb-[env(safe-area-inset-bottom,0px)]">
+    <div class="pointer-events-auto w-full max-w-[240px] bg-black/90 backdrop-blur-xl border border-zinc-800 rounded-full shadow-2xl shadow-black p-1.5 flex items-center justify-between gap-1">
+      <!-- 1. Расписание -->
+      <a href="/"
+         data-nav-dashboard
+         data-dock-tab="dashboard"
+         class="dock-btn flex-1 h-11 rounded-full flex items-center justify-center transition-all duration-300 ease-in-out
+                {% if active_page == 'dashboard' %}bg-emerald-500 text-white shadow-md shadow-emerald-500/25 font-bold is-active{% else %}text-zinc-400 hover:text-white bg-transparent{% endif %}"
+         title="Расписание"
+         aria-label="Расписание">
+        <svg class="w-6 h-6 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <rect x="4" y="5" width="16" height="15" rx="4" stroke-width="2.2" />
+          <path stroke-linecap="round" stroke-width="2.2" d="M8 3v4M16 3v4M4 10h16" />
+          <circle cx="15.5" cy="14.5" r="1" fill="currentColor" stroke="none" />
+        </svg>
+      </a>
+
+      <!-- 2. ДЗ -->
+      <a href="/homework"
+         data-dock-tab="homework"
+         class="dock-btn flex-1 h-11 rounded-full flex items-center justify-center transition-all duration-300 ease-in-out
+                {% if active_page == 'homework' %}bg-emerald-500 text-white shadow-md shadow-emerald-500/25 font-bold is-active{% else %}text-zinc-400 hover:text-white bg-transparent{% endif %}"
+         title="ДЗ"
+         aria-label="ДЗ">
+        <svg class="w-6 h-6 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
+        </svg>
+      </a>
+
+      <!-- 3. Меню -->
+      <button onclick="openModal('mobile-menu-modal')"
+              type="button"
+              class="dock-btn flex-1 h-11 rounded-full flex items-center justify-center transition-all duration-300 ease-in-out text-zinc-400 hover:text-white bg-transparent"
+              title="Меню"
+              aria-label="Меню">
+        <svg class="w-6 h-6 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.4" d="M4 6h16M4 12h16M4 18h16" />
+        </svg>
+      </button>
+    </div>
+  </nav>
+
+  <!-- Mobile Menu Modal (Subjects, Schedule, Logout) -->
+  <div id="mobile-menu-modal" data-modal class="fixed inset-0 z-50 hidden items-end sm:items-center justify-center p-0 sm:p-4">
+    <!-- Backdrop overlay with explicit click close -->
+    <div class="fixed inset-0 bg-black/85 backdrop-blur-sm cursor-pointer" onclick="closeModal('mobile-menu-modal')"></div>
+
+    <div class="relative z-10 w-full sm:max-w-sm bg-black border-t sm:border border-zinc-800 rounded-t-3xl sm:rounded-2xl p-5 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
+      <div class="flex items-center justify-between pb-3 border-b border-zinc-800">
+        <div>
+          <h3 class="font-bold text-base text-white">Меню</h3>
+          <p class="text-xs text-zinc-400 truncate">{{ current_user.username }}</p>
+        </div>
+        <button onclick="closeModal('mobile-menu-modal')" class="text-zinc-400 hover:text-white p-1 rounded-lg">
+          <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
+      </div>
+
+      <div class="space-y-1 text-sm font-medium">
+        <a href="/subjects" class="flex items-center space-x-3 px-3.5 py-2.5 rounded-xl text-zinc-300 hover:bg-zinc-800 transition">
+          <svg class="w-5 h-5 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.5v12m0-12C10.5 5 8 4.5 4.5 4.5v12c3.5 0 6 .5 7.5 2m0-14C13.5 5 16 4.5 19.5 4.5v12c-3.5 0-6 .5-7.5 2" />
+          </svg>
+          <span>Предметы</span>
+        </a>
+
+        <a href="/schedule" class="flex items-center space-x-3 px-3.5 py-2.5 rounded-xl text-zinc-300 hover:bg-zinc-800 transition">
+          <svg class="w-5 h-5 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
+          </svg>
+          <span>Сетка звонков недели</span>
+        </a>
+
+        {% if current_user.is_admin %}
+        <a href="/admin/users" class="flex items-center space-x-3 px-3.5 py-2.5 rounded-xl text-zinc-300 hover:bg-zinc-800 transition">
+          <svg class="w-5 h-5 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+          </svg>
+          <span>Пользователи</span>
+        </a>
+        {% endif %}
+      </div>
+
+      <div class="pt-3 border-t border-zinc-800">
+        <form action="/auth/logout" method="post">
+          <button type="submit" class="w-full flex items-center justify-center space-x-2 py-2.5 rounded-xl text-sm font-semibold text-rose-400 hover:bg-rose-500/10 transition">
+            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+            </svg>
+            <span>Выйти из аккаунта</span>
+          </button>
+        </form>
+      </div>
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- Toast Container -->
+  <div id="toast-container" class="fixed top-5 right-5 z-50 flex flex-col space-y-2 pointer-events-none"></div>
+
+  <div id="page-modals">{% block modals %}{% endblock %}</div>
+</body>
+</html>

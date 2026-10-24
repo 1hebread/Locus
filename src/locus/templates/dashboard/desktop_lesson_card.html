@@ -1,0 +1,74 @@
+{% set lesson = item.lesson %}
+<div id="lesson-card-{{ lesson.id }}"
+     data-start-time="{{ lesson.start_time }}"
+     data-end-time="{{ lesson.end_time }}"
+     hx-get="/dashboard/lesson/{{ lesson.id }}/modal?date={{ selected_date_iso }}"
+     hx-target="#lesson-modal-container"
+     hx-swap="innerHTML"
+     {% if is_oob %}hx-swap-oob="outerHTML"{% endif %}
+     data-pressable-card
+     class="bg-black border {% if item.is_now %}border-emerald-500/70 hover:border-emerald-400 shadow-[0_0_20px_rgba(16,185,129,0.2)] hover:shadow-[0_0_25px_rgba(16,185,129,0.35)]{% else %}border-zinc-800/90 hover:border-zinc-700 shadow-[0_4px_20px_rgba(0,0,0,0.85)]{% endif %} rounded-2xl p-4 transition cursor-pointer select-none touch-manipulation">
+  <div class="flex items-center justify-between text-xs sm:text-sm font-medium leading-none">
+    <div class="flex items-center space-x-2">
+      <span class="lesson-time-span {% if item.is_now %}text-emerald-400 font-bold{% else %}text-zinc-400{% endif %}">
+        {{ lesson.start_time }} — {{ lesson.end_time }}
+      </span>
+      {% if item.is_now %}
+      <span class="lesson-now-badge text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 leading-none">
+        Сейчас
+      </span>
+      {% endif %}
+    </div>
+  </div>
+
+  <div class="mt-0.5 leading-tight">
+    <h2 class="text-base sm:text-lg font-bold text-white tracking-tight leading-tight">
+      {{ lesson.lesson_number }}. {{ lesson.subject.name if lesson.subject else 'Урок' }}
+    </h2>
+  </div>
+
+  {% if item.homeworks %}
+  {% set hw = item.homeworks[0] %}
+  <div class="mt-1">
+    <div data-hw-card="{{ hw.id }}" id="desktop-hw-card-{{ hw.id }}" class="flex items-center justify-between gap-2.5 text-xs text-zinc-400 font-medium">
+      <div class="flex items-center gap-1 min-w-0 flex-1">
+        <span class="text-emerald-400 shrink-0">
+          <svg class="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8h5z" />
+          </svg>
+        </span>
+        <span class="truncate {% if hw.status == 'DONE' %}hw-done-title{% endif %}">
+          {{ hw.title }}
+        </span>
+      </div>
+
+      <button hx-post="/homework/{{ hw.id }}/toggle?view=compact&prefix=desktop"
+              hx-target="closest [data-hw-card]"
+              hx-swap="outerHTML"
+              hx-disabled-elt="this"
+              onclick="event.stopPropagation()"
+              type="button"
+              data-hw-toggle
+              aria-label="Отметить задание"
+              title="Отметить задание"
+              class="w-4 h-4 rounded border flex items-center justify-center shrink-0 transition touch-manipulation
+                     {% if hw.status == 'DONE' %}bg-emerald-500 border-emerald-400 text-black{% else %}border-zinc-600 hover:border-emerald-400 bg-zinc-900{% endif %}">
+        {% if hw.status == 'DONE' %}
+        <svg class="w-3 h-3 text-black font-extrabold" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3.5" d="M5 13l4 4L19 7" />
+        </svg>
+        {% endif %}
+      </button>
+    </div>
+  </div>
+  {% else %}
+  <div class="mt-1 flex items-center gap-1 text-xs text-zinc-400 font-medium">
+    <span class="text-zinc-500 shrink-0">
+      <svg class="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
+        <path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8h5z" />
+      </svg>
+    </span>
+    <span>Домашнего задания нет</span>
+  </div>
+  {% endif %}
+</div>

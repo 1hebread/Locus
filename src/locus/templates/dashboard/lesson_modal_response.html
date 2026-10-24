@@ -1,0 +1,12 @@
+{% include "dashboard/desktop_lesson_card.html" %}
+{% include "dashboard/mobile_lesson_card.html" %}
+{% set rem_id = deleted_hw_id or unassigned_removed_id %}
+{% if rem_id %}
+<div id="desktop-unassigned-hw-{{ rem_id }}" hx-swap-oob="delete"></div>
+<div id="mobile-unassigned-hw-{{ rem_id }}-{{ day.day_num }}" hx-swap-oob="delete"></div>
+{% endif %}
+<div id="lesson-modal-script-trigger" hx-swap-oob="innerHTML">
+  <script>
+    closeModal('lesson-detail-modal');
+  </script>
+</div>

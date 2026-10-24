@@ -1,0 +1,305 @@
+{% extends "base.html" %}
+
+{% block title %}Дневник - Locus{% endblock %}
+
+{% block main_padding %}dashboard-main{% endblock %}
+
+{% block content %}
+<div>
+
+  <!-- ========================================== -->
+  <!-- 1. DESKTOP VIEW (Day-by-day tab switcher) -->
+  <!-- ========================================== -->
+  <div id="desktop-dashboard-view" data-is-today="{{ 'true' if is_today else 'false' }}" class="hidden md:block space-y-6">
+    <!-- Desktop Schedule Bar -->
+    <div id="desktop-week-selector" class="select-none">
+      <div class="flex items-center justify-between px-1 mb-2">
+        <span class="text-xs sm:text-sm font-bold text-emerald-400 tracking-wide">
+          {{ month_title }}
+        </span>
+      </div>
+
+      <div class="flex items-stretch bg-[#247c45] rounded-xl overflow-hidden shadow-md text-white">
+        <!-- Previous week button -->
+        <a href="/?date={{ prev_week_date_iso }}"
+           data-date-nav
+           class="flex items-center space-x-1.5 px-3 py-3.5 bg-[#1d6537] hover:bg-[#17522c] border-r border-[#1a5b32] transition shrink-0 group text-xs font-semibold text-white/85 hover:text-white"
+           title="Предыдущая неделя">
+          <svg class="w-3.5 h-3.5 text-emerald-200 group-hover:text-white transition shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M15 19l-7-7 7-7" />
+          </svg>
+          <span class="hidden xl:inline">Предыдущая неделя</span>
+          <span class="xl:hidden">Пред. неделя</span>
+        </a>
+
+        <!-- Days of week tabs -->
+        {% for day in desktop_days %}
+        <a href="/?date={{ day.date_iso }}"
+           data-date-nav
+           class="flex-1 flex items-center justify-center px-2 py-3.5 border-r border-[#1a5b32] uppercase tracking-wider text-center transition text-xs sm:text-sm lg:text-[15px]
+                  {% if day.is_selected %}bg-[#2ea35b] text-white font-black shadow-inner{% else %}bg-transparent hover:bg-[#2b8f50] text-white/90 hover:text-white font-extrabold{% endif %}">
+          <span>{{ day.name_upper }}</span>
+        </a>
+        {% endfor %}
+
+        <!-- Next week button -->
+        <a href="/?date={{ next_week_date_iso }}"
+           data-date-nav
+           class="flex items-center space-x-1.5 px-3 py-3.5 bg-[#1d6537] hover:bg-[#17522c] border-l border-[#1a5b32] transition shrink-0 group text-xs font-semibold text-white/85 hover:text-white"
+           title="Следующая неделя">
+          <span class="hidden xl:inline">Следующая неделя</span>
+          <span class="xl:hidden">След. неделя</span>
+          <svg class="w-3.5 h-3.5 text-emerald-200 group-hover:text-white transition shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 5l7 7-7 7" />
+          </svg>
+        </a>
+      </div>
+    </div>
+
+    <!-- Day content (fades when switching days/weeks; selector above stays still) -->
+    <div id="desktop-dashboard-content" class="space-y-6">
+
+    <!-- Day Header -->
+    <div class="flex items-center justify-between pt-1">
+      <div>
+        <h1 class="text-2xl lg:text-3xl font-bold tracking-tight">
+          <span class="text-white">{{ day_name }}</span>
+          <span class="text-zinc-400 font-medium"> • {{ date_title }}</span>
+        </h1>
+        {% if is_today %}
+        <p class="text-sm text-zinc-400 font-medium mt-0.5">Сегодня</p>
+        {% endif %}
+      </div>
+
+      <button onclick="openModal('add-hw-modal')"
+              class="inline-flex items-center space-x-1.5 bg-black hover:bg-zinc-900 active:scale-95 text-zinc-200 hover:text-white px-4 py-2 rounded-xl border border-zinc-800 text-sm font-semibold transition shadow-md shadow-black"
+              title="Записать домашнее задание">
+        <svg class="w-4 h-4 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4" />
+        </svg>
+        <span>Записать ДЗ</span>
+      </button>
+    </div>
+
+    <!-- Lessons & Breaks Timeline (Desktop) -->
+    {% if active_vacation %}
+    <!-- Compact Vacation Notice (Desktop) -->
+    <div class="py-4 px-4 text-center bg-black border border-zinc-800 rounded-2xl shadow-[0_4px_16px_rgba(0,0,0,0.8)]">
+      <p class="text-sm sm:text-base font-bold text-white">{{ active_vacation.name }}</p>
+      <p class="text-xs text-zinc-400 mt-0.5">{{ active_vacation.start_date.strftime('%d.%m.%Y') }} — {{ active_vacation.end_date.strftime('%d.%m.%Y') }} • уроков нет</p>
+    </div>
+    {% elif lessons_with_meta %}
+    <div class="space-y-1">
+      {% for item in lessons_with_meta %}
+        {% include "dashboard/desktop_lesson_card.html" %}
+
+        {% if item.break_text %}
+        <div class="px-2 py-0.5 text-[11px] text-zinc-500 font-medium">
+          {{ item.break_text }}
+        </div>
+        {% endif %}
+      {% endfor %}
+    </div>
+
+    {% else %}
+    <!-- Compact Empty Schedule Notice (Desktop) -->
+    <div class="py-4 px-4 text-center bg-black border border-zinc-800 rounded-2xl shadow-[0_4px_16px_rgba(0,0,0,0.8)]">
+      <p class="text-sm sm:text-base font-bold text-zinc-400">Нет расписания на этот день</p>
+    </div>
+    {% endif %}
+
+    <!-- Unassigned homework due on this date (Desktop) -->
+    {% if unassigned_hw %}
+    <div class="mt-5 pt-4 border-t border-zinc-800/80 space-y-2">
+      <h3 class="text-xs font-bold text-zinc-400 uppercase tracking-wider">{% if active_vacation %}Задания на каникулы{% else %}Другие задания на этот день{% endif %}</h3>
+      <div class="space-y-2">
+        {% for hw in unassigned_hw %}
+        <div data-hw-card="{{ hw.id }}" id="desktop-unassigned-hw-{{ hw.id }}" class="bg-black border border-zinc-800/90 rounded-2xl p-3.5 sm:p-4 shadow-[0_4px_16px_rgba(0,0,0,0.8)] flex items-start justify-between gap-3">
+          <div class="min-w-0 flex-1">
+            <div class="flex items-center space-x-2 mb-1">
+              <span class="text-[10px] font-bold px-2 py-0.5 rounded text-black bg-emerald-400">
+                {{ hw.subject.name if hw.subject else 'Предмет' }}
+              </span>
+            </div>
+            <p class="text-xs sm:text-sm text-zinc-400 font-medium break-words leading-tight {% if hw.status == 'DONE' %}hw-done-title{% endif %}">
+              {{ hw.title }}
+            </p>
+          </div>
+          <button hx-post="/homework/{{ hw.id }}/toggle?view=unassigned&prefix=desktop"
+                  hx-target="closest [data-hw-card]"
+                  hx-swap="outerHTML"
+                  hx-disabled-elt="this"
+                  type="button"
+                  data-hw-toggle
+                  aria-label="Отметить задание"
+                  title="Отметить задание"
+                  class="mt-0.5 w-4 h-4 rounded border flex items-center justify-center shrink-0 transition touch-manipulation
+                         {% if hw.status == 'DONE' %}bg-emerald-500 border-emerald-400 text-black{% else %}border-zinc-600 hover:border-emerald-400 bg-zinc-900{% endif %}">
+            {% if hw.status == 'DONE' %}
+            <svg class="w-3 h-3 text-black font-extrabold" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3.5" d="M5 13l4 4L19 7" />
+            </svg>
+            {% endif %}
+          </button>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+    {% endif %}
+
+    </div>
+  </div>
+
+  <!-- ============================================================== -->
+  <!-- 2. MOBILE VIEW (All days of the week on one screen with scroll) -->
+  <!-- ============================================================== -->
+  <div id="mobile-week-view"
+       class="md:hidden overflow-x-clip"
+       data-is-current-week="{{ 'true' if is_current_week else 'false' }}"
+       data-today-day-num="{{ today_day_num }}">
+
+    <!-- 1. Sticky Mobile Day Ribbon (Pinned at top with safe-area spacing and solid pure black) -->
+    <div id="mobile-sticky-days" class="sticky-mobile-days-bar -mx-3.5 px-3.5 pb-2.5 bg-black border-b border-zinc-800/80 select-none">
+      <div class="grid grid-cols-7 gap-1 text-center" id="mobile-day-tabs">
+        {% set initial_active_day = today_day_num if is_current_week else 1 %}
+        {% for day in week_days %}
+        {% set is_active = (day.day_num == initial_active_day) %}
+        <button type="button"
+                id="mobile-tab-{{ day.day_num }}"
+                data-day-num="{{ day.day_num }}"
+                data-is-today="{{ 'true' if day.is_today else 'false' }}"
+                onclick="scrollToMobileDay({{ day.day_num }})"
+                class="mobile-day-tab flex flex-col items-center justify-center py-1.5 transition rounded-xl gap-1">
+          <span class="day-label text-[11px] font-bold leading-none {% if is_active %}text-emerald-400{% else %}text-zinc-500{% endif %}">
+            {{ day.short_name }}
+          </span>
+          <span class="day-badge w-[34px] h-[34px] rounded-xl text-[13px] font-black flex items-center justify-center leading-none transition-all duration-150 {% if is_active %}bg-emerald-500 text-white shadow-md shadow-emerald-500/25{% else %}text-zinc-400 bg-transparent{% endif %}">
+            {{ day.day_number }}
+          </span>
+        </button>
+        {% endfor %}
+      </div>
+    </div>
+
+    <!-- 2. Mobile Week Switcher (19 - 25 октября) - Normal flow, scrolls away with content -->
+    <div id="mobile-week-switcher" class="-mx-3.5 px-3.5 pt-2 pb-1 select-none">
+      <div class="flex items-center justify-between px-3 py-1.5 bg-black border border-zinc-800 rounded-2xl shadow-sm">
+        <a href="/?date={{ prev_week_date_iso }}"
+           data-swipe-prev
+           class="p-1.5 text-zinc-400 hover:text-white transition rounded-xl hover:bg-zinc-800 active:scale-95"
+           title="Предыдущая неделя">
+          <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M15 19l-7-7 7-7" />
+          </svg>
+        </a>
+
+        <div class="text-center">
+          <span class="text-xs sm:text-sm font-bold text-white block tracking-tight">{{ week_range_title }}</span>
+          <span class="text-[10px] sm:text-[11px] font-semibold text-emerald-400 block">{{ month_title }}</span>
+        </div>
+
+        <a href="/?date={{ next_week_date_iso }}"
+           data-swipe-next
+           class="p-1.5 text-zinc-400 hover:text-white transition rounded-xl hover:bg-zinc-800 active:scale-95"
+           title="Следующая неделя">
+          <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 5l7 7-7 7" />
+          </svg>
+        </a>
+      </div>
+    </div>
+
+    <!-- All Days of the Week (Vertical Scroll List) -->
+    <div class="space-y-6 pt-2">
+      {% for day in days_data %}
+      <section id="mobile-day-{{ day.day_num }}" data-day-num="{{ day.day_num }}" data-is-today="{{ 'true' if day.is_today else 'false' }}" class="mobile-day-section space-y-2.5 scroll-mt-safe">
+        <!-- Day Title Header -->
+        <div class="pb-1.5 border-b border-zinc-800/80">
+          <h2 class="text-lg sm:text-xl font-bold tracking-tight leading-tight">
+            <span class="text-white">{{ day.name }}</span>
+            <span class="text-zinc-400 font-medium"> • {{ day.date_text }}</span>
+          </h2>
+          {% if day.is_today %}
+          <p class="text-sm text-zinc-400 font-medium leading-none mt-0.5">Сегодня</p>
+          {% endif %}
+        </div>
+
+        <!-- Lessons for this day -->
+        {% if day.vacation %}
+        <!-- Compact Vacation Notice (Mobile) -->
+        <div class="py-4 px-4 text-center bg-black border border-zinc-800 rounded-2xl shadow-[0_4px_16px_rgba(0,0,0,0.8)]">
+          <p class="text-sm sm:text-base font-bold text-white">{{ day.vacation.name }}</p>
+          <p class="text-xs text-zinc-400 mt-0.5">{{ day.vacation.start_date.strftime('%d.%m.%Y') }} — {{ day.vacation.end_date.strftime('%d.%m.%Y') }} • уроков нет</p>
+        </div>
+        {% elif day.lessons_with_meta %}
+        <div class="space-y-1">
+          {% for item in day.lessons_with_meta %}
+            {% include "dashboard/mobile_lesson_card.html" %}
+
+            {% if item.break_text %}
+            <div class="px-2 py-0.5 text-[11px] text-zinc-500 font-medium">
+              {{ item.break_text }}
+            </div>
+            {% endif %}
+          {% endfor %}
+        </div>
+        {% else %}
+        <!-- Compact Empty Schedule Notice -->
+        <div class="py-4 px-4 text-center bg-black border border-zinc-800 rounded-2xl shadow-[0_4px_16px_rgba(0,0,0,0.8)]">
+          <p class="text-sm sm:text-base font-bold text-zinc-400">Нет расписания на этот день</p>
+        </div>
+        {% endif %}
+
+        <!-- Unassigned homework due on this day -->
+        {% if day.unassigned_hw %}
+        <div class="mt-2 pt-2 border-t border-zinc-800/60 space-y-2">
+          <h3 class="text-xs font-bold text-zinc-400 uppercase tracking-wider">{% if day.vacation %}Задания на каникулы{% else %}Другие задания{% endif %}</h3>
+          <div class="space-y-2">
+            {% for hw in day.unassigned_hw %}
+            <div data-hw-card="{{ hw.id }}" id="mobile-unassigned-hw-{{ hw.id }}-{{ day.day_num }}" class="bg-black border border-zinc-800/90 rounded-2xl p-3.5 sm:p-4 shadow-[0_4px_16px_rgba(0,0,0,0.8)] flex items-start justify-between gap-3">
+              <div class="min-w-0 flex-1">
+                <div class="flex items-center space-x-2 mb-1">
+                  <span class="text-[10px] font-bold px-2 py-0.5 rounded text-black bg-emerald-400">
+                    {{ hw.subject.name if hw.subject else 'Предмет' }}
+                  </span>
+                </div>
+                <p class="text-xs sm:text-sm text-zinc-400 font-medium break-words leading-tight {% if hw.status == 'DONE' %}hw-done-title{% endif %}">
+                  {{ hw.title }}
+                </p>
+              </div>
+              <button hx-post="/homework/{{ hw.id }}/toggle?view=unassigned&prefix=mobile&day_num={{ day.day_num }}"
+                      hx-target="closest [data-hw-card]"
+                      hx-swap="outerHTML"
+                      hx-disabled-elt="this"
+                      type="button"
+                      data-hw-toggle
+                      aria-label="Отметить задание"
+                      title="Отметить задание"
+                      class="mt-0.5 w-4 h-4 rounded border flex items-center justify-center shrink-0 transition touch-manipulation
+                             {% if hw.status == 'DONE' %}bg-emerald-500 border-emerald-400 text-black{% else %}border-zinc-600 hover:border-emerald-400 bg-zinc-900{% endif %}">
+                {% if hw.status == 'DONE' %}
+                <svg class="w-3 h-3 text-black font-extrabold" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3.5" d="M5 13l4 4L19 7" />
+                </svg>
+                {% endif %}
+              </button>
+            </div>
+            {% endfor %}
+          </div>
+        </div>
+        {% endif %}
+      </section>
+      {% endfor %}
+    </div>
+  </div>
+
+</div>
+{% endblock %}
+
+{% block modals %}
+<!-- Lesson Detail / Inline Homework Modal Container -->
+<div id="lesson-modal-container"></div>
+<div id="lesson-modal-script-trigger" class="hidden"></div>
+
+{% include "homework/add_hw_modal.html" %}
+{% endblock %}

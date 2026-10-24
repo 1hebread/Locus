@@ -1,0 +1,67 @@
+{% extends "base.html" %}
+
+{% block title %}Задания - Locus{% endblock %}
+
+{% block content %}
+<div class="space-y-5">
+
+  <!-- Header & Actions -->
+  <div class="flex items-center justify-between">
+    <div>
+      <h1 class="text-xl sm:text-2xl md:text-3xl font-extrabold tracking-tight text-white">Домашние задания</h1>
+      <p class="text-xs sm:text-sm text-zinc-400 mt-0.5">Список заданий и сроки сдачи</p>
+    </div>
+
+    <button onclick="openModal('add-hw-modal')"
+            class="inline-flex items-center space-x-2 bg-emerald-500 hover:bg-emerald-600 active:scale-95 text-white px-4 py-2 rounded-xl font-bold text-xs sm:text-sm shadow-md shadow-emerald-500/20 transition">
+      <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4" />
+      </svg>
+      <span>Записать ДЗ</span>
+    </button>
+  </div>
+
+  <!-- Filters Row (single line, no broken text) -->
+  <div id="hw-filters" class="flex items-center space-x-2 overflow-x-auto pb-1 text-xs sm:text-sm">
+    <a href="/homework"
+       data-hw-filter
+       class="px-3.5 py-1.5 rounded-xl font-medium whitespace-nowrap transition {% if not current_filter %}bg-emerald-500 text-white font-bold shadow-md shadow-emerald-500/25{% else %}bg-black border border-zinc-800 text-zinc-400 hover:text-white{% endif %}">
+      Все
+    </a>
+    <a href="/homework?filter=todo"
+       data-hw-filter
+       class="px-3.5 py-1.5 rounded-xl font-medium whitespace-nowrap transition {% if current_filter == 'todo' %}bg-emerald-500 text-white font-bold shadow-md shadow-emerald-500/25{% else %}bg-black border border-zinc-800 text-zinc-400 hover:text-white{% endif %}">
+      К сдаче
+    </a>
+    <a href="/homework?filter=done"
+       data-hw-filter
+       class="px-3.5 py-1.5 rounded-xl font-medium whitespace-nowrap transition {% if current_filter == 'done' %}bg-emerald-500 text-white font-bold shadow-md shadow-emerald-500/25{% else %}bg-black border border-zinc-800 text-zinc-400 hover:text-white{% endif %}">
+      Выполненные
+    </a>
+  </div>
+
+  <!-- Homework List -->
+  <div id="hw-container" class="space-y-2.5">
+    {% if homework_list %}
+      {% for hw in homework_list %}
+        {% include "homework/hw_item.html" %}
+      {% endfor %}
+    {% else %}
+      <div class="py-20 text-center bg-black border border-zinc-800/80 rounded-2xl">
+        <div class="w-12 h-12 mx-auto rounded-full bg-zinc-900 border border-zinc-800 flex items-center justify-center text-zinc-500 mb-3">
+          <svg class="w-6 h-6 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+          </svg>
+        </div>
+        <p class="text-sm font-bold text-zinc-200">Заданий не найдено</p>
+        <p class="text-xs text-zinc-500 mt-1">Все задачи сданы или список еще пуст</p>
+      </div>
+    {% endif %}
+  </div>
+
+</div>
+{% endblock %}
+
+{% block modals %}
+{% include "homework/add_hw_modal.html" %}
+{% endblock %}

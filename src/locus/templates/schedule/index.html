@@ -1,0 +1,428 @@
+{% extends "base.html" %}
+
+{% block title %}Сетка расписания - Locus{% endblock %}
+
+{% block content %}
+<div class="space-y-5">
+
+  <!-- Header & Action Bar -->
+  <div class="flex items-center justify-between">
+    <div>
+      <h1 class="text-xl sm:text-2xl md:text-3xl font-extrabold tracking-tight text-white">Сетка звонков и уроков</h1>
+      <p class="text-xs sm:text-sm text-zinc-400 mt-0.5">Шаблон расписания по дням недели</p>
+    </div>
+
+    {% if current_user.is_admin %}
+    <button onclick="openModal('add-lesson-modal')"
+            class="inline-flex items-center space-x-2 bg-emerald-500 hover:bg-emerald-600 active:scale-95 text-white px-4 py-2 rounded-xl font-bold text-xs sm:text-sm shadow-md shadow-emerald-500/20 transition">
+      <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4" />
+      </svg>
+      <span>Добавить урок</span>
+    </button>
+    {% endif %}
+  </div>
+
+  <!-- Mobile Day Selector (Horizontal Scroll) -->
+  <div class="md:hidden flex items-center space-x-1.5 overflow-x-auto pb-1">
+    {% for d_num in range(1, 7) %}
+    <button onclick="switchMobileDay({{ d_num }})"
+            id="tab-day-{{ d_num }}"
+            class="day-tab px-3.5 py-1.5 rounded-xl border text-xs font-semibold whitespace-nowrap transition
+                   {% if d_num == active_day %}bg-emerald-500 border-emerald-400 text-white font-bold shadow-md shadow-emerald-500/25{% else %}bg-[#18181b] border-zinc-800 text-zinc-400 hover:text-white{% endif %}">
+      {{ day_names[d_num] }}
+    </button>
+    {% endfor %}
+  </div>
+
+  <!-- Schedule Grid (Spacious on Desktop) -->
+  <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5">
+    {% for d_num in range(1, 7) %}
+    <div id="day-column-{{ d_num }}"
+         class="day-column {% if d_num != active_day %}hidden md:flex{% else %}flex{% endif %} flex-col bg-[#141416] border border-zinc-800/80 rounded-2xl p-4 space-y-3">
+      <!-- Day Header -->
+      <div class="flex items-center justify-between pb-2.5 border-b border-zinc-800">
+        <h3 class="font-bold text-sm text-zinc-200">
+          {{ day_names[d_num] }}
+        </h3>
+        <span class="text-xs text-zinc-500 font-medium">
+          {{ schedule_by_day[d_num]|length }} ур.
+        </span>
+      </div>
+
+      <!-- Lessons in Day -->
+      <div class="space-y-2 flex-1">
+        {% if schedule_by_day[d_num] %}
+          {% for lesson in schedule_by_day[d_num] %}
+          <div id="lesson-card-{{ lesson.id }}" class="p-3 rounded-xl bg-[#18181b] border border-zinc-800/90 shadow-xs relative group hover:border-zinc-700 transition">
+            <div class="flex items-start justify-between gap-2">
+              <div class="min-w-0 flex-1">
+                <div class="flex items-center space-x-2 mb-1">
+                  <span class="w-2 h-2 rounded-full shrink-0 bg-emerald-400"></span>
+                  <span class="text-xs font-bold text-zinc-200">№{{ lesson.lesson_number }}</span>
+                  <span class="text-xs text-zinc-400 font-medium">{{ lesson.start_time }}–{{ lesson.end_time }}</span>
+                </div>
+
+                <h4 class="text-xs sm:text-sm font-semibold text-white truncate">
+                  {{ lesson.subject.name if lesson.subject else 'Урок' }}
+                </h4>
+
+                {% if lesson.room or (lesson.subject and lesson.subject.room) %}
+                <div class="text-[11px] text-zinc-500 mt-1">
+                  Кабинет {{ lesson.room or lesson.subject.room }}
+                </div>
+                {% endif %}
+              </div>
+
+              {% if current_user.is_admin %}
+              <!-- Delete button -->
+              <button hx-delete="/schedule/{{ lesson.id }}"
+                      hx-target="#lesson-card-{{ lesson.id }}"
+                      hx-swap="outerHTML"
+                      hx-confirm="Удалить этот урок?"
+                      class="text-zinc-500 hover:text-rose-400 p-1 transition"
+                      title="Удалить урок">
+                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+              {% endif %}
+            </div>
+          </div>
+          {% endfor %}
+        {% else %}
+          <div class="py-8 text-center text-zinc-600 text-xs">
+            Нет уроков
+          </div>
+        {% endif %}
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+
+  <!-- Vacations Section -->
+  <div class="bg-[#141416] border border-zinc-800/80 rounded-2xl p-4 sm:p-5 space-y-3.5">
+    <div class="flex items-center justify-between pb-3 border-b border-zinc-800">
+      <div>
+        <h2 class="font-bold text-base sm:text-lg text-white flex items-center gap-2">
+          <svg class="w-5 h-5 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
+          </svg>
+          <span>Школьные каникулы</span>
+        </h2>
+        <p class="text-xs text-zinc-400 mt-0.5">В дни каникул уроки не отображаются в дневнике</p>
+      </div>
+
+      {% if current_user.is_admin %}
+      <button onclick="openModal('add-vacation-modal')"
+              class="inline-flex items-center space-x-2 bg-emerald-500 hover:bg-emerald-600 active:scale-95 text-white px-3.5 py-1.5 rounded-xl font-bold text-xs sm:text-sm shadow-md shadow-emerald-500/20 transition">
+        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4" />
+        </svg>
+        <span>Добавить каникулы</span>
+      </button>
+      {% endif %}
+    </div>
+
+    {% if vacations %}
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+      {% for vac in vacations %}
+      <div id="vacation-card-{{ vac.id }}" class="p-3.5 rounded-xl bg-[#18181b] border border-zinc-800/90 shadow-xs relative group hover:border-zinc-700 transition flex items-start justify-between gap-3">
+        <div class="min-w-0 flex-1">
+          <div class="flex items-center space-x-2 mb-1">
+            <span class="w-2 h-2 rounded-full shrink-0 bg-emerald-400"></span>
+            <h4 class="text-xs sm:text-sm font-bold text-white truncate">{{ vac.name }}</h4>
+          </div>
+          <p class="text-xs text-zinc-400 font-medium">
+            {{ vac.start_date.strftime('%d.%m.%Y') }} — {{ vac.end_date.strftime('%d.%m.%Y') }}
+          </p>
+        </div>
+
+        {% if current_user.is_admin %}
+        <div class="flex items-center space-x-1 shrink-0">
+          <button type="button"
+                  data-id="{{ vac.id }}"
+                  data-name="{{ vac.name }}"
+                  data-start-date="{{ vac.start_date.isoformat() }}"
+                  data-end-date="{{ vac.end_date.isoformat() }}"
+                  onclick="openEditVacationModal(this)"
+                  class="text-zinc-400 hover:text-white p-1 rounded-lg transition"
+                  title="Редактировать каникулы">
+            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+            </svg>
+          </button>
+          <button hx-delete="/schedule/vacations/{{ vac.id }}"
+                  hx-target="#vacation-card-{{ vac.id }}"
+                  hx-swap="outerHTML"
+                  hx-confirm="Удалить эти каникулы?"
+                  class="text-zinc-500 hover:text-rose-400 p-1 transition"
+                  title="Удалить каникулы">
+            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+        {% endif %}
+      </div>
+      {% endfor %}
+    </div>
+    {% else %}
+    <div class="py-6 text-center text-zinc-600 text-xs sm:text-sm">
+      Каникулы пока не запланированы
+    </div>
+    {% endif %}
+  </div>
+
+</div>
+
+<script>
+  function switchMobileDay(dayNum) {
+    document.querySelectorAll('.day-column').forEach(col => {
+      col.classList.add('hidden');
+      col.classList.remove('flex');
+    });
+    const target = document.getElementById('day-column-' + dayNum);
+    if (target) {
+      target.classList.remove('hidden');
+      target.classList.add('flex');
+    }
+    document.querySelectorAll('.day-tab').forEach(tab => {
+      tab.classList.remove('bg-emerald-500', 'border-emerald-400', 'text-white', 'shadow-md', 'font-bold');
+      tab.classList.add('bg-[#18181b]', 'border-zinc-800', 'text-zinc-400');
+    });
+    const activeTab = document.getElementById('tab-day-' + dayNum);
+    if (activeTab) {
+      activeTab.classList.remove('bg-[#18181b]', 'border-zinc-800', 'text-zinc-400');
+      activeTab.classList.add('bg-emerald-500', 'border-emerald-400', 'text-white', 'shadow-md', 'font-bold');
+    }
+  }
+
+  // var so the script can be safely re-executed by client-side navigation
+  var bellSchedule = {
+    1: ["08:00", "08:45"],
+    2: ["08:55", "09:40"],
+    3: ["09:55", "10:40"],
+    4: ["10:55", "11:40"],
+    5: ["11:55", "12:40"],
+    6: ["12:50", "13:35"],
+    7: ["13:45", "14:30"],
+    8: ["14:40", "15:25"]
+  };
+
+  function updateLessonTimes(lessonNum) {
+    const slot = bellSchedule[lessonNum];
+    if (slot) {
+      const startInput = document.getElementById('start_time');
+      const endInput = document.getElementById('end_time');
+      if (startInput) startInput.value = slot[0];
+      if (endInput) endInput.value = slot[1];
+    }
+  }
+</script>
+{% endblock %}
+
+{% block modals %}
+{% if current_user.is_admin %}
+<!-- Add Lesson Modal -->
+<div id="add-lesson-modal" data-modal class="fixed inset-0 z-50 hidden items-end sm:items-center justify-center p-0 sm:p-4">
+  <!-- Backdrop overlay with explicit close click -->
+  <div class="fixed inset-0 bg-black/75 backdrop-blur-sm cursor-pointer" onclick="closeModal('add-lesson-modal')"></div>
+
+  <div class="relative z-10 w-full sm:max-w-md bg-[#161618] border-t sm:border border-zinc-800 rounded-t-3xl sm:rounded-2xl p-5 sm:p-6 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
+    <div class="flex items-center justify-between pb-3 border-b border-zinc-800">
+      <h3 class="font-bold text-base sm:text-lg text-white">Добавить урок в расписание</h3>
+      <button onclick="closeModal('add-lesson-modal')" class="text-zinc-400 hover:text-white p-1 rounded-lg">
+        <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+        </svg>
+      </button>
+    </div>
+
+    <form method="post" action="/schedule" class="space-y-3.5">
+      <div>
+        <label for="modal_subject_id" class="block text-xs font-medium text-zinc-300 mb-1">Предмет *</label>
+        <select id="modal_subject_id" name="subject_id" required
+                class="w-full bg-[#121214] border border-zinc-700/80 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:ring-1 focus:ring-emerald-500">
+          {% for sub in subjects %}
+          <option value="{{ sub.id }}">{{ sub.name }}</option>
+          {% endfor %}
+        </select>
+        {% if not subjects %}
+        <p class="text-xs text-amber-400 mt-1">Сначала добавьте предметы в разделе «Предметы»</p>
+        {% endif %}
+      </div>
+
+      <div class="grid grid-cols-2 gap-3">
+        <div>
+          <label for="day_of_week" class="block text-xs font-medium text-zinc-300 mb-1">День недели *</label>
+          <select id="day_of_week" name="day_of_week" required
+                  class="w-full bg-[#121214] border border-zinc-700/80 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:ring-1 focus:ring-emerald-500">
+            {% for d_num in range(1, 7) %}
+            <option value="{{ d_num }}" {% if d_num == active_day %}selected{% endif %}>{{ day_names[d_num] }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div>
+          <label for="lesson_number" class="block text-xs font-medium text-zinc-300 mb-1">Номер урока *</label>
+          <select id="lesson_number" name="lesson_number" required onchange="updateLessonTimes(this.value)"
+                  class="w-full bg-[#121214] border border-zinc-700/80 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:ring-1 focus:ring-emerald-500">
+            {% for num in range(1, 9) %}
+            <option value="{{ num }}">{{ num }}-й урок</option>
+            {% endfor %}
+          </select>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-2 gap-3">
+        <div>
+          <label for="start_time" class="block text-xs font-medium text-zinc-300 mb-1">Начало</label>
+          <input type="time" id="start_time" name="start_time" value="08:00" required
+                 class="w-full bg-[#121214] border border-zinc-700/80 rounded-xl px-3 py-1.5 text-sm text-white focus:outline-none focus:ring-1 focus:ring-emerald-500">
+        </div>
+
+        <div>
+          <label for="end_time" class="block text-xs font-medium text-zinc-300 mb-1">Конец</label>
+          <input type="time" id="end_time" name="end_time" value="08:45" required
+                 class="w-full bg-[#121214] border border-zinc-700/80 rounded-xl px-3 py-1.5 text-sm text-white focus:outline-none focus:ring-1 focus:ring-emerald-500">
+        </div>
+      </div>
+
+      <div>
+        <label for="room" class="block text-xs font-medium text-zinc-300 mb-1">Кабинет (если отличается)</label>
+        <input type="text" id="room" name="room"
+               class="w-full bg-[#121214] border border-zinc-700/80 rounded-xl px-3 py-1.5 text-sm text-white focus:outline-none focus:ring-1 focus:ring-emerald-500 placeholder-zinc-500"
+               placeholder="Например, 304">
+      </div>
+
+      <div class="flex items-center justify-end space-x-2.5 pt-3 border-t border-zinc-800">
+        <button type="button" onclick="closeModal('add-lesson-modal')"
+                class="px-3.5 py-1.5 rounded-xl text-xs font-medium text-zinc-300 hover:text-white hover:bg-zinc-800 transition">
+          Отмена
+        </button>
+        <button type="submit"
+                class="px-4 py-1.5 rounded-xl text-xs sm:text-sm font-semibold bg-emerald-500 hover:bg-emerald-600 text-white shadow-md shadow-emerald-500/20 transition">
+          Добавить
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Add Vacation Modal -->
+<div id="add-vacation-modal" data-modal class="fixed inset-0 z-50 hidden items-end sm:items-center justify-center p-0 sm:p-4">
+  <div class="fixed inset-0 bg-black/75 backdrop-blur-sm cursor-pointer" onclick="closeModal('add-vacation-modal')"></div>
+
+  <div class="relative z-10 w-full sm:max-w-md bg-[#161618] border-t sm:border border-zinc-800 rounded-t-3xl sm:rounded-2xl p-5 sm:p-6 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
+    <div class="flex items-center justify-between pb-3 border-b border-zinc-800">
+      <h3 class="font-bold text-base sm:text-lg text-white">Добавить период каникул</h3>
+      <button onclick="closeModal('add-vacation-modal')" class="text-zinc-400 hover:text-white p-1 rounded-lg">
+        <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+        </svg>
+      </button>
+    </div>
+
+    <form method="post" action="/schedule/vacations" class="space-y-3.5">
+      <div>
+        <label for="add_vac_name" class="block text-xs font-medium text-zinc-300 mb-1">Название каникул *</label>
+        <input type="text" id="add_vac_name" name="name" required maxlength="100"
+               class="w-full bg-[#121214] border border-zinc-700/80 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:ring-1 focus:ring-emerald-500 placeholder-zinc-500"
+               placeholder="Например, Осенние каникулы">
+      </div>
+
+      <div class="grid grid-cols-2 gap-3">
+        <div>
+          <label for="add_vac_start_date" class="block text-xs font-medium text-zinc-300 mb-1">Дата начала *</label>
+          <input type="date" id="add_vac_start_date" name="start_date" required
+                 class="w-full bg-[#121214] border border-zinc-700/80 rounded-xl px-3 py-1.5 text-sm text-white focus:outline-none focus:ring-1 focus:ring-emerald-500">
+        </div>
+
+        <div>
+          <label for="add_vac_end_date" class="block text-xs font-medium text-zinc-300 mb-1">Дата окончания *</label>
+          <input type="date" id="add_vac_end_date" name="end_date" required
+                 class="w-full bg-[#121214] border border-zinc-700/80 rounded-xl px-3 py-1.5 text-sm text-white focus:outline-none focus:ring-1 focus:ring-emerald-500">
+        </div>
+      </div>
+
+      <div class="flex items-center justify-end space-x-2.5 pt-3 border-t border-zinc-800">
+        <button type="button" onclick="closeModal('add-vacation-modal')"
+                class="px-3.5 py-1.5 rounded-xl text-xs font-medium text-zinc-300 hover:text-white hover:bg-zinc-800 transition">
+          Отмена
+        </button>
+        <button type="submit"
+                class="px-4 py-1.5 rounded-xl text-xs sm:text-sm font-semibold bg-emerald-500 hover:bg-emerald-600 text-white shadow-md shadow-emerald-500/20 transition">
+          Добавить
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Edit Vacation Modal -->
+<div id="edit-vacation-modal" data-modal class="fixed inset-0 z-50 hidden items-end sm:items-center justify-center p-0 sm:p-4">
+  <div class="fixed inset-0 bg-black/75 backdrop-blur-sm cursor-pointer" onclick="closeModal('edit-vacation-modal')"></div>
+
+  <div class="relative z-10 w-full sm:max-w-md bg-[#161618] border-t sm:border border-zinc-800 rounded-t-3xl sm:rounded-2xl p-5 sm:p-6 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
+    <div class="flex items-center justify-between pb-3 border-b border-zinc-800">
+      <h3 class="font-bold text-base sm:text-lg text-white">Редактировать каникулы</h3>
+      <button onclick="closeModal('edit-vacation-modal')" class="text-zinc-400 hover:text-white p-1 rounded-lg">
+        <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+        </svg>
+      </button>
+    </div>
+
+    <form id="edit-vacation-form" method="post" action="/schedule/vacations/0/edit" class="space-y-3.5">
+      <div>
+        <label for="edit_vac_name" class="block text-xs font-medium text-zinc-300 mb-1">Название каникул *</label>
+        <input type="text" id="edit_vac_name" name="name" required maxlength="100"
+               class="w-full bg-[#121214] border border-zinc-700/80 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:ring-1 focus:ring-emerald-500 placeholder-zinc-500">
+      </div>
+
+      <div class="grid grid-cols-2 gap-3">
+        <div>
+          <label for="edit_vac_start_date" class="block text-xs font-medium text-zinc-300 mb-1">Дата начала *</label>
+          <input type="date" id="edit_vac_start_date" name="start_date" required
+                 class="w-full bg-[#121214] border border-zinc-700/80 rounded-xl px-3 py-1.5 text-sm text-white focus:outline-none focus:ring-1 focus:ring-emerald-500">
+        </div>
+
+        <div>
+          <label for="edit_vac_end_date" class="block text-xs font-medium text-zinc-300 mb-1">Дата окончания *</label>
+          <input type="date" id="edit_vac_end_date" name="end_date" required
+                 class="w-full bg-[#121214] border border-zinc-700/80 rounded-xl px-3 py-1.5 text-sm text-white focus:outline-none focus:ring-1 focus:ring-emerald-500">
+        </div>
+      </div>
+
+      <div class="flex items-center justify-end space-x-2.5 pt-3 border-t border-zinc-800">
+        <button type="button" onclick="closeModal('edit-vacation-modal')"
+                class="px-3.5 py-1.5 rounded-xl text-xs font-medium text-zinc-300 hover:text-white hover:bg-zinc-800 transition">
+          Отмена
+        </button>
+        <button type="submit"
+                class="px-4 py-1.5 rounded-xl text-xs sm:text-sm font-semibold bg-emerald-500 hover:bg-emerald-600 text-white shadow-md shadow-emerald-500/20 transition">
+          Сохранить
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+function openEditVacationModal(btn) {
+  if (!btn || !btn.dataset) return;
+  const id = btn.dataset.id;
+  const form = document.getElementById('edit-vacation-form');
+  if (form) form.action = '/schedule/vacations/' + id + '/edit';
+  const nameEl = document.getElementById('edit_vac_name');
+  if (nameEl) nameEl.value = btn.dataset.name || '';
+  const startEl = document.getElementById('edit_vac_start_date');
+  if (startEl) startEl.value = btn.dataset.startDate || '';
+  const endEl = document.getElementById('edit_vac_end_date');
+  if (endEl) endEl.value = btn.dataset.endDate || '';
+  openModal('edit-vacation-modal');
+}
+</script>
+{% endif %}
+{% endblock %}

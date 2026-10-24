@@ -1,0 +1,426 @@
+/* Locus Clean Dark UI & Mobile Design */
+
+:root {
+  color-scheme: dark;
+}
+
+html, body {
+  overscroll-behavior-y: contain;
+  overscroll-behavior-x: none;
+  scrollbar-gutter: stable;
+  background-color: #000000;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  background-color: #000000;
+  color: #f4f4f5;
+  -webkit-tap-highlight-color: transparent;
+  margin: 0;
+  padding: 0;
+}
+
+/* Touch action for week ribbon to allow vertical scrolling while handling custom swipe */
+#mobile-week-container {
+  touch-action: pan-y;
+}
+
+/* Safe areas for iPhone notch / Dynamic Island / Home Indicator */
+.safe-top-area {
+  padding-top: calc(env(safe-area-inset-top, 0px) + 0.5rem);
+}
+
+.safe-bottom-area {
+  padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 5.5rem);
+}
+
+.bottom-nav-fixed {
+  padding-bottom: max(env(safe-area-inset-bottom, 0px), 0.5rem);
+}
+
+/* Keep page content clear of the iOS standalone status-bar scrim */
+.page-main {
+  padding-top: calc(env(safe-area-inset-top, 0px) + 1.25rem);
+}
+
+/* The dashboard has its own safe-area-aware sticky header */
+.dashboard-main {
+  padding-top: 0;
+}
+
+@media (min-width: 768px) {
+  .page-main,
+  .dashboard-main {
+    padding-top: 1.5rem;
+  }
+}
+
+/* Normalize native date inputs: iOS renders them with oversized native metrics.
+   Scoped to WebKit so desktop Chrome keeps its native picker affordances. */
+/* iOS date value is replaced by a formatted overlay (see app.js) */
+.hw-date-display {
+  display: none;
+}
+
+@supports (-webkit-touch-callout: none) {
+  /* Hide the localized native value ("23 окт. 2026 г.") but keep the picker */
+  .hw-date-input {
+    color: transparent !important;
+    -webkit-text-fill-color: transparent;
+    caret-color: transparent;
+  }
+
+  .hw-date-input::-webkit-date-and-time-value,
+  .hw-date-input::-webkit-datetime-edit {
+    color: transparent;
+    -webkit-text-fill-color: transparent;
+  }
+
+  .hw-date-display {
+    display: flex;
+  }
+
+  input[type="date"] {
+    -webkit-appearance: none;
+    appearance: none;
+    display: block;
+    box-sizing: border-box;
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    min-height: 2.375rem;
+    height: 2.375rem;
+    font-size: inherit;
+    line-height: 1.25;
+  }
+
+  input[type="date"]::-webkit-date-and-time-value {
+    min-width: 0;
+    height: 1.25rem;
+    margin: 0;
+    text-align: left;
+  }
+
+  input[type="date"]::-webkit-datetime-edit {
+    display: block;
+    padding: 0;
+    margin: 0;
+  }
+
+  input[type="date"]::-webkit-inner-spin-button {
+    height: auto;
+  }
+
+  /* iOS zooms the page when a focused field is smaller than 16px.
+     Keep modal controls at 16px so the keyboard does not shift the page. */
+  @media (max-width: 767px) {
+    [data-modal] input:not([type="checkbox"]):not([type="radio"]),
+    [data-modal] select,
+    [data-modal] textarea {
+      font-size: 1rem;
+    }
+  }
+}
+
+/* Custom scrollbars */
+::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+
+::-webkit-scrollbar-track {
+  background: #000000;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #27272a;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #3f3f46;
+}
+
+/* Homework strike-through transition */
+.hw-done-title {
+  text-decoration: line-through;
+  opacity: 0.5;
+}
+
+/* Smooth tap & hover */
+.card-pressable {
+  transition: transform 0.12s ease, background-color 0.12s ease;
+}
+
+.card-pressable:active {
+  transform: scale(0.985);
+}
+
+/* Custom checkbox matching the dashboard homework toggle */
+.hw-checkbox {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 1rem;
+  height: 1rem;
+  flex-shrink: 0;
+  border-radius: 0.25rem;
+  border: 1px solid #52525b;
+  background-color: #18181b;
+  cursor: pointer;
+  position: relative;
+  transition: transform 0.15s ease, background-color 0.15s ease, border-color 0.15s ease;
+}
+
+.hw-checkbox:hover {
+  border-color: #34b566;
+}
+
+.hw-checkbox:checked {
+  background-color: #2ea35b;
+  border-color: #34b566;
+}
+
+.hw-checkbox::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 0.45rem;
+  height: 0.25rem;
+  border-left: 2px solid #000;
+  border-bottom: 2px solid #000;
+  transform: translate(-50%, -60%) rotate(-45deg) scale(0);
+  transition: transform 0.12s ease;
+}
+
+.hw-checkbox:checked::after {
+  transform: translate(-50%, -60%) rotate(-45deg) scale(1);
+}
+
+/* Enlarge the invisible tap target of the small homework checkboxes */
+[data-hw-toggle] {
+  position: relative;
+}
+
+[data-hw-toggle]::before {
+  content: '';
+  position: absolute;
+  inset: -0.75rem;
+  border-radius: 9999px;
+}
+
+/* Lesson cards and homework checkboxes: press feedback driven by app.js */
+[data-pressable-card].is-pressing {
+  transform: scale(0.995);
+}
+
+[data-hw-toggle].is-pressing {
+  transform: scale(0.82);
+}
+
+@media (max-width: 767px) {
+  [data-pressable-card].is-pressing {
+    transform: scale(0.99);
+  }
+
+  [data-hw-toggle].is-pressing {
+    transform: scale(0.82);
+  }
+}
+
+/* Clean Modal Backdrop */
+.modal-backdrop {
+  background-color: rgba(0, 0, 0, 0.75);
+}
+
+/* Page & view smooth pure fade without vertical jitter */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.15s ease-out;
+}
+
+/* Mobile sticky days ribbon: solid AMOLED black, constant safe-area top padding */
+.sticky-mobile-days-bar {
+  position: -webkit-sticky !important;
+  position: sticky !important;
+  top: 0 !important;
+  margin-top: 0 !important;
+  z-index: 40 !important;
+  padding-top: calc(env(safe-area-inset-top, 0px) + 1.35rem) !important;
+  background-color: #000000 !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+#mobile-week-view {
+  margin-top: 0 !important;
+}
+
+/* iOS PWA Safe Area spacing */
+.ios-safe-pt {
+  padding-top: calc(env(safe-area-inset-top, 0px) + 1.35rem) !important;
+}
+
+.scroll-mt-safe {
+  scroll-margin-top: calc(env(safe-area-inset-top, 0px) + 7.5rem) !important;
+}
+
+/* Bottom dock buttons smooth fade */
+.dock-btn {
+  transition: background-color 0.25s ease, color 0.25s ease, box-shadow 0.25s ease;
+}
+
+/* Modal fade animations */
+[data-modal] {
+  opacity: 0;
+  transition: opacity 0.18s ease-out;
+}
+
+[data-modal].modal-visible {
+  opacity: 1;
+}
+
+/* Desktop: barely noticeable lift-in */
+[data-modal] > div:last-child {
+  transform: translateY(6px) scale(0.99);
+  transition: transform 0.16s ease-out, opacity 0.16s ease-out;
+}
+
+[data-modal].modal-visible > div:last-child {
+  transform: translateY(0) scale(1);
+}
+
+/* Mobile bottom-sheet: slides up from the bottom edge */
+@media (max-width: 767px) {
+  [data-modal] {
+    transition: opacity 0.22s ease-out;
+  }
+
+  [data-modal] > div:last-child {
+    transform: translateY(100%);
+    transition: transform 0.24s cubic-bezier(0.4, 0, 1, 1), opacity 0.2s ease-out;
+    will-change: transform;
+  }
+
+  [data-modal].modal-visible > div:last-child {
+    transform: translateY(0);
+    transition: transform 0.36s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.2s ease-out;
+  }
+}
+
+/* Horizontal overflow clipping without breaking position: sticky */
+.overflow-x-clip {
+  overflow-x: clip;
+}
+
+/* Mobile week switch animations */
+@keyframes weekSlideOutLeft {
+  0% {
+    transform: translate3d(0, 0, 0);
+    opacity: 1;
+  }
+  100% {
+    transform: translate3d(-36px, 0, 0);
+    opacity: 0;
+  }
+}
+
+@keyframes weekSlideOutRight {
+  0% {
+    transform: translate3d(0, 0, 0);
+    opacity: 1;
+  }
+  100% {
+    transform: translate3d(36px, 0, 0);
+    opacity: 0;
+  }
+}
+
+@keyframes weekSlideInRight {
+  0% {
+    transform: translate3d(36px, 0, 0);
+    opacity: 0;
+  }
+  100% {
+    transform: translate3d(0, 0, 0);
+    opacity: 1;
+  }
+}
+
+@keyframes weekSlideInLeft {
+  0% {
+    transform: translate3d(-36px, 0, 0);
+    opacity: 0;
+  }
+  100% {
+    transform: translate3d(0, 0, 0);
+    opacity: 1;
+  }
+}
+
+.anim-week-slide-out-left {
+  animation: weekSlideOutLeft 0.16s cubic-bezier(0.4, 0, 1, 1) both !important;
+  will-change: transform, opacity;
+  pointer-events: none;
+}
+
+.anim-week-slide-out-right {
+  animation: weekSlideOutRight 0.16s cubic-bezier(0.4, 0, 1, 1) both !important;
+  will-change: transform, opacity;
+  pointer-events: none;
+}
+
+.anim-week-slide-in-right {
+  animation: weekSlideInRight 0.22s cubic-bezier(0.16, 1, 0.3, 1) both !important;
+  will-change: transform, opacity;
+}
+
+.anim-week-slide-in-left {
+  animation: weekSlideInLeft 0.22s cubic-bezier(0.16, 1, 0.3, 1) both !important;
+  will-change: transform, opacity;
+}
+
+/* Section switch animation (dock / sidebar navigation) */
+@keyframes pageFadeOut {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+@keyframes pageFadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.anim-page-fade-out {
+  animation: pageFadeOut 0.14s ease-out both !important;
+  will-change: opacity;
+  pointer-events: none;
+}
+
+.anim-page-fade-in {
+  animation: pageFadeIn 0.18s ease-out both !important;
+  will-change: opacity;
+}
+
+/* Prevent touch tap highlights and sticky hover on mobile cards */
+@media (hover: none) {
+  [id^="m-lesson-card-"] {
+    -webkit-tap-highlight-color: transparent !important;
+  }
+}

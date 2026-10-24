@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+
+{% block title %}Вход - Locus{% endblock %}
+
+{% block content %}
+<div class="min-h-[75vh] flex items-center justify-center">
+  <div class="w-full max-w-sm bg-[#18181b] border border-zinc-800 rounded-3xl p-6 sm:p-7 shadow-2xl">
+    <div class="text-center mb-6">
+      <img src="/static/icons/icon.svg?v={{ asset_version('icons/icon.svg') }}"
+           alt="" aria-hidden="true"
+           class="w-12 h-12 mx-auto mb-3 shadow-lg shadow-emerald-500/10">
+      <h1 class="text-xl font-bold tracking-tight text-white">Вход в Locus</h1>
+      <p class="text-xs text-zinc-400 mt-1">Школьный дневник и расписание</p>
+    </div>
+
+    {% if error %}
+    <div class="mb-4 pt-2 pb-2.5 px-3.5 rounded-xl bg-rose-950/40 border border-rose-900/60 text-rose-300 text-xs">
+      {{ error }}
+    </div>
+    {% endif %}
+
+    <form method="post" action="/auth/login" class="space-y-3.5">
+      <div>
+        <label for="username" class="block text-xs font-medium text-zinc-300 mb-1">Логин</label>
+        <input type="text" id="username" name="username" required maxlength="255" autocomplete="username"
+               value="{{ username or '' }}"
+               class="w-full bg-[#121214] border border-zinc-700/80 rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none focus:ring-1 focus:ring-emerald-500 placeholder-zinc-500"
+               placeholder="student">
+      </div>
+
+      <div>
+        <label for="password" class="block text-xs font-medium text-zinc-300 mb-1">Пароль</label>
+        <input type="password" id="password" name="password" required autocomplete="current-password"
+               class="w-full bg-[#121214] border border-zinc-700/80 rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none focus:ring-1 focus:ring-emerald-500 placeholder-zinc-500"
+               placeholder="••••••••">
+      </div>
+
+      <button type="submit"
+              class="w-full mt-2 bg-emerald-500 hover:bg-emerald-600 active:scale-[0.98] text-white font-bold py-2.5 rounded-xl shadow-lg shadow-emerald-500/25 transition text-sm flex items-center justify-center">
+        Войти
+      </button>
+    </form>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,254 @@
+{% extends "base.html" %}
+
+{% block title %}Предметы - Locus{% endblock %}
+
+{% block content %}
+<div class="space-y-5">
+
+  <!-- Header -->
+  <div class="flex items-center justify-between">
+    <div>
+      <h1 class="text-xl sm:text-2xl md:text-3xl font-extrabold tracking-tight text-white">Школьные предметы</h1>
+      <p class="text-xs sm:text-sm text-zinc-400 mt-0.5">Список предметов, кабинетов и учителей</p>
+    </div>
+
+    {% if current_user.is_admin %}
+    <button onclick="openModal('add-subject-modal')"
+            class="inline-flex items-center space-x-2 bg-emerald-500 hover:bg-emerald-600 active:scale-95 text-white px-4 py-2 rounded-xl font-bold text-xs sm:text-sm shadow-md shadow-emerald-500/20 transition">
+      <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4" />
+      </svg>
+      <span>Новый предмет</span>
+    </button>
+    {% endif %}
+  </div>
+
+  <!-- Subjects Grid -->
+  <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+    {% if subjects %}
+      {% for sub in subjects %}
+      <div id="subject-card-{{ sub.id }}" class="p-4 sm:p-5 rounded-2xl bg-[#18181b] border border-zinc-800/90 shadow-sm relative group hover:border-zinc-700 transition flex flex-col justify-between">
+        <div>
+          <div class="flex items-center justify-between mb-2">
+            <span class="w-3.5 h-3.5 rounded-full bg-emerald-400 shadow"></span>
+            {% if current_user.is_admin %}
+            <div class="flex items-center space-x-1">
+              <button type="button"
+                      onclick="openEditSubjectModal(this)"
+                      data-id="{{ sub.id }}"
+                      data-name="{{ sub.name }}"
+                      data-teacher="{{ sub.teacher_name or '' }}"
+                      data-phone="{{ sub.teacher_phone or '' }}"
+                      data-room="{{ sub.room or '' }}"
+                      class="text-zinc-500 hover:text-emerald-400 p-1 rounded-lg hover:bg-zinc-800 transition"
+                      title="Редактировать">
+                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                </svg>
+              </button>
+              <button hx-delete="/subjects/{{ sub.id }}"
+                      hx-target="#subject-card-{{ sub.id }}"
+                      hx-swap="outerHTML"
+                      hx-confirm="Удалить предмет '{{ sub.name }}'?"
+                      class="text-zinc-500 hover:text-rose-400 p-1 rounded-lg hover:bg-zinc-800 transition"
+                      title="Удалить">
+                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                </svg>
+              </button>
+            </div>
+            {% endif %}
+          </div>
+
+          <h3 class="font-bold text-base sm:text-lg text-white">{{ sub.name }}</h3>
+        </div>
+
+        <div class="mt-4 pt-3 border-t border-zinc-800/70 space-y-1.5 text-xs text-zinc-400">
+          {% if sub.room %}
+          <div class="flex items-center space-x-2">
+            <span class="text-zinc-500">Кабинет:</span>
+            <strong class="text-zinc-200">{{ sub.room }}</strong>
+          </div>
+          {% endif %}
+
+          {% if sub.teacher_name %}
+          <div class="flex items-center space-x-2 truncate">
+            <span class="text-zinc-500">Преподаватель:</span>
+            <span class="text-zinc-300 truncate">{{ sub.teacher_name }}</span>
+          </div>
+          {% endif %}
+
+          {% if sub.teacher_phone %}
+          <div class="flex items-center justify-between gap-2 pt-0.5">
+            <div class="flex items-center space-x-1.5 text-zinc-300 truncate min-w-0">
+              <svg class="w-3.5 h-3.5 text-zinc-500 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
+              </svg>
+              <span class="truncate">{{ sub.teacher_phone }}</span>
+            </div>
+            {% if sub.whatsapp_url %}
+            <a href="{{ sub.whatsapp_url }}"
+               target="_blank"
+               rel="noopener noreferrer"
+               class="shrink-0 inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-400 hover:text-emerald-300 border border-emerald-500/30 font-medium text-[11px] transition"
+               title="Написать в WhatsApp">
+              <svg class="w-3.5 h-3.5 fill-current" viewBox="0 0 24 24">
+                <path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946.003-6.556 5.338-11.891 11.893-11.891 3.181.001 6.167 1.24 8.413 3.488 2.245 2.248 3.481 5.236 3.48 8.414-.003 6.557-5.338 11.892-11.893 11.892-1.99-.001-3.951-.5-5.688-1.448l-6.305 1.654zm6.597-3.807c1.676.995 3.276 1.591 5.392 1.592 5.448 0 9.886-4.434 9.889-9.885.002-5.462-4.415-9.89-9.881-9.892-5.452 0-9.887 4.434-9.889 9.884-.001 2.225.651 3.891 1.746 5.634l-.999 3.648 3.742-.981zm11.387-5.464c-.074-.124-.272-.198-.57-.347-.297-.149-1.758-.868-2.031-.967-.272-.099-.47-.149-.669.149-.198.297-.768.967-.941 1.165-.173.198-.347.223-.644.074-.297-.149-1.255-.462-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.297-.347.446-.521.151-.172.2-.296.3-.495.099-.198.05-.372-.025-.521-.075-.148-.669-1.611-.916-2.206-.242-.579-.487-.501-.669-.51l-.57-.01c-.198 0-.52.074-.792.372s-1.04 1.016-1.04 2.479 1.065 2.876 1.213 3.074c.149.198 2.095 3.2 5.076 4.487.709.306 1.263.489 1.694.626.712.226 1.36.194 1.872.118.571-.085 1.758-.719 2.006-1.413.248-.695.248-1.29.173-1.414z"/>
+              </svg>
+              <span>WhatsApp</span>
+            </a>
+            {% endif %}
+          </div>
+          {% endif %}
+        </div>
+      </div>
+      {% endfor %}
+    {% else %}
+      <div class="col-span-full py-20 text-center bg-[#18181b] border border-zinc-800/80 rounded-2xl">
+        <div class="w-12 h-12 mx-auto rounded-full bg-zinc-800 flex items-center justify-center text-zinc-500 mb-3">
+          <svg class="w-6 h-6 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+          </svg>
+        </div>
+        <p class="text-sm font-bold text-zinc-200">Список предметов пуст</p>
+        <p class="text-xs text-zinc-500 mt-1">Добавьте предметы (Алгебра, Химия, Русский язык и др.) для заполнения расписания</p>
+      </div>
+    {% endif %}
+  </div>
+
+</div>
+{% endblock %}
+
+{% block modals %}
+{% if current_user.is_admin %}
+<!-- Add Subject Modal -->
+<div id="add-subject-modal" data-modal class="fixed inset-0 z-50 hidden items-end sm:items-center justify-center p-0 sm:p-4">
+  <!-- Backdrop overlay with explicit close click -->
+  <div class="fixed inset-0 bg-black/75 backdrop-blur-sm cursor-pointer" onclick="closeModal('add-subject-modal')"></div>
+
+  <div class="relative z-10 w-full sm:max-w-md bg-[#161618] border-t sm:border border-zinc-800 rounded-t-3xl sm:rounded-2xl p-5 sm:p-6 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
+    <div class="flex items-center justify-between pb-3 border-b border-zinc-800">
+      <h3 class="font-bold text-base sm:text-lg text-white">Добавить школьный предмет</h3>
+      <button onclick="closeModal('add-subject-modal')" class="text-zinc-400 hover:text-white p-1 rounded-lg">
+        <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+        </svg>
+      </button>
+    </div>
+
+    <form method="post" action="/subjects" class="space-y-3.5">
+      <div>
+        <label for="sub_name" class="block text-xs font-medium text-zinc-300 mb-1">Название предмета *</label>
+        <input type="text" id="sub_name" name="name" required maxlength="100"
+               class="w-full bg-[#121214] border border-zinc-700/80 rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none focus:ring-1 focus:ring-emerald-500 placeholder-zinc-500"
+               placeholder="Например, Химия">
+      </div>
+
+      <div>
+        <label for="sub_teacher" class="block text-xs font-medium text-zinc-300 mb-1">Преподаватель</label>
+        <input type="text" id="sub_teacher" name="teacher_name" maxlength="120"
+               class="w-full bg-[#121214] border border-zinc-700/80 rounded-xl px-3.5 py-2 text-sm text-white focus:outline-none focus:ring-1 focus:ring-emerald-500 placeholder-zinc-500"
+               placeholder="Иванова Светлана Петровна">
+      </div>
+
+      <div>
+        <label for="sub_phone" class="block text-xs font-medium text-zinc-300 mb-1">Телефон преподавателя</label>
+        <input type="tel" id="sub_phone" name="teacher_phone" maxlength="50" pattern="[\d\s\+\-\(\)]*" title="Только цифры и символы +, -, (, )"
+               class="w-full bg-[#121214] border border-zinc-700/80 rounded-xl px-3.5 py-2 text-sm text-white focus:outline-none focus:ring-1 focus:ring-emerald-500 placeholder-zinc-500"
+               placeholder="+7 (999) 000-00-00">
+      </div>
+
+      <div>
+        <label for="sub_room" class="block text-xs font-medium text-zinc-300 mb-1">Кабинет по умолчанию</label>
+        <input type="text" id="sub_room" name="room" maxlength="50"
+               class="w-full bg-[#121214] border border-zinc-700/80 rounded-xl px-3.5 py-2 text-sm text-white focus:outline-none focus:ring-1 focus:ring-emerald-500 placeholder-zinc-500"
+               placeholder="205">
+      </div>
+
+      <div class="flex items-center justify-end space-x-2.5 pt-3 border-t border-zinc-800">
+        <button type="button" onclick="closeModal('add-subject-modal')"
+                class="px-3.5 py-1.5 rounded-xl text-xs font-medium text-zinc-300 hover:text-white hover:bg-zinc-800 transition">
+          Отмена
+        </button>
+        <button type="submit"
+                class="px-4 py-1.5 rounded-xl text-xs sm:text-sm font-semibold bg-emerald-500 hover:bg-emerald-600 text-white shadow-md shadow-emerald-500/20 transition">
+          Создать
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Edit Subject Modal -->
+<div id="edit-subject-modal" data-modal class="fixed inset-0 z-50 hidden items-end sm:items-center justify-center p-0 sm:p-4">
+  <div class="fixed inset-0 bg-black/75 backdrop-blur-sm cursor-pointer" onclick="closeModal('edit-subject-modal')"></div>
+
+  <div class="relative z-10 w-full sm:max-w-md bg-[#161618] border-t sm:border border-zinc-800 rounded-t-3xl sm:rounded-2xl p-5 sm:p-6 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
+    <div class="flex items-center justify-between pb-3 border-b border-zinc-800">
+      <h3 class="font-bold text-base sm:text-lg text-white">Редактировать предмет</h3>
+      <button onclick="closeModal('edit-subject-modal')" class="text-zinc-400 hover:text-white p-1 rounded-lg">
+        <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+        </svg>
+      </button>
+    </div>
+
+    <form id="edit-subject-form" method="post" action="" class="space-y-3.5">
+      <div>
+        <label for="edit_sub_name" class="block text-xs font-medium text-zinc-300 mb-1">Название предмета *</label>
+        <input type="text" id="edit_sub_name" name="name" required maxlength="100"
+               class="w-full bg-[#121214] border border-zinc-700/80 rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none focus:ring-1 focus:ring-emerald-500 placeholder-zinc-500">
+      </div>
+
+      <div>
+        <label for="edit_sub_teacher" class="block text-xs font-medium text-zinc-300 mb-1">Преподаватель</label>
+        <input type="text" id="edit_sub_teacher" name="teacher_name" maxlength="120"
+               class="w-full bg-[#121214] border border-zinc-700/80 rounded-xl px-3.5 py-2 text-sm text-white focus:outline-none focus:ring-1 focus:ring-emerald-500 placeholder-zinc-500">
+      </div>
+
+      <div>
+        <label for="edit_sub_phone" class="block text-xs font-medium text-zinc-300 mb-1">Телефон преподавателя</label>
+        <input type="tel" id="edit_sub_phone" name="teacher_phone" maxlength="50" pattern="[\d\s\+\-\(\)]*" title="Только цифры и символы +, -, (, )"
+               class="w-full bg-[#121214] border border-zinc-700/80 rounded-xl px-3.5 py-2 text-sm text-white focus:outline-none focus:ring-1 focus:ring-emerald-500 placeholder-zinc-500"
+               placeholder="+7 (999) 000-00-00">
+      </div>
+
+      <div>
+        <label for="edit_sub_room" class="block text-xs font-medium text-zinc-300 mb-1">Кабинет по умолчанию</label>
+        <input type="text" id="edit_sub_room" name="room" maxlength="50"
+               class="w-full bg-[#121214] border border-zinc-700/80 rounded-xl px-3.5 py-2 text-sm text-white focus:outline-none focus:ring-1 focus:ring-emerald-500 placeholder-zinc-500">
+      </div>
+
+      <div class="flex items-center justify-end space-x-2.5 pt-3 border-t border-zinc-800">
+        <button type="button" onclick="closeModal('edit-subject-modal')"
+                class="px-3.5 py-1.5 rounded-xl text-xs font-medium text-zinc-300 hover:text-white hover:bg-zinc-800 transition">
+          Отмена
+        </button>
+        <button type="submit"
+                class="px-4 py-1.5 rounded-xl text-xs sm:text-sm font-semibold bg-emerald-500 hover:bg-emerald-600 text-white shadow-md shadow-emerald-500/20 transition">
+          Сохранить
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+function openEditSubjectModal(btn) {
+  if (!btn || !btn.dataset) return;
+  const id = btn.dataset.id;
+  const form = document.getElementById('edit-subject-form');
+  if (form) form.action = '/subjects/' + id + '/edit';
+  const nameEl = document.getElementById('edit_sub_name');
+  if (nameEl) nameEl.value = btn.dataset.name || '';
+  const teacherEl = document.getElementById('edit_sub_teacher');
+  if (teacherEl) teacherEl.value = btn.dataset.teacher || '';
+  const phoneEl = document.getElementById('edit_sub_phone');
+  if (phoneEl) phoneEl.value = btn.dataset.phone || '';
+  const roomEl = document.getElementById('edit_sub_room');
+  if (roomEl) roomEl.value = btn.dataset.room || '';
+  openModal('edit-subject-modal');
+}
+</script>
+{% endif %}
+{% endblock %}
