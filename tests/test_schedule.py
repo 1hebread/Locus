@@ -1,5 +1,6 @@
 import pytest
 from httpx import AsyncClient
+from sqlalchemy import text
 
 from locus.models.subject import Subject
 
@@ -201,16 +202,20 @@ async def test_subject_teacher_phone_encryption_and_whatsapp(
     assert subj_data["whatsapp_url"] == "https://wa.me/79991112233"
     subj_id = subj_data["id"]
 
-    # 2. Check raw DB row to confirm encryption at rest
+    # 2. Check raw DB row to confirm encryption at rest for both teacher_phone and teacher_name
     raw_res = await db_session.execute(
-        text("SELECT teacher_phone FROM subjects WHERE id = :id"),
+        text("SELECT teacher_phone, teacher_name FROM subjects WHERE id = :id"),
         {"id": subj_id},
     )
-    raw_val = raw_res.scalar_one()
+    raw_val, raw_name = raw_res.one()
     assert raw_val is not None
     assert raw_val.startswith("gAAAAA")
     assert "999" not in raw_val
     assert "111-22-33" not in raw_val
+
+    assert raw_name is not None
+    assert raw_name.startswith("gAAAAA")
+    assert "Сергеев" not in raw_name
 
     # 3. Web subjects page displays phone and WhatsApp link
     client.cookies.set(settings.COOKIE_NAME, auth_token)
@@ -240,12 +245,14 @@ async def test_subject_teacher_phone_encryption_and_whatsapp(
 
     # Raw DB row is still encrypted
     raw_res2 = await db_session.execute(
-        text("SELECT teacher_phone FROM subjects WHERE id = :id"),
+        text("SELECT teacher_phone, teacher_name FROM subjects WHERE id = :id"),
         {"id": subj_id},
     )
-    raw_val2 = raw_res2.scalar_one()
+    raw_val2, raw_name2 = raw_res2.one()
     assert raw_val2.startswith("gAAAAA")
     assert "555" not in raw_val2
+    assert raw_name2.startswith("gAAAAA")
+    assert "Сергеев" not in raw_name2
 
     # 5. 10-digit and 11-digit phone normalization
     res_ten = await client.post(
@@ -424,3 +431,48 @@ async def test_vacation_api_crud_and_validation(
     # 9. Verify deleted
     res_get_deleted = await client.get(f"/api/v1/vacations/{vac_id}", headers=auth_headers)
     assert res_get_deleted.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_teacher_name_encryption_multibyte_and_legacy_fallback(
+    client: AsyncClient,
+    auth_headers: dict,
+    db_session,
+):
+    """Test multi-byte UTF-8 emoji support and legacy unencrypted fallback for teacher_name."""
+    # 1. Create subject with emoji in teacher name
+    res_create = await client.post(
+        "/api/v1/subjects",
+        headers=auth_headers,
+        json={
+            "name": "Астрономия",
+            "teacher_name": "Ковалевская С.В. 👩‍🏫🔭",
+            "teacher_phone": "+7 999 111-22-33",
+            "room": "305",
+        },
+    )
+    assert res_create.status_code == 201
+    subj_id = res_create.json()["id"]
+    assert res_create.json()["teacher_name"] == "Ковалевская С.В. 👩‍🏫🔭"
+
+    # 2. Raw database check: encrypted at rest
+    raw_res = await db_session.execute(
+        text("SELECT teacher_name FROM subjects WHERE id = :id"),
+        {"id": subj_id},
+    )
+    raw_name = raw_res.scalar_one()
+    assert raw_name.startswith("gAAAAA")
+    assert "Ковалевская" not in raw_name
+
+    # 3. Insert legacy unencrypted row directly with raw SQL
+    await db_session.execute(
+        text("INSERT INTO subjects (name, teacher_name, room) VALUES (:name, :teacher, :room)"),
+        {"name": "Краеведение", "teacher": "Петров Станислав (legacy)", "room": "201"},
+    )
+    await db_session.commit()
+
+    # 4. Fetch via API: legacy unencrypted name is safely read as plaintext
+    res_list = await client.get("/api/v1/subjects", headers=auth_headers)
+    assert res_list.status_code == 200
+    legacy_subj = next(s for s in res_list.json() if s["name"] == "Краеведение")
+    assert legacy_subj["teacher_name"] == "Петров Станислав (legacy)"

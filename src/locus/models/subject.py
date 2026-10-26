@@ -15,8 +15,8 @@ class Subject(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
     name: Mapped[str] = mapped_column(String(100), nullable=False)
-    teacher_name: Mapped[Optional[str]] = mapped_column(String(120), nullable=True)
-    teacher_phone: Mapped[Optional[str]] = mapped_column(EncryptedString(512), nullable=True)
+    teacher_name: Mapped[Optional[str]] = mapped_column(EncryptedString(), nullable=True)
+    teacher_phone: Mapped[Optional[str]] = mapped_column(EncryptedString(), nullable=True)
     room: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
 
     lessons: Mapped[List["Lesson"]] = relationship(

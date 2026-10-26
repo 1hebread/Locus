@@ -2,10 +2,11 @@ import base64
 import hashlib
 import logging
 import re
+from functools import lru_cache
 from typing import Optional
 
 from cryptography.fernet import Fernet, InvalidToken, MultiFernet
-from sqlalchemy.types import String, TypeDecorator
+from sqlalchemy.types import String, Text, TypeDecorator
 
 from locus.config import get_settings
 
@@ -24,28 +25,27 @@ def _derive_fernet_key(key_str: str) -> bytes:
     return base64.urlsafe_b64encode(digest)
 
 
-def get_fernet() -> MultiFernet:
-    """Get MultiFernet cipher instance with active key and fallback keys for rotation safety."""
-    settings = get_settings()
+@lru_cache(maxsize=4)
+def _get_fernet_cached(enc_key: str, secret_key: str) -> MultiFernet:
     key_bytes_list = []
-
-    # Primary key from ENCRYPTION_KEY if provided
-    enc_key = (settings.ENCRYPTION_KEY or "").strip()
     if enc_key:
         key_bytes_list.append(_derive_fernet_key(enc_key))
-
-    # Fallback key from SECRET_KEY
-    secret_key = (settings.SECRET_KEY or "").strip()
     if secret_key:
         sec_bytes = _derive_fernet_key(secret_key)
         if sec_bytes not in key_bytes_list:
             key_bytes_list.append(sec_bytes)
-
-    # Ensure at least one key is present to prevent ValueError in MultiFernet
     if not key_bytes_list:
         key_bytes_list.append(_derive_fernet_key("locus_default_secret_key_fallback"))
-
     return MultiFernet([Fernet(k) for k in key_bytes_list])
+
+
+def get_fernet() -> MultiFernet:
+    """Get MultiFernet cipher instance with active key and fallback keys for rotation safety."""
+    settings = get_settings()
+    return _get_fernet_cached(
+        (settings.ENCRYPTION_KEY or "").strip(),
+        (settings.SECRET_KEY or "").strip(),
+    )
 
 
 def encrypt_string(value: Optional[str]) -> Optional[str]:
@@ -59,14 +59,20 @@ def encrypt_string(value: Optional[str]) -> Optional[str]:
 def decrypt_string(ciphertext: Optional[str]) -> Optional[str]:
     """Decrypt a Fernet ciphertext string.
 
-    Returns None and logs a warning if ciphertext is empty or invalid/tampered.
+    Returns None and logs a warning if ciphertext is invalid/tampered.
+    Falls back to returning ciphertext directly if it is legacy unencrypted plaintext.
     """
-    if not ciphertext or not ciphertext.strip():
+    if not ciphertext:
+        return None
+    cleaned = ciphertext.strip()
+    if not cleaned:
         return None
     cipher = get_fernet()
     try:
-        return cipher.decrypt(ciphertext.strip().encode("utf-8")).decode("utf-8")
+        return cipher.decrypt(cleaned.encode("utf-8")).decode("utf-8")
     except (InvalidToken, Exception) as exc:
+        if not cleaned.startswith("gAAAAA"):
+            return cleaned
         logger.warning("Failed to decrypt ciphertext with active encryption key: %s", exc)
         return None
 
@@ -101,14 +107,14 @@ def format_whatsapp_url(phone: Optional[str]) -> Optional[str]:
 
 
 class EncryptedString(TypeDecorator):
-    """SQLAlchemy TypeDecorator for at-rest field encryption.
+    """SQLAlchemy TypeDecorator for at-rest field encryption using Text column in DB.
 
     Note: Fernet uses a random IV for every encryption call, making ciphertexts
     non-deterministic. Equality lookups in SQL (e.g. WHERE teacher_phone = ...)
     will not match ciphertext.
     """
 
-    impl = String(512)
+    impl = Text
     cache_ok = True
 
     def process_bind_param(self, value: Optional[str], dialect) -> Optional[str]:
