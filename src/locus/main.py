@@ -1,5 +1,6 @@
 from contextlib import asynccontextmanager
 import os
+from urllib.parse import urlparse
 from fastapi import FastAPI, HTTPException, Request, Response, status
 from fastapi.exception_handlers import http_exception_handler
 from fastapi.middleware.cors import CORSMiddleware
@@ -59,15 +60,17 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+DEFAULT_DEV_ORIGINS = [
+    "http://localhost:8010",
+    "http://127.0.0.1:8010",
+    "http://localhost:8000",
+    "http://127.0.0.1:8000",
+]
+
 # CORS configuration - safe for production with credentials
 cors_origins = settings.parsed_cors_origins
 if not cors_origins or cors_origins == ["*"]:
-    allowed_origins = [
-        "http://localhost:8010",
-        "http://127.0.0.1:8010",
-        "http://localhost:8000",
-        "http://127.0.0.1:8000",
-    ]
+    allowed_origins = [] if settings.is_production else DEFAULT_DEV_ORIGINS
 else:
     allowed_origins = cors_origins
 
@@ -78,6 +81,85 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+def _normalize_host(host_str: str, scheme: str) -> str:
+    h = host_str.strip().lower()
+    if scheme == "https" and h.endswith(":443"):
+        return h[:-4]
+    if scheme == "http" and h.endswith(":80"):
+        return h[:-3]
+    return h
+
+
+def _normalize_origin(origin_str: str) -> str:
+    parsed = urlparse(origin_str.strip())
+    scheme = parsed.scheme.lower()
+    netloc = parsed.netloc.lower()
+    if scheme == "https" and netloc.endswith(":443"):
+        netloc = netloc[:-4]
+    elif scheme == "http" and netloc.endswith(":80"):
+        netloc = netloc[:-3]
+    return f"{scheme}://{netloc}"
+
+
+@app.middleware("http")
+async def csrf_origin_protection(request: Request, call_next):
+    """Verify that browser state-changing requests originate from a trusted origin."""
+    if request.method in ("POST", "PUT", "DELETE", "PATCH"):
+        origin = request.headers.get("origin")
+        referer = request.headers.get("referer")
+
+        # Determine effective scheme and trusted hosts (accounting for reverse proxies e.g. on Render)
+        proto = request.headers.get("x-forwarded-proto")
+        effective_scheme = proto.split(",")[0].strip().lower() if proto else request.url.scheme.lower()
+
+        trusted_hosts = set()
+        host = request.headers.get("host")
+        if host:
+            trusted_hosts.add(_normalize_host(host, effective_scheme))
+        forwarded_host = request.headers.get("x-forwarded-host")
+        if forwarded_host:
+            for part in forwarded_host.split(","):
+                part = part.strip()
+                if part:
+                    trusted_hosts.add(_normalize_host(part, effective_scheme))
+
+        trusted_origins = {f"{effective_scheme}://{h}" for h in trusted_hosts}
+
+        # In development, also accept localhost/127.0.0.1 dev origins
+        if not settings.is_production:
+            for dev_orig in DEFAULT_DEV_ORIGINS:
+                trusted_origins.add(_normalize_origin(dev_orig))
+
+        # Include explicitly configured CORS origins
+        for o in settings.parsed_cors_origins:
+            if o and o != "*":
+                trusted_origins.add(_normalize_origin(o))
+
+        if origin:
+            normalized_origin = _normalize_origin(origin)
+            if normalized_origin not in trusted_origins:
+                return Response(
+                    "CSRF validation failed: untrusted origin",
+                    status_code=status.HTTP_403_FORBIDDEN,
+                )
+        elif referer:
+            ref_parsed = urlparse(referer.strip())
+            if ref_parsed.scheme and ref_parsed.netloc:
+                normalized_ref = _normalize_origin(f"{ref_parsed.scheme}://{ref_parsed.netloc}")
+                if normalized_ref not in trusted_origins:
+                    return Response(
+                        "CSRF validation failed: untrusted referer",
+                        status_code=status.HTTP_403_FORBIDDEN,
+                    )
+            else:
+                return Response(
+                    "CSRF validation failed: malformed referer",
+                    status_code=status.HTTP_403_FORBIDDEN,
+                )
+
+    return await call_next(request)
 
 
 @app.middleware("http")

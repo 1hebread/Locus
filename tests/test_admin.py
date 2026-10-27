@@ -8,7 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 from locus.config import get_settings
 from locus.models.subject import Subject
 from locus.models.user import User
-from locus.security import create_access_token, hash_password
+from locus.security import create_access_token, get_password_fingerprint, hash_password
 
 settings = get_settings()
 
@@ -76,7 +76,10 @@ async def test_regular_user_cannot_access_admin(
 
     client.cookies.set(
         settings.COOKIE_NAME,
-        create_access_token({"sub": str(user.id)}),
+        create_access_token({
+            "sub": str(user.id),
+            "pwd": get_password_fingerprint(user.hashed_password),
+        }),
     )
 
     res = await client.get("/admin/users")
@@ -138,6 +141,35 @@ async def test_admin_change_user_password(
     )
     assert login_new.status_code == 200
     assert "access_token" in login_new.json()
+
+
+@pytest.mark.asyncio
+async def test_admin_changes_own_password_retains_session(
+    client: AsyncClient,
+    test_user: User,
+    auth_token: str,
+):
+    client.cookies.set(settings.COOKIE_NAME, auth_token)
+
+    # Admin changes own password
+    res = await client.post(
+        f"/admin/users/{test_user.id}/password",
+        data={"password": "brandnewadminpassword"},
+        follow_redirects=False,
+    )
+    assert res.status_code == 303
+    assert res.headers["Location"] == "/admin/users?password_changed=1"
+
+    # New session cookie is set in response
+    assert settings.COOKIE_NAME in res.cookies
+    new_token = res.cookies[settings.COOKIE_NAME]
+    assert new_token != auth_token
+
+    # Admin remains authenticated with the new cookie
+    client.cookies.set(settings.COOKIE_NAME, new_token)
+    res_page = await client.get("/admin/users?password_changed=1")
+    assert res_page.status_code == 200
+    assert "Пароль изменён." in res_page.text
 
 
 @pytest.mark.asyncio
@@ -315,7 +347,10 @@ async def test_regular_user_cannot_perform_admin_actions(
 ):
     client.cookies.set(
         settings.COOKIE_NAME,
-        create_access_token({"sub": str(regular_user.id)}),
+        create_access_token({
+            "sub": str(regular_user.id),
+            "pwd": get_password_fingerprint(regular_user.hashed_password),
+        }),
     )
 
     # 1. POST /admin/users

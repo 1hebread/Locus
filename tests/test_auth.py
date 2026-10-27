@@ -148,3 +148,164 @@ async def test_web_login_failure_retains_username_and_clears_password(client: As
     assert 'value="persisted_user"' in res.text
     assert 'value="bad_password"' not in res.text
     assert "Неверный логин или пароль" in res.text
+
+
+@pytest.mark.asyncio
+async def test_token_invalidated_when_password_changes(
+    client: AsyncClient,
+    test_user: User,
+    db_session,
+):
+    from locus.security import hash_password
+
+    # 1. Login to obtain token with password fingerprint
+    res_login = await client.post(
+        "/api/v1/auth/login",
+        json={"username": test_user.username, "password": "password123"},
+    )
+    assert res_login.status_code == 200
+    token = res_login.json()["access_token"]
+
+    # 2. Token works
+    res_me = await client.get("/api/v1/auth/me", headers={"Authorization": f"Bearer {token}"})
+    assert res_me.status_code == 200
+
+    # 3. Change password in database
+    test_user.hashed_password = hash_password("brandnewpassword789")
+    await db_session.commit()
+
+    # 4. Old token is immediately rejected with 401
+    res_old = await client.get("/api/v1/auth/me", headers={"Authorization": f"Bearer {token}"})
+    assert res_old.status_code == 401
+
+    # 5. Login with new password issues working token
+    res_new_login = await client.post(
+        "/api/v1/auth/login",
+        json={"username": test_user.username, "password": "brandnewpassword789"},
+    )
+    assert res_new_login.status_code == 200
+    new_token = res_new_login.json()["access_token"]
+
+    res_new_me = await client.get("/api/v1/auth/me", headers={"Authorization": f"Bearer {new_token}"})
+    assert res_new_me.status_code == 200
+
+
+def test_production_secret_key_validation():
+    from locus.config import Settings
+    import pytest
+
+    # Default secret key in production raises error
+    with pytest.raises(ValueError, match="SECRET_KEY"):
+        Settings(
+            ENVIRONMENT="production",
+            SECRET_KEY="change-this-to-a-very-secret-random-key-in-production-min-32-chars",
+        )
+
+    # Short secret key in production raises error
+    with pytest.raises(ValueError, match="SECRET_KEY"):
+        Settings(ENVIRONMENT="production", SECRET_KEY="short-secret-key")
+
+    # Whitespace-only secret key in production raises error
+    with pytest.raises(ValueError, match="SECRET_KEY"):
+        Settings(ENVIRONMENT="production", SECRET_KEY=" " * 32)
+
+    # Valid secret key in production succeeds and whitespace is stripped
+    valid_settings = Settings(
+        ENVIRONMENT="production",
+        SECRET_KEY="  " + "a" * 32 + "  ",
+    )
+    assert valid_settings.is_production is True
+    assert valid_settings.SECRET_KEY == "a" * 32
+
+
+@pytest.mark.asyncio
+async def test_token_without_pwd_fingerprint_is_rejected(
+    client: AsyncClient,
+    test_user: User,
+):
+    from locus.security import create_access_token
+
+    # Token with missing 'pwd' fingerprint cannot be used
+    legacy_token = create_access_token({"sub": str(test_user.id)})
+    res = await client.get(
+        "/api/v1/auth/me",
+        headers={"Authorization": f"Bearer {legacy_token}"},
+    )
+    assert res.status_code == 401
+
+
+@pytest.mark.asyncio
+async def test_csrf_origin_protection(client: AsyncClient, test_user: User, monkeypatch):
+    # Untrusted Origin on POST is blocked with 403
+    res_blocked = await client.post(
+        "/api/v1/auth/login",
+        json={"username": test_user.username, "password": "password123"},
+        headers={"Origin": "https://malicious-website.com"},
+    )
+    assert res_blocked.status_code == 403
+    assert "CSRF validation failed" in res_blocked.text
+
+    # Trusted / matching Host Origin succeeds
+    res_allowed = await client.post(
+        "/api/v1/auth/login",
+        json={"username": test_user.username, "password": "password123"},
+        headers={"Origin": "http://test"},
+    )
+    assert res_allowed.status_code == 200
+
+    # Matching X-Forwarded-Host and X-Forwarded-Proto from reverse proxy (e.g. Render.com)
+    res_proxy = await client.post(
+        "/api/v1/auth/login",
+        json={"username": test_user.username, "password": "password123"},
+        headers={
+            "Origin": "https://school.example.com",
+            "X-Forwarded-Proto": "https",
+            "X-Forwarded-Host": "school.example.com:443",
+        },
+    )
+    assert res_proxy.status_code == 200
+
+    # Scheme mismatch (http Origin when site is served over https) is blocked
+    res_scheme_mismatch = await client.post(
+        "/api/v1/auth/login",
+        json={"username": test_user.username, "password": "password123"},
+        headers={
+            "Origin": "http://school.example.com",
+            "X-Forwarded-Proto": "https",
+            "X-Forwarded-Host": "school.example.com",
+        },
+    )
+    assert res_scheme_mismatch.status_code == 403
+    assert "CSRF validation failed" in res_scheme_mismatch.text
+
+    # Referer header fallback when Origin is omitted
+    res_referer_valid = await client.post(
+        "/api/v1/auth/login",
+        json={"username": test_user.username, "password": "password123"},
+        headers={"Referer": "http://test/login"},
+    )
+    assert res_referer_valid.status_code == 200
+
+    res_referer_invalid = await client.post(
+        "/api/v1/auth/login",
+        json={"username": test_user.username, "password": "password123"},
+        headers={"Referer": "https://evil.com/fake-login"},
+    )
+    assert res_referer_invalid.status_code == 403
+
+    # Dev default origin succeeds in development
+    res_dev = await client.post(
+        "/api/v1/auth/login",
+        json={"username": test_user.username, "password": "password123"},
+        headers={"Origin": "http://localhost:8010"},
+    )
+    assert res_dev.status_code == 200
+
+    # In production, dev origins like localhost:8010 are rejected
+    monkeypatch.setattr(settings, "ENVIRONMENT", "production")
+    res_prod_dev = await client.post(
+        "/api/v1/auth/login",
+        json={"username": test_user.username, "password": "password123"},
+        headers={"Origin": "http://localhost:8010"},
+    )
+    assert res_prod_dev.status_code == 403

@@ -13,23 +13,16 @@ from locus.rate_limiter import (
     record_login_success,
 )
 from locus.schemas.auth import Token, UserLogin, UserOut
-from locus.security import create_access_token, verify_password
+from locus.security import (
+    create_access_token,
+    dummy_verify_password_async,
+    get_password_fingerprint,
+    set_session_cookie as set_auth_cookie,
+    verify_password_async,
+)
 
 router = APIRouter(prefix="/auth", tags=["Auth"])
 settings = get_settings()
-
-
-def set_auth_cookie(response: Response, token: str) -> None:
-    """Set secure HttpOnly cookie for session."""
-    response.set_cookie(
-        key=settings.COOKIE_NAME,
-        value=token,
-        httponly=True,
-        max_age=settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60,
-        expires=settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60,
-        samesite="lax",
-        secure=settings.is_production,
-    )
 
 
 @router.post("/login", response_model=Token)
@@ -54,7 +47,13 @@ async def login(
     )
     user = result.scalar_one_or_none()
 
-    if not user or not verify_password(data.password, user.hashed_password):
+    if user:
+        password_valid = await verify_password_async(data.password, user.hashed_password)
+    else:
+        await dummy_verify_password_async(data.password)
+        password_valid = False
+
+    if not user or not password_valid:
         is_now_blocked, sec = record_login_failure(request, data.username)
         if is_now_blocked:
             raise HTTPException(
@@ -75,7 +74,10 @@ async def login(
 
     record_login_success(request, data.username)
 
-    token = create_access_token({"sub": str(user.id)})
+    token = create_access_token({
+        "sub": str(user.id),
+        "pwd": get_password_fingerprint(user.hashed_password),
+    })
     set_auth_cookie(response, token)
     return Token(access_token=token)
 

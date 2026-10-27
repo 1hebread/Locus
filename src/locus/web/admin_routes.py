@@ -8,7 +8,12 @@ from locus.api.deps import get_current_admin_web
 from locus.database import get_db
 from locus.models.homework_completion import HomeworkCompletion
 from locus.models.user import User
-from locus.security import hash_password
+from locus.security import (
+    create_access_token,
+    get_password_fingerprint,
+    hash_password_async,
+    set_session_cookie,
+)
 from locus.templates_config import templates
 
 router = APIRouter(prefix="/admin", tags=["Web Admin"])
@@ -95,7 +100,7 @@ async def create_user(
             db.add(
                 User(
                     username=username,
-                    hashed_password=hash_password(password),
+                    hashed_password=await hash_password_async(password),
                     is_active=True,
                     is_admin=False,
                 )
@@ -207,12 +212,21 @@ async def change_password(
             status_code=status.HTTP_400_BAD_REQUEST,
         )
 
-    user.hashed_password = hash_password(password)
+    user.hashed_password = await hash_password_async(password)
     await db.commit()
-    return RedirectResponse(
+
+    response = RedirectResponse(
         url="/admin/users?password_changed=1",
         status_code=status.HTTP_303_SEE_OTHER,
     )
+    if current_user.id == user.id:
+        new_token = create_access_token({
+            "sub": str(user.id),
+            "pwd": get_password_fingerprint(user.hashed_password),
+        })
+        set_session_cookie(response, new_token)
+
+    return response
 
 
 @router.get("/users/{user_id}/delete")

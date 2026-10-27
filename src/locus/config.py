@@ -1,5 +1,6 @@
 from functools import lru_cache
 from typing import List
+from pydantic import model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -22,6 +23,21 @@ class Settings(BaseSettings):
         env_file_encoding="utf-8",
         extra="ignore",
     )
+
+    @model_validator(mode="after")
+    def validate_production_settings(self) -> "Settings":
+        if self.SECRET_KEY:
+            self.SECRET_KEY = self.SECRET_KEY.strip()
+        if self.is_production:
+            if (
+                not self.SECRET_KEY
+                or self.SECRET_KEY == "change-this-to-a-very-secret-random-key-in-production-min-32-chars"
+                or len(self.SECRET_KEY) < 32
+            ):
+                raise ValueError(
+                    "В production-окружении (ENVIRONMENT=production) необходимо задать уникальный стойкий SECRET_KEY длиной не менее 32 символов в .env"
+                )
+        return self
 
     @property
     def async_database_url(self) -> str:
@@ -54,7 +70,7 @@ class Settings(BaseSettings):
 
     @property
     def is_production(self) -> bool:
-        return self.ENVIRONMENT.lower() == "production"
+        return self.ENVIRONMENT.lower() in ("production", "prod")
 
     @property
     def parsed_cors_origins(self) -> List[str]:

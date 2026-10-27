@@ -8,7 +8,7 @@ from locus.database import Base, get_db
 from locus.main import app
 from locus.models.user import User
 from locus.models.subject import Subject
-from locus.security import create_access_token, hash_password
+from locus.security import create_access_token, get_password_fingerprint, hash_password
 
 # Test database using in-memory SQLite
 TEST_DATABASE_URL = "sqlite+aiosqlite:///:memory:"
@@ -75,7 +75,10 @@ async def test_user(db_session: AsyncSession) -> User:
 
 @pytest.fixture
 def auth_token(test_user: User) -> str:
-    return create_access_token({"sub": str(test_user.id)})
+    return create_access_token({
+        "sub": str(test_user.id),
+        "pwd": get_password_fingerprint(test_user.hashed_password),
+    })
 
 
 @pytest.fixture
@@ -105,7 +108,10 @@ async def regular_user(db_session: AsyncSession) -> User:
 
 @pytest.fixture
 def regular_token(regular_user: User) -> str:
-    return create_access_token({"sub": str(regular_user.id)})
+    return create_access_token({
+        "sub": str(regular_user.id),
+        "pwd": get_password_fingerprint(regular_user.hashed_password),
+    })
 
 
 @pytest.fixture

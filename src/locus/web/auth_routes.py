@@ -13,23 +13,17 @@ from locus.rate_limiter import (
     record_login_failure,
     record_login_success,
 )
-from locus.security import create_access_token, verify_password
+from locus.security import (
+    create_access_token,
+    dummy_verify_password_async,
+    get_password_fingerprint,
+    set_session_cookie,
+    verify_password_async,
+)
 from locus.templates_config import templates
 
 router = APIRouter(tags=["Web Auth"])
 settings = get_settings()
-
-
-def set_session_cookie(response: Response, token: str) -> None:
-    response.set_cookie(
-        key=settings.COOKIE_NAME,
-        value=token,
-        httponly=True,
-        max_age=settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60,
-        expires=settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60,
-        samesite="lax",
-        secure=settings.is_production,
-    )
 
 
 @router.get("/login", response_class=HTMLResponse)
@@ -74,7 +68,13 @@ async def handle_login(
     )
     user = result.scalar_one_or_none()
 
-    if not user or not verify_password(password, user.hashed_password):
+    if user:
+        password_valid = await verify_password_async(password, user.hashed_password)
+    else:
+        await dummy_verify_password_async(password)
+        password_valid = False
+
+    if not user or not password_valid:
         is_now_blocked, sec = record_login_failure(request, trimmed_username)
         error_msg = format_rate_limit_message(sec) if is_now_blocked else "Неверный логин или пароль"
         resp_status = status.HTTP_429_TOO_MANY_REQUESTS if is_now_blocked else status.HTTP_400_BAD_REQUEST
@@ -104,7 +104,10 @@ async def handle_login(
     # Clear rate limiter on successful authentication
     record_login_success(request, username)
 
-    token = create_access_token({"sub": str(user.id)})
+    token = create_access_token({
+        "sub": str(user.id),
+        "pwd": get_password_fingerprint(user.hashed_password),
+    })
     response = RedirectResponse(url="/", status_code=status.HTTP_303_SEE_OTHER)
     set_session_cookie(response, token)
     return response

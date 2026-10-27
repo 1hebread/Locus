@@ -1,3 +1,4 @@
+import hmac
 from typing import Optional
 from fastapi import Cookie, Depends, HTTPException, Header, Request, status
 from fastapi.responses import RedirectResponse
@@ -7,7 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from locus.config import get_settings
 from locus.database import get_db
 from locus.models.user import User
-from locus.security import decode_access_token
+from locus.security import decode_access_token, get_password_fingerprint
 
 settings = get_settings()
 
@@ -47,6 +48,14 @@ async def get_current_user_optional(
 
     result = await db.execute(select(User).where(User.id == user_id, User.is_active == True))
     user = result.scalar_one_or_none()
+    if not user:
+        return None
+
+    token_pwd = payload.get("pwd")
+    expected_pwd = get_password_fingerprint(user.hashed_password)
+    if not token_pwd or not hmac.compare_digest(str(token_pwd), str(expected_pwd)):
+        return None
+
     return user
 
 
