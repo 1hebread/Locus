@@ -13,7 +13,7 @@
     </div>
 
     {% if current_user.is_admin %}
-    <button onclick="openModal('add-lesson-modal')"
+    <button onclick="openAddLessonModal()"
             class="inline-flex items-center space-x-2 bg-emerald-500 hover:bg-emerald-600 active:scale-95 text-white px-4 py-2 rounded-xl font-bold text-xs sm:text-sm shadow-md shadow-emerald-500/20 transition">
       <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4" />
@@ -199,16 +199,9 @@
   }
 
   // var so the script can be safely re-executed by client-side navigation
-  var bellSchedule = {
-    1: ["08:00", "08:45"],
-    2: ["08:55", "09:40"],
-    3: ["09:55", "10:40"],
-    4: ["10:55", "11:40"],
-    5: ["11:55", "12:40"],
-    6: ["12:50", "13:35"],
-    7: ["13:45", "14:30"],
-    8: ["14:40", "15:25"]
-  };
+  var scheduleDataByDay = {{ (schedule_data or {})|tojson|safe }};
+
+  var bellSchedule = {{ (default_bell_schedule or {})|tojson|safe }};
 
   function updateLessonTimes(lessonNum) {
     const slot = bellSchedule[lessonNum];
@@ -219,6 +212,190 @@
       if (endInput) endInput.value = slot[1];
     }
   }
+
+  function validateTimesLive() {
+    const daySelect = document.getElementById('day_of_week');
+    const startInput = document.getElementById('start_time');
+    const endInput = document.getElementById('end_time');
+    const warning = document.getElementById('time-conflict-warning');
+    const submitBtn = document.getElementById('add-lesson-submit-btn');
+    const lessonSelect = document.getElementById('lesson_number');
+
+    if (!daySelect || !startInput || !endInput || !warning || !submitBtn) return;
+
+    const dayNum = parseInt(daySelect.value, 10);
+    const start = startInput.value.trim();
+    const end = endInput.value.trim();
+    const lessons = scheduleDataByDay[dayNum] || [];
+
+    const currentOpt = lessonSelect ? lessonSelect.querySelector('option[value="' + lessonSelect.value + '"]') : null;
+    if (currentOpt && currentOpt.disabled) {
+      warning.textContent = 'Урок с этим номером уже существует в выбранный день';
+      warning.classList.remove('hidden');
+      submitBtn.disabled = true;
+      return;
+    }
+
+    if (!start || !end) {
+      warning.classList.add('hidden');
+      return;
+    }
+
+    if (start >= end) {
+      warning.textContent = 'Время окончания урока должно быть позже времени начала';
+      warning.classList.remove('hidden');
+      submitBtn.disabled = true;
+      return;
+    }
+
+    for (let i = 0; i < lessons.length; i++) {
+      const other = lessons[i];
+      if (start < other.end_time && end > other.start_time) {
+        warning.textContent = 'Время урока (' + start + '–' + end + ') пересекается с уроком №' + other.lesson_number + ' «' + other.subject_name + '» (' + other.start_time + '–' + other.end_time + ')';
+        warning.classList.remove('hidden');
+        submitBtn.disabled = true;
+        return;
+      }
+    }
+
+    warning.classList.add('hidden');
+    submitBtn.disabled = false;
+  }
+
+  function refreshLessonFormForDay(dayNum) {
+    const lessons = scheduleDataByDay[dayNum] || [];
+    const occupiedNumbers = lessons.map(l => l.lesson_number);
+    const lessonSelect = document.getElementById('lesson_number');
+    const submitBtn = document.getElementById('add-lesson-submit-btn');
+    const errBox = document.getElementById('add-lesson-error');
+
+    if (errBox) errBox.classList.add('hidden');
+    if (!lessonSelect) return;
+
+    let firstFreeNumber = null;
+    Array.from(lessonSelect.options).forEach(opt => {
+      const num = parseInt(opt.value, 10);
+      if (occupiedNumbers.includes(num)) {
+        opt.disabled = true;
+        opt.textContent = num + '-й урок (занят)';
+      } else {
+        opt.disabled = false;
+        opt.textContent = num + '-й урок';
+        if (firstFreeNumber === null) {
+          firstFreeNumber = num;
+        }
+      }
+    });
+
+    const currentVal = parseInt(lessonSelect.value, 10);
+    if (occupiedNumbers.includes(currentVal)) {
+      if (firstFreeNumber !== null) {
+        lessonSelect.value = firstFreeNumber;
+        updateLessonTimes(firstFreeNumber);
+      }
+    } else {
+      updateLessonTimes(currentVal);
+    }
+
+    if (firstFreeNumber === null) {
+      if (submitBtn) submitBtn.disabled = true;
+      const warning = document.getElementById('time-conflict-warning');
+      if (warning) {
+        warning.textContent = 'Все 8 уроков в этот день уже заполнены';
+        warning.classList.remove('hidden');
+      }
+    } else {
+      validateTimesLive();
+    }
+  }
+
+  function onDayOfWeekChange(dayNum) {
+    refreshLessonFormForDay(dayNum);
+  }
+
+  function onLessonNumberChange(num) {
+    updateLessonTimes(num);
+    validateTimesLive();
+  }
+
+  function onTimeInputChange() {
+    validateTimesLive();
+  }
+
+  function openAddLessonModal() {
+    openModal('add-lesson-modal');
+    const daySelect = document.getElementById('day_of_week');
+    if (daySelect) {
+      refreshLessonFormForDay(daySelect.value);
+    }
+  }
+
+  // Sync scheduleDataByDay when lessons are deleted via HTMX
+  document.addEventListener('htmx:afterRequest', function(evt) {
+    if (evt.detail && evt.detail.successful) {
+      const verb = ((evt.detail.requestConfig && evt.detail.requestConfig.verb) || '').toLowerCase();
+      if (verb === 'delete') {
+        const path = (evt.detail.requestConfig && evt.detail.requestConfig.path) || '';
+        const match = path.match(/^\/schedule\/(\d+)$/);
+        if (match) {
+          const deletedId = parseInt(match[1], 10);
+          for (const d in scheduleDataByDay) {
+            scheduleDataByDay[d] = scheduleDataByDay[d].filter(function(l) { return l.id !== deletedId; });
+          }
+          const daySelect = document.getElementById('day_of_week');
+          if (daySelect) {
+            refreshLessonFormForDay(daySelect.value);
+          }
+        }
+      }
+    }
+  });
+
+  document.addEventListener('DOMContentLoaded', function() {
+    const form = document.getElementById('add-lesson-form');
+    if (form) {
+      form.addEventListener('submit', async function(e) {
+        e.preventDefault();
+        const errBox = document.getElementById('add-lesson-error');
+        const submitBtn = document.getElementById('add-lesson-submit-btn');
+        if (errBox) errBox.classList.add('hidden');
+        if (submitBtn) submitBtn.disabled = true;
+
+        const formData = new FormData(form);
+        try {
+          const resp = await fetch(form.action, {
+            method: 'POST',
+            body: formData,
+            headers: { 'Accept': 'application/json' }
+          });
+          if (resp.ok) {
+            window.location.href = '/schedule';
+          } else {
+            const data = await resp.json().catch(function() { return {}; });
+            let msg = 'Не удалось добавить урок';
+            if (typeof data.detail === 'string') {
+              msg = data.detail;
+            } else if (Array.isArray(data.detail)) {
+              msg = data.detail.map(function(item) { return item.msg || JSON.stringify(item); }).join(', ');
+            } else if (data.detail && typeof data.detail === 'object') {
+              msg = data.detail.msg || JSON.stringify(data.detail);
+            }
+            if (errBox) {
+              errBox.textContent = msg;
+              errBox.classList.remove('hidden');
+            }
+            if (submitBtn) submitBtn.disabled = false;
+          }
+        } catch (err) {
+          if (errBox) {
+            errBox.textContent = 'Ошибка сети при добавлении урока';
+            errBox.classList.remove('hidden');
+          }
+          if (submitBtn) submitBtn.disabled = false;
+        }
+      });
+    }
+  });
 </script>
 {% endblock %}
 
@@ -239,7 +416,9 @@
       </button>
     </div>
 
-    <form method="post" action="/schedule" class="space-y-3.5">
+    <form id="add-lesson-form" method="post" action="/schedule" class="space-y-3.5">
+      <div id="add-lesson-error" class="hidden p-3 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-400 text-xs font-medium"></div>
+
       <div>
         <label for="modal_subject_id" class="block text-xs font-medium text-zinc-300 mb-1">Предмет *</label>
         <select id="modal_subject_id" name="subject_id" required
@@ -256,7 +435,7 @@
       <div class="grid grid-cols-2 gap-3">
         <div>
           <label for="day_of_week" class="block text-xs font-medium text-zinc-300 mb-1">День недели *</label>
-          <select id="day_of_week" name="day_of_week" required
+          <select id="day_of_week" name="day_of_week" required onchange="onDayOfWeekChange(this.value)"
                   class="w-full bg-[#121214] border border-zinc-700/80 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:ring-1 focus:ring-emerald-500">
             {% for d_num in range(1, 7) %}
             <option value="{{ d_num }}" {% if d_num == active_day %}selected{% endif %}>{{ day_names[d_num] }}</option>
@@ -266,7 +445,7 @@
 
         <div>
           <label for="lesson_number" class="block text-xs font-medium text-zinc-300 mb-1">Номер урока *</label>
-          <select id="lesson_number" name="lesson_number" required onchange="updateLessonTimes(this.value)"
+          <select id="lesson_number" name="lesson_number" required onchange="onLessonNumberChange(this.value)"
                   class="w-full bg-[#121214] border border-zinc-700/80 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:ring-1 focus:ring-emerald-500">
             {% for num in range(1, 9) %}
             <option value="{{ num }}">{{ num }}-й урок</option>
@@ -278,16 +457,18 @@
       <div class="grid grid-cols-2 gap-3">
         <div>
           <label for="start_time" class="block text-xs font-medium text-zinc-300 mb-1">Начало</label>
-          <input type="time" id="start_time" name="start_time" value="08:00" required
+          <input type="time" id="start_time" name="start_time" value="08:00" required oninput="onTimeInputChange()"
                  class="w-full bg-[#121214] border border-zinc-700/80 rounded-xl px-3 py-1.5 text-sm text-white focus:outline-none focus:ring-1 focus:ring-emerald-500">
         </div>
 
         <div>
           <label for="end_time" class="block text-xs font-medium text-zinc-300 mb-1">Конец</label>
-          <input type="time" id="end_time" name="end_time" value="08:45" required
+          <input type="time" id="end_time" name="end_time" value="08:45" required oninput="onTimeInputChange()"
                  class="w-full bg-[#121214] border border-zinc-700/80 rounded-xl px-3 py-1.5 text-sm text-white focus:outline-none focus:ring-1 focus:ring-emerald-500">
         </div>
       </div>
+
+      <div id="time-conflict-warning" class="hidden text-xs text-rose-400 font-medium"></div>
 
       <div>
         <label for="room" class="block text-xs font-medium text-zinc-300 mb-1">Кабинет (если отличается)</label>
@@ -301,8 +482,8 @@
                 class="px-3.5 py-1.5 rounded-xl text-xs font-medium text-zinc-300 hover:text-white hover:bg-zinc-800 transition">
           Отмена
         </button>
-        <button type="submit"
-                class="px-4 py-1.5 rounded-xl text-xs sm:text-sm font-semibold bg-emerald-500 hover:bg-emerald-600 text-white shadow-md shadow-emerald-500/20 transition">
+        <button type="submit" id="add-lesson-submit-btn"
+                class="px-4 py-1.5 rounded-xl text-xs sm:text-sm font-semibold bg-emerald-500 hover:bg-emerald-600 disabled:opacity-50 disabled:cursor-not-allowed text-white shadow-md shadow-emerald-500/20 transition">
           Добавить
         </button>
       </div>

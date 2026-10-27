@@ -918,3 +918,136 @@ async def test_sunday_lesson_modal_shows_no_homework_notice(
     assert res.status_code == 200
     assert "На воскресенье домашние задания не задаются" in res.text
     assert 'modal-hw-title' not in res.text
+
+
+@pytest.mark.asyncio
+async def test_lesson_web_admin_creation_and_conflict_validation(
+    client: AsyncClient,
+    test_user: User,
+    auth_token: str,
+    test_subject: Subject,
+    db_session,
+):
+    from locus.config import get_settings
+    from locus.models.lesson import Lesson
+    from sqlalchemy import select
+
+    settings = get_settings()
+    client.cookies.set(settings.COOKIE_NAME, auth_token)
+
+    # 1. Admin creates valid lesson 1 on Monday via web
+    res_create = await client.post(
+        "/schedule",
+        data={
+            "subject_id": test_subject.id,
+            "day_of_week": 1,
+            "lesson_number": 1,
+            "start_time": "08:00",
+            "end_time": "08:45",
+            "room": "101",
+        },
+        follow_redirects=False,
+    )
+    assert res_create.status_code == 303
+    assert res_create.headers["Location"] == "/schedule"
+
+    # Verify lesson exists in DB
+    lesson_res = await db_session.execute(
+        select(Lesson).where(Lesson.day_of_week == 1, Lesson.lesson_number == 1)
+    )
+    lesson = lesson_res.scalars().first()
+    assert lesson is not None
+    assert lesson.room == "101"
+
+    # 2. Duplicate lesson 1 on Monday rejected with 400
+    res_dup = await client.post(
+        "/schedule",
+        data={
+            "subject_id": test_subject.id,
+            "day_of_week": 1,
+            "lesson_number": 1,
+            "start_time": "09:00",
+            "end_time": "09:45",
+        },
+        follow_redirects=False,
+    )
+    assert res_dup.status_code == 400
+    assert "Урок №1 в этот день уже существует" in res_dup.json()["detail"]
+
+    # 3. Overlapping time on Monday rejected with 400
+    res_overlap = await client.post(
+        "/schedule",
+        data={
+            "subject_id": test_subject.id,
+            "day_of_week": 1,
+            "lesson_number": 2,
+            "start_time": "08:30",
+            "end_time": "09:15",
+        },
+        follow_redirects=False,
+    )
+    assert res_overlap.status_code == 400
+    assert "пересекается с уроком №1" in res_overlap.json()["detail"]
+
+    # 4. Invalid time order (start >= end) rejected with 400
+    res_invalid_time = await client.post(
+        "/schedule",
+        data={
+            "subject_id": test_subject.id,
+            "day_of_week": 1,
+            "lesson_number": 2,
+            "start_time": "09:30",
+            "end_time": "09:00",
+        },
+        follow_redirects=False,
+    )
+    assert res_invalid_time.status_code == 400
+    assert "Время окончания урока должно быть позже времени начала" in res_invalid_time.json()["detail"]
+
+    # 5. Invalid day_of_week or lesson_number rejected with 400
+    res_bad_day = await client.post(
+        "/schedule",
+        data={
+            "subject_id": test_subject.id,
+            "day_of_week": 8,
+            "lesson_number": 1,
+            "start_time": "08:00",
+            "end_time": "08:45",
+        },
+        follow_redirects=False,
+    )
+    assert res_bad_day.status_code == 400
+
+    # 6. Schedule page contains schedule_data JSON
+    res_page = await client.get("/schedule")
+    assert res_page.status_code == 200
+    assert "scheduleDataByDay" in res_page.text
+
+    # 7. Safe truncation of room (>50) and note (>255)
+    long_room = "R" * 80
+    long_note = "N" * 300
+    res_trunc = await client.post(
+        "/schedule",
+        data={
+            "subject_id": test_subject.id,
+            "day_of_week": 2,
+            "lesson_number": 1,
+            "start_time": "08:00",
+            "end_time": "08:45",
+            "room": long_room,
+            "note": long_note,
+        },
+        headers={"Accept": "application/json"},
+    )
+    assert res_trunc.status_code == 200
+    assert res_trunc.json()["ok"] is True
+    assert res_trunc.json()["redirect"] == "/schedule"
+
+    # Verify truncated values in DB
+    lesson2_res = await db_session.execute(
+        select(Lesson).where(Lesson.day_of_week == 2, Lesson.lesson_number == 1)
+    )
+    lesson2 = lesson2_res.scalars().first()
+    assert lesson2 is not None
+    assert len(lesson2.room) == 50
+    assert len(lesson2.note) == 255

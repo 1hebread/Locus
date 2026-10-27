@@ -476,3 +476,166 @@ async def test_teacher_name_encryption_multibyte_and_legacy_fallback(
     assert res_list.status_code == 200
     legacy_subj = next(s for s in res_list.json() if s["name"] == "Краеведение")
     assert legacy_subj["teacher_name"] == "Петров Станислав (legacy)"
+
+
+@pytest.mark.asyncio
+async def test_lesson_duplicate_number_and_overlapping_time_rejected_via_api(
+    client: AsyncClient,
+    auth_headers: dict,
+    test_subject: Subject,
+):
+    # 1. Create first lesson on Monday (lesson_number=1, default time 08:00–08:45)
+    res1 = await client.post(
+        "/api/v1/schedule",
+        headers=auth_headers,
+        json={
+            "subject_id": test_subject.id,
+            "day_of_week": 1,
+            "lesson_number": 1,
+            "start_time": "08:00",
+            "end_time": "08:45",
+        },
+    )
+    assert res1.status_code == 201
+    lesson1_id = res1.json()["id"]
+
+    # 2. Duplicate lesson_number on same day rejected
+    res_dup = await client.post(
+        "/api/v1/schedule",
+        headers=auth_headers,
+        json={
+            "subject_id": test_subject.id,
+            "day_of_week": 1,
+            "lesson_number": 1,
+            "start_time": "09:00",
+            "end_time": "09:45",
+        },
+    )
+    assert res_dup.status_code == 422
+    assert "Урок №1 в этот день уже существует" in res_dup.json()["detail"]
+
+    # 3. Overlapping time on same day rejected (different lesson number, but overlapping time 08:30–09:15)
+    res_overlap = await client.post(
+        "/api/v1/schedule",
+        headers=auth_headers,
+        json={
+            "subject_id": test_subject.id,
+            "day_of_week": 1,
+            "lesson_number": 2,
+            "start_time": "08:30",
+            "end_time": "09:15",
+        },
+    )
+    assert res_overlap.status_code == 422
+    assert "пересекается с уроком №1" in res_overlap.json()["detail"]
+
+    # 4. Same time interval on same day rejected (exact match 08:00–08:45)
+    res_same_time = await client.post(
+        "/api/v1/schedule",
+        headers=auth_headers,
+        json={
+            "subject_id": test_subject.id,
+            "day_of_week": 1,
+            "lesson_number": 3,
+            "start_time": "08:00",
+            "end_time": "08:45",
+        },
+    )
+    assert res_same_time.status_code == 422
+    assert "пересекается с уроком №1" in res_same_time.json()["detail"]
+
+    # 5. Invalid time interval (start_time >= end_time) rejected
+    res_invalid_time = await client.post(
+        "/api/v1/schedule",
+        headers=auth_headers,
+        json={
+            "subject_id": test_subject.id,
+            "day_of_week": 1,
+            "lesson_number": 2,
+            "start_time": "09:45",
+            "end_time": "09:00",
+        },
+    )
+    assert res_invalid_time.status_code == 422
+    assert "Время окончания урока должно быть позже времени начала" in res_invalid_time.text
+
+    # 6. Valid non-overlapping lesson 2 on same day succeeds
+    res2 = await client.post(
+        "/api/v1/schedule",
+        headers=auth_headers,
+        json={
+            "subject_id": test_subject.id,
+            "day_of_week": 1,
+            "lesson_number": 2,
+            "start_time": "08:55",
+            "end_time": "09:40",
+        },
+    )
+    assert res2.status_code == 201
+
+    # 7. Updating lesson without conflicting with itself succeeds
+    res_update_self = await client.put(
+        f"/api/v1/schedule/{lesson1_id}",
+        headers=auth_headers,
+        json={"room": "303"},
+    )
+    assert res_update_self.status_code == 200
+    assert res_update_self.json()["room"] == "303"
+
+    # 8. Updating lesson to conflict with lesson 2 rejected
+    res_update_conflict = await client.put(
+        f"/api/v1/schedule/{lesson1_id}",
+        headers=auth_headers,
+        json={"lesson_number": 2},
+    )
+    assert res_update_conflict.status_code == 422
+    assert "Урок №2 в этот день уже существует" in res_update_conflict.json()["detail"]
+
+    # 9. Same lesson number on DIFFERENT day (Tuesday) succeeds
+    res_tuesday = await client.post(
+        "/api/v1/schedule",
+        headers=auth_headers,
+        json={
+            "subject_id": test_subject.id,
+            "day_of_week": 2,
+            "lesson_number": 1,
+            "start_time": "08:00",
+            "end_time": "08:45",
+        },
+    )
+    assert res_tuesday.status_code == 201
+
+    # 10. Partial update of start_time only exceeding existing end_time rejected
+    res_partial_bad_time = await client.put(
+        f"/api/v1/schedule/{lesson1_id}",
+        headers=auth_headers,
+        json={"start_time": "08:50"},
+    )
+    assert res_partial_bad_time.status_code == 422
+    assert "Время окончания урока должно быть позже времени начала" in res_partial_bad_time.text
+
+    # 11. Partial update of start_time colliding with lesson 2 rejected
+    res_partial_overlap = await client.put(
+        f"/api/v1/schedule/{lesson1_id}",
+        headers=auth_headers,
+        json={"start_time": "08:40", "end_time": "09:05"},
+    )
+    assert res_partial_overlap.status_code == 422
+    assert "пересекается с уроком №2" in res_partial_overlap.json()["detail"]
+
+    # 12. Updating with explicit null for required fields rejected with 422
+    res_null_time = await client.put(
+        f"/api/v1/schedule/{lesson1_id}",
+        headers=auth_headers,
+        json={"start_time": None},
+    )
+    assert res_null_time.status_code == 422
+    assert "не может быть пустым" in res_null_time.text
+
+    res_null_num = await client.put(
+        f"/api/v1/schedule/{lesson1_id}",
+        headers=auth_headers,
+        json={"lesson_number": None},
+    )
+    assert res_null_num.status_code == 422
+    assert "не может быть пустым" in res_null_num.text

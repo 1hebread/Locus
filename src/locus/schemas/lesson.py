@@ -1,23 +1,26 @@
-from typing import Optional
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from typing import Any, Optional
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from locus.constants import DEFAULT_BELL_SCHEDULE, WeekType
 from locus.schemas.subject import SubjectOut
+
+
+TIME_PATTERN = r"^(?:[01]\d|2[0-3]):[0-5]\d$"
 
 
 class LessonBase(BaseModel):
     subject_id: int
     day_of_week: int = Field(ge=1, le=7)
     lesson_number: int = Field(ge=1, le=8)
-    start_time: Optional[str] = Field(default=None, pattern=r"^\d{2}:\d{2}$")
-    end_time: Optional[str] = Field(default=None, pattern=r"^\d{2}:\d{2}$")
+    start_time: Optional[str] = Field(default=None, pattern=TIME_PATTERN)
+    end_time: Optional[str] = Field(default=None, pattern=TIME_PATTERN)
     week_type: WeekType = WeekType.ALL
     room: Optional[str] = Field(default=None, max_length=50)
     note: Optional[str] = Field(default=None, max_length=255)
 
     @model_validator(mode="after")
-    def populate_default_times(self) -> "LessonBase":
-        """Auto-populate default school bell times if omitted."""
+    def populate_and_validate_times(self) -> "LessonBase":
+        """Auto-populate default school bell times if omitted and validate order."""
         if not self.start_time or not self.end_time:
             default_slot = DEFAULT_BELL_SCHEDULE.get(self.lesson_number)
             if default_slot:
@@ -25,6 +28,9 @@ class LessonBase(BaseModel):
                     self.start_time = default_slot[0]
                 if not self.end_time:
                     self.end_time = default_slot[1]
+        if self.start_time and self.end_time:
+            if self.start_time >= self.end_time:
+                raise ValueError("Время окончания урока должно быть позже времени начала")
         return self
 
 
@@ -36,11 +42,32 @@ class LessonUpdate(BaseModel):
     subject_id: Optional[int] = None
     day_of_week: Optional[int] = Field(default=None, ge=1, le=7)
     lesson_number: Optional[int] = Field(default=None, ge=1, le=8)
-    start_time: Optional[str] = Field(default=None, pattern=r"^\d{2}:\d{2}$")
-    end_time: Optional[str] = Field(default=None, pattern=r"^\d{2}:\d{2}$")
+    start_time: Optional[str] = Field(default=None, pattern=TIME_PATTERN)
+    end_time: Optional[str] = Field(default=None, pattern=TIME_PATTERN)
     week_type: Optional[WeekType] = None
     room: Optional[str] = Field(default=None, max_length=50)
     note: Optional[str] = Field(default=None, max_length=255)
+
+    @field_validator(
+        "subject_id",
+        "day_of_week",
+        "lesson_number",
+        "start_time",
+        "end_time",
+        "week_type",
+    )
+    @classmethod
+    def check_not_none(cls, v: Any, info) -> Any:
+        if v is None:
+            raise ValueError(f"Поле '{info.field_name}' не может быть пустым")
+        return v
+
+    @model_validator(mode="after")
+    def validate_times(self) -> "LessonUpdate":
+        if self.start_time and self.end_time:
+            if self.start_time >= self.end_time:
+                raise ValueError("Время окончания урока должно быть позже времени начала")
+        return self
 
 
 class LessonOut(BaseModel):

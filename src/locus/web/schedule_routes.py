@@ -1,7 +1,7 @@
 from datetime import date
 from typing import Optional
 from fastapi import APIRouter, Depends, Form, HTTPException, Request, Response, status
-from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -17,6 +17,7 @@ from locus.models.lesson import Lesson
 from locus.models.subject import Subject
 from locus.models.user import User
 from locus.models.vacation import Vacation
+from locus.schedule_validation import LessonConflictError, validate_lesson_conflict
 from locus.templates_config import templates
 
 router = APIRouter(prefix="/schedule", tags=["Web Schedule"])
@@ -52,6 +53,21 @@ async def schedule_page(
     vac_res = await db.execute(select(Vacation).order_by(Vacation.start_date.asc()))
     vacations = vac_res.scalars().all()
 
+    schedule_data = {
+        d: [
+            {
+                "id": l.id,
+                "lesson_number": l.lesson_number,
+                "start_time": l.start_time,
+                "end_time": l.end_time,
+                "week_type": l.week_type,
+                "subject_name": l.subject.name if l.subject else "Урок",
+            }
+            for l in schedule_by_day[d]
+        ]
+        for d in range(1, 7)
+    }
+
     return templates.TemplateResponse(
         request=request,
         name="schedule/index.html",
@@ -61,6 +77,7 @@ async def schedule_page(
             "active_day": active_day,
             "day_names": DAY_NAMES,
             "schedule_by_day": schedule_by_day,
+            "schedule_data": schedule_data,
             "subjects": subjects,
             "vacations": vacations,
             "default_bell_schedule": DEFAULT_BELL_SCHEDULE,
@@ -70,6 +87,7 @@ async def schedule_page(
 
 @router.post("")
 async def create_lesson_web(
+    request: Request,
     subject_id: int = Form(...),
     day_of_week: int = Form(...),
     lesson_number: int = Form(...),
@@ -80,23 +98,48 @@ async def create_lesson_web(
     current_user: User = Depends(get_current_admin_web),
     db: AsyncSession = Depends(get_db),
 ):
+    if day_of_week < 1 or day_of_week > 7:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="День недели должен быть от 1 до 7")
+    if lesson_number < 1 or lesson_number > 8:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Номер урока должен быть от 1 до 8")
+
     subject = await db.get(Subject, subject_id)
     if not subject:
         raise HTTPException(status_code=404, detail="Предмет не найден")
+
+    clean_start = start_time.strip()
+    clean_end = end_time.strip()
+
+    try:
+        await validate_lesson_conflict(
+            db=db,
+            day_of_week=day_of_week,
+            lesson_number=lesson_number,
+            start_time=clean_start,
+            end_time=clean_end,
+            week_type="ALL",
+        )
+    except LessonConflictError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc))
+
+    clean_room = room.strip()[:50] if room and room.strip() else None
+    clean_note = note.strip()[:255] if note and note.strip() else None
 
     lesson = Lesson(
         subject_id=subject_id,
         day_of_week=day_of_week,
         lesson_number=lesson_number,
-        start_time=start_time.strip(),
-        end_time=end_time.strip(),
+        start_time=clean_start,
+        end_time=clean_end,
         week_type="ALL",
-        room=room.strip() if room else None,
-        note=note.strip() if note else None,
+        room=clean_room,
+        note=clean_note,
     )
     db.add(lesson)
     await db.commit()
 
+    if request.headers.get("accept") == "application/json":
+        return JSONResponse({"ok": True, "redirect": "/schedule"})
     return RedirectResponse(url="/schedule", status_code=status.HTTP_303_SEE_OTHER)
 
 

@@ -11,6 +11,7 @@ from locus.models.lesson import Lesson
 from locus.models.subject import Subject
 from locus.models.user import User
 from locus.schemas.lesson import LessonCreate, LessonOut, LessonUpdate
+from locus.schedule_validation import LessonConflictError, validate_lesson_conflict
 
 router = APIRouter(prefix="/schedule", tags=["Schedule"])
 
@@ -55,12 +56,30 @@ async def create_lesson(
             detail="Выбранный предмет не найден",
         )
 
+    start_time = data.start_time or "08:00"
+    end_time = data.end_time or "08:45"
+
+    try:
+        await validate_lesson_conflict(
+            db=db,
+            day_of_week=data.day_of_week,
+            lesson_number=data.lesson_number,
+            start_time=start_time,
+            end_time=end_time,
+            week_type=data.week_type.value,
+        )
+    except LessonConflictError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail=str(exc),
+        )
+
     lesson = Lesson(
         subject_id=data.subject_id,
         day_of_week=data.day_of_week,
         lesson_number=data.lesson_number,
-        start_time=data.start_time or "08:00",
-        end_time=data.end_time or "08:45",
+        start_time=start_time,
+        end_time=end_time,
         week_type=data.week_type.value,
         room=data.room if data.room is not None else subject.room,
         note=data.note,
@@ -132,6 +151,28 @@ async def update_lesson(
     update_dict = data.model_dump(exclude_unset=True)
     if "week_type" in update_dict and update_dict["week_type"]:
         update_dict["week_type"] = update_dict["week_type"].value
+
+    target_day = update_dict.get("day_of_week") or lesson.day_of_week
+    target_number = update_dict.get("lesson_number") or lesson.lesson_number
+    target_start = update_dict.get("start_time") or lesson.start_time
+    target_end = update_dict.get("end_time") or lesson.end_time
+    target_week = update_dict.get("week_type") or lesson.week_type
+
+    try:
+        await validate_lesson_conflict(
+            db=db,
+            day_of_week=target_day,
+            lesson_number=target_number,
+            start_time=target_start,
+            end_time=target_end,
+            week_type=target_week,
+            exclude_lesson_id=lesson.id,
+        )
+    except LessonConflictError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail=str(exc),
+        )
 
     for key, val in update_dict.items():
         setattr(lesson, key, val)
