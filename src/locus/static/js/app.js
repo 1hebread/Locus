@@ -417,6 +417,22 @@ function syncDateDisplays(root = document) {
   });
 }
 
+// The add-homework modal is rendered outside the dashboard content that gets
+// swapped on navigation, so its "next lesson" quick-fill must be refreshed
+// from the newly fetched page by hand.
+function syncNextLessonSuggestion(doc) {
+  const current = document.querySelector('#add-hw-modal [data-next-lesson-btn]');
+  const fresh = doc.querySelector('#add-hw-modal [data-next-lesson-btn]');
+  if (current && fresh) {
+    current.replaceWith(fresh);
+  } else if (current) {
+    current.remove();
+  } else if (fresh) {
+    const form = document.querySelector('#add-hw-modal form');
+    if (form) form.prepend(fresh);
+  }
+}
+
 function updateHwModalSubgroupVisibility(modal) {
   const modalEl = modal || document.getElementById('add-hw-modal');
   if (!modalEl) return;
@@ -809,6 +825,7 @@ async function navigateDashboardDate(targetUrl, push = true) {
     const newDue = doc.getElementById('due_date');
     const currentDue = document.getElementById('due_date');
     if (newDue && currentDue) currentDue.value = newDue.value;
+    syncNextLessonSuggestion(doc);
 
     const newReturnUrl = doc.querySelector('#add-hw-modal input[name="return_url"]');
     const currentReturnUrl = document.querySelector('#add-hw-modal input[name="return_url"]');
@@ -1064,6 +1081,7 @@ async function navigateMobileSubgroup(targetUrl, push = true) {
     }
 
     mobileView.innerHTML = newMobileView.innerHTML;
+    syncNextLessonSuggestion(doc);
     if (newMobileView.hasAttribute('data-is-current-week')) {
       mobileView.setAttribute('data-is-current-week', newMobileView.getAttribute('data-is-current-week'));
     }
@@ -1111,6 +1129,74 @@ async function navigateMobileSubgroup(targetUrl, push = true) {
   }
 }
 
+// Dashboard subgroup switch: refresh only the lesson lists, keeping the day
+// header, week selector and subgroup buttons in place.
+let isSwitchingDashboardSubgroup = false;
+
+async function navigateDashboardSubgroup(targetUrl, push = true) {
+  if (isSwitchingDashboardSubgroup) return false;
+
+  const mobileView = document.getElementById('mobile-week-view');
+  const desktopLessons = document.getElementById('desktop-day-lessons');
+  if (!mobileView || !desktopLessons) {
+    window.location.href = targetUrl;
+    return false;
+  }
+
+  const targetURL = new URL(targetUrl, window.location.href);
+  isSwitchingDashboardSubgroup = true;
+
+  try {
+    const res = await fetch(targetUrl, {
+      headers: { 'X-Requested-With': 'XMLHttpRequest' }
+    });
+    if (!res.ok) throw new Error(`HTTP error ${res.status}`);
+
+    const doc = new DOMParser().parseFromString(await res.text(), 'text/html');
+    const newDesktopLessons = doc.getElementById('desktop-day-lessons');
+    if (!newDesktopLessons) throw new Error('Unexpected dashboard structure');
+
+    desktopLessons.innerHTML = newDesktopLessons.innerHTML;
+
+    // The add-homework modal lives outside the swapped area: refresh its
+    // "next lesson" quick-fill so it follows the selected subgroup.
+    syncNextLessonSuggestion(doc);
+
+    // Only the active subgroup highlight changes above the lessons
+    ['desktop-subgroup-filter', 'mobile-subgroup-filter'].forEach((id) => {
+      const cur = document.getElementById(id);
+      const next = doc.getElementById(id);
+      if (cur && next) cur.innerHTML = next.innerHTML;
+    });
+
+    mobileView.querySelectorAll('.mobile-day-lessons').forEach((cur) => {
+      const dayNum = cur.getAttribute('data-day-num');
+      const next = doc.querySelector(`.mobile-day-lessons[data-day-num="${dayNum}"]`);
+      if (next) cur.innerHTML = next.innerHTML;
+    });
+
+    lastPagePath = targetURL.pathname;
+    lastPageUrl = targetURL.pathname + targetURL.search;
+
+    if (push) {
+      window.history.pushState({ locusDateUrl: targetUrl }, '', targetUrl);
+    }
+
+    if (window.htmx) {
+      window.htmx.process(desktopLessons);
+      window.htmx.process(mobileView);
+    }
+
+    return true;
+  } catch (err) {
+    console.warn('Subgroup switch failed, falling back to full navigation:', err);
+    window.location.href = targetUrl;
+    return false;
+  } finally {
+    isSwitchingDashboardSubgroup = false;
+  }
+}
+
 // Subgroup filter buttons on dashboard and homework pages
 document.addEventListener('click', (e) => {
   if (e.defaultPrevented || e.button !== 0) return;
@@ -1135,20 +1221,28 @@ document.addEventListener('click', (e) => {
   if (url.pathname === '/homework') {
     navigateHomeworkFilter(url.pathname + url.search);
   } else if (url.pathname === '/') {
-    if (window.innerWidth < 768) {
-      navigateMobileSubgroup(url.pathname + url.search);
-    } else {
-      navigateDashboardDate(url.pathname + url.search);
-    }
+    navigateDashboardSubgroup(url.pathname + url.search);
   } else {
     navigateToPage(url.pathname + url.search);
   }
 });
 
 // Browser Back/Forward: page switch, or week switch while on the dashboard
+function isSubgroupOnlyChange(fromUrl, toUrl) {
+  if (!fromUrl || !toUrl) return false;
+  const param = (url, key) => new URL(url, window.location.origin).searchParams.get(key);
+  return param(fromUrl, 'date') === param(toUrl, 'date') &&
+    param(fromUrl, 'subgroup') !== param(toUrl, 'subgroup');
+}
+
 window.addEventListener('popstate', () => {
   const targetPath = window.location.pathname;
   const targetUrl = targetPath + window.location.search;
+
+  if (targetPath === '/' && lastPagePath === '/' && isSubgroupOnlyChange(lastPageUrl, targetUrl)) {
+    navigateDashboardSubgroup(targetUrl, false);
+    return;
+  }
 
   if (targetPath === '/' && lastPagePath === '/' && window.innerWidth < 768) {
     navigateMobileSubgroup(window.location.href, false);
@@ -1464,6 +1558,7 @@ async function switchMobileWeek(targetUrl, direction = 'next', pushHistory = tru
 
     // Swap mobile view DOM and container attributes
     mobileView.innerHTML = newMobileView.innerHTML;
+    syncNextLessonSuggestion(doc);
     if (newMobileView.hasAttribute('data-is-current-week')) {
       mobileView.setAttribute('data-is-current-week', newMobileView.getAttribute('data-is-current-week'));
     }

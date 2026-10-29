@@ -43,12 +43,11 @@ async def dashboard_index(
 ):
     today = get_current_date()
 
-    active_subgroup: Optional[int] = None
-    if current_user.is_admin or current_user.subgroup is None:
-        if subgroup_param in ("1", "2"):
-            active_subgroup = int(subgroup_param)
-        else:
-            active_subgroup = None
+    # Admins with a subgroup default to it; "all" is an explicit opt-out.
+    if subgroup_param == "all":
+        active_subgroup = None
+    elif subgroup_param in ("1", "2") and (current_user.is_admin or current_user.subgroup is None):
+        active_subgroup = int(subgroup_param)
     else:
         active_subgroup = current_user.subgroup
 

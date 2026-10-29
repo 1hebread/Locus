@@ -21,7 +21,7 @@
 
       <div class="flex items-stretch bg-[#247c45] rounded-xl overflow-hidden shadow-md text-white">
         <!-- Previous week button -->
-        <a href="/?date={{ prev_week_date_iso }}{% if active_subgroup %}&subgroup={{ active_subgroup }}{% endif %}"
+        <a href="/?date={{ prev_week_date_iso }}&subgroup={{ active_subgroup or 'all' }}"
            data-date-nav
            class="flex items-center space-x-1.5 px-3 py-3.5 bg-[#1d6537] hover:bg-[#17522c] border-r border-[#1a5b32] transition shrink-0 group text-xs font-semibold text-white/85 hover:text-white"
            title="Предыдущая неделя">
@@ -34,7 +34,7 @@
 
         <!-- Days of week tabs -->
         {% for day in desktop_days %}
-        <a href="/?date={{ day.date_iso }}{% if active_subgroup %}&subgroup={{ active_subgroup }}{% endif %}"
+        <a href="/?date={{ day.date_iso }}&subgroup={{ active_subgroup or 'all' }}"
            data-date-nav
            class="flex-1 flex items-center justify-center px-2 py-3.5 border-r border-[#1a5b32] uppercase tracking-wider text-center transition text-xs sm:text-sm lg:text-[15px]
                   {% if day.is_selected %}bg-[#2ea35b] text-white font-black shadow-inner{% else %}bg-transparent hover:bg-[#2b8f50] text-white/90 hover:text-white font-extrabold{% endif %}">
@@ -43,7 +43,7 @@
         {% endfor %}
 
         <!-- Next week button -->
-        <a href="/?date={{ next_week_date_iso }}{% if active_subgroup %}&subgroup={{ active_subgroup }}{% endif %}"
+        <a href="/?date={{ next_week_date_iso }}&subgroup={{ active_subgroup or 'all' }}"
            data-date-nav
            class="flex items-center space-x-1.5 px-3 py-3.5 bg-[#1d6537] hover:bg-[#17522c] border-l border-[#1a5b32] transition shrink-0 group text-xs font-semibold text-white/85 hover:text-white"
            title="Следующая неделя">
@@ -73,7 +73,7 @@
 
       <div class="flex items-center gap-2.5">
         {% if current_user.is_admin or not current_user.subgroup %}
-        <div class="flex items-center bg-[#18181b] p-1 rounded-xl border border-zinc-800 text-xs">
+        <div id="desktop-subgroup-filter" class="flex items-center bg-[#18181b] p-1 rounded-xl border border-zinc-800 text-xs">
           <a href="/?date={{ selected_date_iso }}&subgroup=all"
              data-subgroup-filter
              class="px-2.5 py-1 rounded-lg font-medium transition {% if active_subgroup is none %}bg-emerald-500 text-white font-bold{% else %}text-zinc-400 hover:text-white{% endif %}">
@@ -108,6 +108,7 @@
     </div>
 
     <!-- Lessons & Breaks Timeline (Desktop) -->
+    <div id="desktop-day-lessons">
     {% if active_vacation %}
     <!-- Compact Vacation Notice (Desktop) -->
     <div class="py-4 px-4 text-center bg-black border border-zinc-800 rounded-2xl shadow-[0_4px_16px_rgba(0,0,0,0.8)]">
@@ -177,6 +178,7 @@
       </div>
     </div>
     {% endif %}
+    </div>
 
     </div>
   </div>
@@ -215,7 +217,7 @@
     <!-- 2. Mobile Week Switcher (19 - 25 октября) - Normal flow, scrolls away with content -->
     <div id="mobile-week-switcher" class="-mx-3.5 px-3.5 pt-2 pb-1 select-none">
       <div class="flex items-center justify-between px-3 py-1.5 bg-black border border-zinc-800 rounded-2xl shadow-sm">
-        <a href="/?date={{ prev_week_date_iso }}{% if active_subgroup %}&subgroup={{ active_subgroup }}{% endif %}"
+        <a href="/?date={{ prev_week_date_iso }}&subgroup={{ active_subgroup or 'all' }}"
            data-swipe-prev
            class="p-1.5 text-zinc-400 hover:text-white transition rounded-xl hover:bg-zinc-800 active:scale-95"
            title="Предыдущая неделя">
@@ -229,7 +231,7 @@
           <span class="text-[10px] sm:text-[11px] font-semibold text-emerald-400 block">{{ month_title }}</span>
         </div>
 
-        <a href="/?date={{ next_week_date_iso }}{% if active_subgroup %}&subgroup={{ active_subgroup }}{% endif %}"
+        <a href="/?date={{ next_week_date_iso }}&subgroup={{ active_subgroup or 'all' }}"
            data-swipe-next
            class="p-1.5 text-zinc-400 hover:text-white transition rounded-xl hover:bg-zinc-800 active:scale-95"
            title="Следующая неделя">
@@ -240,7 +242,7 @@
       </div>
 
       {% if current_user.is_admin or not current_user.subgroup %}
-      <div class="px-1 pt-2 flex items-center justify-center gap-1.5 text-xs">
+      <div id="mobile-subgroup-filter" class="px-1 pt-2 flex items-center justify-center gap-1.5 text-xs">
         <a href="/?date={{ selected_date_iso }}&subgroup=all"
            data-subgroup-filter
            class="px-3 py-1 rounded-xl transition {% if active_subgroup is none %}bg-emerald-500 text-white font-bold{% else %}bg-[#18181b] text-zinc-400 border border-zinc-800{% endif %}">
@@ -282,6 +284,7 @@
         </div>
 
         <!-- Lessons for this day -->
+        <div class="mobile-day-lessons space-y-2.5" data-day-num="{{ day.day_num }}">
         {% if day.vacation %}
         <!-- Compact Vacation Notice (Mobile) -->
         <div class="py-4 px-4 text-center bg-black border border-zinc-800 rounded-2xl shadow-[0_4px_16px_rgba(0,0,0,0.8)]">
@@ -350,6 +353,7 @@
           </div>
         </div>
         {% endif %}
+        </div>
       </section>
       {% endfor %}
     </div>

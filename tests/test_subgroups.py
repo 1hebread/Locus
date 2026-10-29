@@ -4,7 +4,6 @@ from httpx import AsyncClient
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from locus.config import get_settings
 from locus.models.homework import Homework
 from locus.models.lesson import Lesson
 from locus.models.subject import Subject
@@ -95,7 +94,7 @@ async def test_subgroup_lesson_conflict_rules(
 @pytest.mark.asyncio
 async def test_admin_creates_and_updates_user_subgroup(
     client: AsyncClient,
-    auth_cookies: dict,
+    auth_headers: dict,
     db_session: AsyncSession,
 ):
     # 1. Create user with subgroup 1
@@ -106,7 +105,7 @@ async def test_admin_creates_and_updates_user_subgroup(
             "password": "password123",
             "subgroup": "1",
         },
-        cookies=auth_cookies,
+        headers=auth_headers,
         follow_redirects=True,
     )
     assert resp.status_code == 200
@@ -120,7 +119,7 @@ async def test_admin_creates_and_updates_user_subgroup(
     update_resp = await client.post(
         f"/admin/users/{alice.id}/subgroup",
         data={"subgroup": "2"},
-        cookies=auth_cookies,
+        headers=auth_headers,
         follow_redirects=True,
     )
     assert update_resp.status_code == 200
@@ -131,7 +130,7 @@ async def test_admin_creates_and_updates_user_subgroup(
     clear_resp = await client.post(
         f"/admin/users/{alice.id}/subgroup",
         data={"subgroup": ""},
-        cookies=auth_cookies,
+        headers=auth_headers,
         follow_redirects=True,
     )
     assert clear_resp.status_code == 200
@@ -144,10 +143,8 @@ async def test_homework_isolation_by_subgroup(
     client: AsyncClient,
     db_session: AsyncSession,
     test_subject: Subject,
-    auth_cookies: dict,
+    auth_headers: dict,
 ):
-    settings = get_settings()
-
     # Create students
     u1 = User(
         username="group1_student",
@@ -194,14 +191,14 @@ async def test_homework_isolation_by_subgroup(
     await db_session.commit()
 
     # Query as student 1 (web)
-    r1 = await client.get("/homework", cookies={settings.COOKIE_NAME: t1})
+    r1 = await client.get("/homework", headers={"Authorization": f"Bearer {t1}"})
     assert r1.status_code == 200
     assert "Общее ДЗ" in r1.text
     assert "ДЗ только для 1 группы" in r1.text
     assert "ДЗ только для 2 группы" not in r1.text
 
     # Query as student 2 (web)
-    r2 = await client.get("/homework", cookies={settings.COOKIE_NAME: t2})
+    r2 = await client.get("/homework", headers={"Authorization": f"Bearer {t2}"})
     assert r2.status_code == 200
     assert "Общее ДЗ" in r2.text
     assert "ДЗ только для 1 группы" not in r2.text
@@ -218,7 +215,7 @@ async def test_homework_isolation_by_subgroup(
     # Query as admin (API with subgroup filter)
     admin_r = await client.get(
         "/api/v1/homework?subgroup=2",
-        cookies=auth_cookies,
+        headers=auth_headers,
     )
     assert admin_r.status_code == 200
     admin_titles = [h["title"] for h in admin_r.json()]
@@ -231,10 +228,7 @@ async def test_homework_isolation_by_subgroup(
 async def test_dashboard_subgroup_parallel_lesson_display(
     client: AsyncClient,
     db_session: AsyncSession,
-    auth_cookies: dict,
 ):
-    settings = get_settings()
-
     s1 = Subject(name="Английский", teacher_name="Смит Д.", room="101")
     s2 = Subject(name="Информатика", teacher_name="Байтов И.", room="202")
     db_session.add_all([s1, s2])
@@ -288,7 +282,7 @@ async def test_dashboard_subgroup_parallel_lesson_display(
     target_monday = "2026-10-26"  # A Monday
 
     # Student 1 view
-    r1 = await client.get(f"/?date={target_monday}", cookies={settings.COOKIE_NAME: t1})
+    r1 = await client.get(f"/?date={target_monday}", headers={"Authorization": f"Bearer {t1}"})
     assert r1.status_code == 200
     assert f'id="lesson-card-{l1.id}"' in r1.text
     assert f'id="lesson-card-{l2.id}"' not in r1.text
@@ -297,7 +291,7 @@ async def test_dashboard_subgroup_parallel_lesson_display(
     assert "group/parallel" not in r1.text
 
     # Student 2 view
-    r2 = await client.get(f"/?date={target_monday}", cookies={settings.COOKIE_NAME: t2})
+    r2 = await client.get(f"/?date={target_monday}", headers={"Authorization": f"Bearer {t2}"})
     assert r2.status_code == 200
     assert f'id="lesson-card-{l2.id}"' in r2.text
     assert f'id="lesson-card-{l1.id}"' not in r2.text
@@ -308,11 +302,62 @@ async def test_dashboard_subgroup_parallel_lesson_display(
     save_resp = await client.post(
         f"/dashboard/lesson/{l1.id}/homework?date={target_monday}",
         data={"title": "Новое ДЗ по английскому", "is_done": False},
-        cookies={settings.COOKIE_NAME: t1},
+        headers={"Authorization": f"Bearer {t1}"},
     )
     assert save_resp.status_code == 200
     assert "Параллельно:" not in save_resp.text
     assert "group/parallel" not in save_resp.text
+
+
+@pytest.mark.asyncio
+async def test_dashboard_admin_defaults_to_own_subgroup(
+    client: AsyncClient,
+    db_session: AsyncSession,
+):
+    s1 = Subject(name="Английский", teacher_name="Смит Д.", room="101")
+    s2 = Subject(name="Информатика", teacher_name="Байтов И.", room="202")
+    db_session.add_all([s1, s2])
+    await db_session.commit()
+    await db_session.refresh(s1)
+    await db_session.refresh(s2)
+
+    l1 = Lesson(
+        subject_id=s1.id, day_of_week=1, lesson_number=1,
+        start_time="08:00", end_time="08:45", week_type="ALL", subgroup=1,
+    )
+    l2 = Lesson(
+        subject_id=s2.id, day_of_week=1, lesson_number=1,
+        start_time="08:00", end_time="08:45", week_type="ALL", subgroup=2,
+    )
+    db_session.add_all([l1, l2])
+
+    admin = User(
+        username="admin_sub2",
+        hashed_password=hash_password("pass123"),
+        is_active=True,
+        is_admin=True,
+        subgroup=2,
+    )
+    db_session.add(admin)
+    await db_session.commit()
+    await db_session.refresh(admin)
+
+    token = create_access_token({
+        "sub": str(admin.id),
+        "pwd": get_password_fingerprint(admin.hashed_password),
+    })
+    headers = {"Authorization": f"Bearer {token}"}
+    target_monday = "2026-10-26"
+
+    # No explicit filter -> admin's own (2nd) subgroup
+    r_default = await client.get(f"/?date={target_monday}", headers=headers)
+    assert f'id="lesson-card-{l2.id}"' in r_default.text
+    assert f'id="lesson-card-{l1.id}"' not in r_default.text
+
+    # Explicit "all" still shows every subgroup
+    r_all = await client.get(f"/?date={target_monday}&subgroup=all", headers=headers)
+    assert f'id="lesson-card-{l1.id}"' in r_all.text
+    assert f'id="lesson-card-{l2.id}"' in r_all.text
 
 
 @pytest.mark.asyncio
@@ -321,8 +366,6 @@ async def test_homework_security_cross_subgroup_prohibited(
     db_session: AsyncSession,
     test_subject: Subject,
 ):
-    settings = get_settings()
-
     u1 = User(
         username="s1",
         hashed_password=hash_password("pass123"),
@@ -376,7 +419,7 @@ async def test_homework_security_cross_subgroup_prohibited(
 
     r_web_del = await client.delete(
         f"/homework/{hw2.id}",
-        cookies={settings.COOKIE_NAME: t1},
+        headers={"Authorization": f"Bearer {t1}"},
     )
     assert r_web_del.status_code == 403
 
@@ -401,7 +444,7 @@ async def test_homework_security_cross_subgroup_prohibited(
             "due_date": "2026-11-02",
             "subgroup": "2",
         },
-        cookies={settings.COOKIE_NAME: t1},
+        headers={"Authorization": f"Bearer {t1}"},
     )
     assert r_create_web.status_code == 403
 
@@ -409,14 +452,14 @@ async def test_homework_security_cross_subgroup_prohibited(
 @pytest.mark.asyncio
 async def test_invalid_subgroup_validation(
     client: AsyncClient,
-    auth_cookies: dict,
+    auth_headers: dict,
     test_subject: Subject,
 ):
     # Invalid subgroup in admin user creation
     r1 = await client.post(
         "/admin/users",
         data={"username": "bob_invalid", "password": "password123", "subgroup": "99"},
-        cookies=auth_cookies,
+        headers=auth_headers,
     )
     assert r1.status_code == 400
 
@@ -431,7 +474,7 @@ async def test_invalid_subgroup_validation(
             "end_time": "15:25",
             "subgroup": 99,
         },
-        cookies=auth_cookies,
+        headers=auth_headers,
     )
     assert r2.status_code == 400
 
@@ -440,18 +483,18 @@ async def test_invalid_subgroup_validation(
     r_create = await client.post(
         "/admin/users",
         data={"username": "test_user_sub", "password": "password123", "subgroup": "1"},
-        cookies=auth_cookies,
+        headers=auth_headers,
         follow_redirects=True,
     )
     assert r_create.status_code == 200
-    user_row = (await client.get("/admin/users", cookies=auth_cookies)).text
+    user_row = (await client.get("/admin/users", headers=auth_headers)).text
     assert "test_user_sub" in user_row
 
     # Update with invalid subgroup
     r3 = await client.post(
         "/admin/users/1/subgroup",
         data={"subgroup": "99"},
-        cookies=auth_cookies,
+        headers=auth_headers,
     )
     assert r3.status_code == 400
     assert "Номер подгруппы должен быть 1 или 2" in r3.text
@@ -461,7 +504,6 @@ async def test_invalid_subgroup_validation(
 async def test_common_subject_cannot_have_subgroup_homework(
     client: AsyncClient,
     db_session: AsyncSession,
-    auth_cookies: dict,
     auth_headers: dict,
 ):
     # Common subject (e.g. Algebra) without any subgroup lessons
@@ -479,7 +521,7 @@ async def test_common_subject_cannot_have_subgroup_homework(
             "due_date": "2026-11-03",
             "subgroup": "1",
         },
-        cookies=auth_cookies,
+        headers=auth_headers,
         follow_redirects=True,
     )
     assert r_web.status_code == 200
@@ -508,7 +550,7 @@ async def test_common_subject_cannot_have_subgroup_homework(
 async def test_unassigned_hw_assigned_to_subgroup_lesson_updates_subgroup(
     client: AsyncClient,
     db_session: AsyncSession,
-    auth_cookies: dict,
+    auth_headers: dict,
 ):
     sub = Subject(name="Информатика")
     db_session.add(sub)
@@ -547,7 +589,7 @@ async def test_unassigned_hw_assigned_to_subgroup_lesson_updates_subgroup(
             "title": "Практическая работа обновленная",
             "is_done": False,
         },
-        cookies=auth_cookies,
+        headers=auth_headers,
     )
     assert r.status_code == 200
 
@@ -560,7 +602,6 @@ async def test_unassigned_hw_assigned_to_subgroup_lesson_updates_subgroup(
 async def test_different_teachers_per_subgroup_lesson(
     client: AsyncClient,
     db_session: AsyncSession,
-    auth_cookies: dict,
     auth_headers: dict,
 ):
     # 1. Create Subject with teachers and rooms for both subgroups via Web form
@@ -575,7 +616,7 @@ async def test_different_teachers_per_subgroup_lesson(
             "teacher2_phone": "+7 (999) 222-22-22",
             "room2": "102",
         },
-        cookies=auth_cookies,
+        headers=auth_headers,
         follow_redirects=True,
     )
     assert r_subj.status_code == 200
@@ -594,7 +635,7 @@ async def test_different_teachers_per_subgroup_lesson(
     assert subj.get_room(2) == "102"
 
     # 2. Check /subjects page renders both subgroup teachers
-    subjects_page = await client.get("/subjects", cookies=auth_cookies)
+    subjects_page = await client.get("/subjects", headers=auth_headers)
     assert subjects_page.status_code == 200
     assert "Иванова А.А. (Подгр. 1)" in subjects_page.text
     assert "Петрова Б.Б. (Подгр. 2)" in subjects_page.text
@@ -612,7 +653,7 @@ async def test_different_teachers_per_subgroup_lesson(
             "subgroup": "1",
             "room": "",
         },
-        cookies=auth_cookies,
+        headers=auth_headers,
         follow_redirects=True,
     )
     assert r_web1.status_code == 200
@@ -644,7 +685,7 @@ async def test_different_teachers_per_subgroup_lesson(
             "subgroup": "",
             "room": "Актовый зал",
         },
-        cookies=auth_cookies,
+        headers=auth_headers,
         follow_redirects=True,
     )
     assert r_web3.status_code == 200
@@ -672,7 +713,7 @@ async def test_different_teachers_per_subgroup_lesson(
     assert l3.effective_room == "Актовый зал"  # Specific lesson room override
 
     # Check schedule page displays both teachers
-    sched_resp = await client.get("/schedule", cookies=auth_cookies)
+    sched_resp = await client.get("/schedule", headers=auth_headers)
     assert sched_resp.status_code == 200
     assert "Иванова А.А. (Подгр. 1)" in sched_resp.text
     assert "Петрова Б.Б. (Подгр. 2)" in sched_resp.text
@@ -681,7 +722,7 @@ async def test_different_teachers_per_subgroup_lesson(
     # Modal for lesson 1 (subgroup 1)
     m1 = await client.get(
         f"/dashboard/lesson/{l1.id}/modal?date=2026-10-27",
-        cookies=auth_cookies,
+        headers=auth_headers,
     )
     assert m1.status_code == 200
     assert "Иванова А.А. (Подгр. 1)" in m1.text
@@ -690,7 +731,7 @@ async def test_different_teachers_per_subgroup_lesson(
     # Modal for lesson 2 (subgroup 2)
     m2 = await client.get(
         f"/dashboard/lesson/{l2.id}/modal?date=2026-10-27",
-        cookies=auth_cookies,
+        headers=auth_headers,
     )
     assert m2.status_code == 200
     assert "Петрова Б.Б. (Подгр. 2)" in m2.text
@@ -699,7 +740,7 @@ async def test_different_teachers_per_subgroup_lesson(
     # Modal for lesson 3 (class-wide / fallback to default teacher)
     m3 = await client.get(
         f"/dashboard/lesson/{l3.id}/modal?date=2026-10-27",
-        cookies=auth_cookies,
+        headers=auth_headers,
     )
     assert m3.status_code == 200
     assert "Иванова А.А. (Подгр. 1)" in m3.text
@@ -745,7 +786,7 @@ async def test_different_teachers_per_subgroup_lesson(
             "title": "Общее задание для всех",
             "subgroup": "",
         },
-        cookies=auth_cookies,
+        headers=auth_headers,
         follow_redirects=True,
     )
     assert r_hw_all.status_code == 200
@@ -842,12 +883,11 @@ async def test_subject_card_subgroup_badges_and_empty_divider(
     await db_session.refresh(u1)
     await db_session.refresh(u2)
 
-    settings = get_settings()
     t1 = create_access_token({"sub": str(u1.id), "pwd": get_password_fingerprint(u1.hashed_password)})
     t2 = create_access_token({"sub": str(u2.id), "pwd": get_password_fingerprint(u2.hashed_password)})
 
     # Fetch page as user in subgroup 1
-    res1 = await client.get("/subjects", cookies={settings.COOKIE_NAME: t1})
+    res1 = await client.get("/subjects", headers={"Authorization": f"Bearer {t1}"})
     assert res1.status_code == 200
     html1 = res1.text
 
@@ -862,7 +902,7 @@ async def test_subject_card_subgroup_badges_and_empty_divider(
     assert 'border-transparent text-[10px] font-semibold">2 подгруппа</span>' in html1
 
     # Fetch page as user in subgroup 2
-    res2 = await client.get("/subjects", cookies={settings.COOKIE_NAME: t2})
+    res2 = await client.get("/subjects", headers={"Authorization": f"Bearer {t2}"})
     assert res2.status_code == 200
     html2 = res2.text
 
@@ -884,7 +924,7 @@ async def test_subject_card_subgroup_badges_and_empty_divider(
     db_session.add(subj_only_sub2)
     await db_session.commit()
 
-    res3 = await client.get("/subjects", cookies={settings.COOKIE_NAME: t1})
+    res3 = await client.get("/subjects", headers={"Authorization": f"Bearer {t1}"})
     html3 = res3.text
     idx_info = html3.find("Информатика спец")
     assert idx_info != -1
@@ -901,8 +941,6 @@ async def test_subgroup_security_bypass_and_lesson_modal_protection(
     db_session: AsyncSession,
     test_subject: Subject,
 ):
-    settings = get_settings()
-
     # Create users in subgroup 1 and subgroup 2
     u1 = User(
         username="sec_user_sub1",
@@ -940,7 +978,7 @@ async def test_subgroup_security_bypass_and_lesson_modal_protection(
     # 1. User 1 cannot open modal for subgroup 2's lesson (403 Forbidden)
     res_modal = await client.get(
         f"/dashboard/lesson/{l2.id}/modal?date=2026-10-27",
-        cookies={settings.COOKIE_NAME: t1},
+        headers={"Authorization": f"Bearer {t1}"},
     )
     assert res_modal.status_code == 403
 
@@ -966,7 +1004,7 @@ async def test_subgroup_security_bypass_and_lesson_modal_protection(
             "title": "Хак веб",
             "due_date": "2026-10-27",
         },
-        cookies={settings.COOKIE_NAME: t1},
+        headers={"Authorization": f"Bearer {t1}"},
     )
     assert res_web_create.status_code == 403
 
@@ -992,7 +1030,7 @@ async def test_subgroup_security_bypass_and_lesson_modal_protection(
 async def test_unassigned_general_homework_in_both_parallel_cards(
     client: AsyncClient,
     db_session: AsyncSession,
-    auth_cookies: dict,
+    auth_headers: dict,
 ):
     # Subject with 2 subgroups
     subj = Subject(name="Физика", teacher_name="Учитель 1", teacher2_name="Учитель 2")
@@ -1029,7 +1067,7 @@ async def test_unassigned_general_homework_in_both_parallel_cards(
     await db_session.commit()
 
     # Admin visits dashboard for 2026-10-27 with subgroup filter "Все" (no subgroup param)
-    res = await client.get("/?date=2026-10-27", cookies=auth_cookies)
+    res = await client.get("/?date=2026-10-27", headers=auth_headers)
     assert res.status_code == 200
     html = res.text
 
