@@ -22,22 +22,48 @@
   </div>
 
   <!-- Filters Row (single line, no broken text) -->
-  <div id="hw-filters" class="flex items-center space-x-2 overflow-x-auto pb-1 text-xs sm:text-sm">
-    <a href="/homework"
-       data-hw-filter
-       class="px-3.5 py-1.5 rounded-xl font-medium whitespace-nowrap transition {% if not current_filter %}bg-emerald-500 text-white font-bold shadow-md shadow-emerald-500/25{% else %}bg-black border border-zinc-800 text-zinc-400 hover:text-white{% endif %}">
-      Все
-    </a>
-    <a href="/homework?filter=todo"
-       data-hw-filter
-       class="px-3.5 py-1.5 rounded-xl font-medium whitespace-nowrap transition {% if current_filter == 'todo' %}bg-emerald-500 text-white font-bold shadow-md shadow-emerald-500/25{% else %}bg-black border border-zinc-800 text-zinc-400 hover:text-white{% endif %}">
-      К сдаче
-    </a>
-    <a href="/homework?filter=done"
-       data-hw-filter
-       class="px-3.5 py-1.5 rounded-xl font-medium whitespace-nowrap transition {% if current_filter == 'done' %}bg-emerald-500 text-white font-bold shadow-md shadow-emerald-500/25{% else %}bg-black border border-zinc-800 text-zinc-400 hover:text-white{% endif %}">
-      Выполненные
-    </a>
+  <div class="flex items-center justify-between gap-3 flex-wrap">
+    <div id="hw-filters" class="flex items-center space-x-2 overflow-x-auto pb-1 text-xs sm:text-sm">
+      <a href="/homework{% if active_subgroup %}?subgroup={{ active_subgroup }}{% endif %}"
+         data-hw-filter
+         class="px-3.5 py-1.5 rounded-xl font-medium whitespace-nowrap transition {% if not current_filter %}bg-emerald-500 text-white font-bold shadow-md shadow-emerald-500/25{% else %}bg-black border border-zinc-800 text-zinc-400 hover:text-white{% endif %}">
+        Все
+      </a>
+      <a href="/homework?filter=todo{% if active_subgroup %}&subgroup={{ active_subgroup }}{% endif %}"
+         data-hw-filter
+         class="px-3.5 py-1.5 rounded-xl font-medium whitespace-nowrap transition {% if current_filter == 'todo' %}bg-emerald-500 text-white font-bold shadow-md shadow-emerald-500/25{% else %}bg-black border border-zinc-800 text-zinc-400 hover:text-white{% endif %}">
+        К сдаче
+      </a>
+      <a href="/homework?filter=done{% if active_subgroup %}&subgroup={{ active_subgroup }}{% endif %}"
+         data-hw-filter
+         class="px-3.5 py-1.5 rounded-xl font-medium whitespace-nowrap transition {% if current_filter == 'done' %}bg-emerald-500 text-white font-bold shadow-md shadow-emerald-500/25{% else %}bg-black border border-zinc-800 text-zinc-400 hover:text-white{% endif %}">
+        Выполненные
+      </a>
+    </div>
+
+    {% if current_user.is_admin or not current_user.subgroup %}
+    <div id="hw-subgroup-filters" class="flex items-center bg-[#18181b] p-1 rounded-xl border border-zinc-800 text-xs">
+      <a href="/homework{% if current_filter %}?filter={{ current_filter }}&subgroup=all{% else %}?subgroup=all{% endif %}"
+         data-subgroup-filter
+         class="px-2.5 py-1 rounded-lg font-medium transition {% if active_subgroup is none %}bg-emerald-500 text-white font-bold{% else %}text-zinc-400 hover:text-white{% endif %}">
+        Все
+      </a>
+      <a href="/homework{% if current_filter %}?filter={{ current_filter }}&subgroup=1{% else %}?subgroup=1{% endif %}"
+         data-subgroup-filter
+         class="px-2.5 py-1 rounded-lg font-medium transition {% if active_subgroup == 1 %}bg-emerald-500 text-white font-bold{% else %}text-zinc-400 hover:text-white{% endif %}">
+        1 подгруппа
+      </a>
+      <a href="/homework{% if current_filter %}?filter={{ current_filter }}&subgroup=2{% else %}?subgroup=2{% endif %}"
+         data-subgroup-filter
+         class="px-2.5 py-1 rounded-lg font-medium transition {% if active_subgroup == 2 %}bg-emerald-500 text-white font-bold{% else %}text-zinc-400 hover:text-white{% endif %}">
+        2 подгруппа
+      </a>
+    </div>
+    {% elif current_user.subgroup %}
+    <span class="inline-flex items-center gap-1 px-3 py-1 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs font-semibold">
+      {{ current_user.subgroup }} подгруппа
+    </span>
+    {% endif %}
   </div>
 
   <!-- Homework List -->

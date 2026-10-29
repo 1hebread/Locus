@@ -17,6 +17,15 @@ class LessonBase(BaseModel):
     week_type: WeekType = WeekType.ALL
     room: Optional[str] = Field(default=None, max_length=50)
     note: Optional[str] = Field(default=None, max_length=255)
+    subgroup: Optional[int] = Field(default=None, ge=1, le=2)
+
+    @field_validator("room", "note")
+    @classmethod
+    def strip_text(cls, v: Optional[str]) -> Optional[str]:
+        if v is not None:
+            v = v.strip()
+            return v if v else None
+        return None
 
     @model_validator(mode="after")
     def populate_and_validate_times(self) -> "LessonBase":
@@ -47,6 +56,15 @@ class LessonUpdate(BaseModel):
     week_type: Optional[WeekType] = None
     room: Optional[str] = Field(default=None, max_length=50)
     note: Optional[str] = Field(default=None, max_length=255)
+    subgroup: Optional[int] = Field(default=None, ge=1, le=2)
+
+    @field_validator("room", "note")
+    @classmethod
+    def strip_text(cls, v: Optional[str]) -> Optional[str]:
+        if v is not None:
+            v = v.strip()
+            return v if v else None
+        return None
 
     @field_validator(
         "subject_id",
@@ -80,6 +98,7 @@ class LessonOut(BaseModel):
     week_type: str
     room: Optional[str] = None
     note: Optional[str] = None
+    subgroup: Optional[int] = None
     subject: Optional[SubjectOut] = None
 
     model_config = ConfigDict(from_attributes=True)

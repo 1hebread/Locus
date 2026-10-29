@@ -371,6 +371,33 @@ function syncDateDisplays(root = document) {
   });
 }
 
+function updateHwModalSubgroupVisibility(modal) {
+  const modalEl = modal || document.getElementById('add-hw-modal');
+  if (!modalEl) return;
+  const subjectSelect = modalEl.querySelector('#subject_id');
+  const subgroupContainer = modalEl.querySelector('#hw-subgroup-field-container');
+  const subgroupSelect = modalEl.querySelector('#hw_subgroup');
+  if (!subjectSelect || !subgroupContainer || !subgroupSelect) return;
+
+  const selectedOpt = subjectSelect.options[subjectSelect.selectedIndex];
+  const hasSubgroups = selectedOpt && selectedOpt.getAttribute('data-has-subgroups') === 'true';
+
+  if (!hasSubgroups) {
+    subgroupContainer.classList.add('hidden');
+    subgroupSelect.value = '';
+    subgroupSelect.disabled = true;
+  } else {
+    subgroupContainer.classList.remove('hidden');
+    subgroupSelect.disabled = false;
+    if (!subgroupSelect.value) {
+      const userSubgroup = subgroupSelect.getAttribute('data-user-subgroup');
+      if (userSubgroup) {
+        subgroupSelect.value = userSubgroup;
+      }
+    }
+  }
+}
+
 function applyNextLessonSuggestion(modal) {
   const button = modal ? modal.querySelector('[data-next-lesson-btn]') : null;
   if (!button) return false;
@@ -378,11 +405,20 @@ function applyNextLessonSuggestion(modal) {
   const subjectId = button.getAttribute('data-subject-id');
   const lessonId = button.getAttribute('data-lesson-id');
   const dueDate = button.getAttribute('data-due-date');
+  const subgroup = button.getAttribute('data-subgroup');
   const subjectSelect = modal.querySelector('#subject_id');
   const dueInput = modal.querySelector('#due_date');
+  const subgroupSelect = modal.querySelector('#hw_subgroup') || modal.querySelector('#subgroup');
 
-  if (subjectSelect && subjectId) subjectSelect.value = subjectId;
+  if (subjectSelect && subjectId) {
+    subjectSelect.value = subjectId;
+    updateHwModalSubgroupVisibility(modal);
+  }
   if (dueInput && dueDate) dueInput.value = dueDate;
+  if (subgroupSelect) {
+    const targetSubgroup = (subgroup !== null && subgroup !== undefined) ? String(subgroup) : '';
+    subgroupSelect.value = targetSubgroup;
+  }
 
   // Link the task to the next occurrence of the subject so paired lessons
   // show it in the correct card.
@@ -404,6 +440,8 @@ function maybeAutoApplyNextLesson(modal) {
   const button = modal.querySelector('[data-next-lesson-btn]');
   if (button && button.getAttribute('data-auto-apply') === 'true') {
     applyNextLessonSuggestion(modal);
+  } else {
+    updateHwModalSubgroupVisibility(modal);
   }
 }
 
@@ -430,7 +468,12 @@ document.addEventListener('change', (e) => {
 
   const modal = target.closest('#add-hw-modal');
   if (!modal) return;
-  if (target.id !== 'subject_id' && target.id !== 'due_date') return;
+
+  if (target.id === 'subject_id') {
+    updateHwModalSubgroupVisibility(modal);
+  }
+
+  if (target.id !== 'subject_id' && target.id !== 'due_date' && target.id !== 'hw_subgroup') return;
 
   const lessonInput = modal.querySelector('#hw_lesson_id');
   if (lessonInput) lessonInput.value = '';
@@ -861,14 +904,19 @@ async function navigateHomeworkFilter(targetUrl, push = true) {
     const doc = new DOMParser().parseFromString(html, 'text/html');
     const newContainer = doc.getElementById('hw-container');
     const newFilters = doc.getElementById('hw-filters');
+    const newSubgroupFilters = doc.getElementById('hw-subgroup-filters');
+    const curSubgroupFilters = document.getElementById('hw-subgroup-filters');
 
     if (!newContainer || !newFilters) {
       throw new Error('Unexpected homework page structure');
     }
 
-    // Swap just the list and the active tab state
+    // Swap just the list, filter tabs, and subgroup filter buttons
     container.innerHTML = newContainer.innerHTML;
     filters.innerHTML = newFilters.innerHTML;
+    if (newSubgroupFilters && curSubgroupFilters) {
+      curSubgroupFilters.innerHTML = newSubgroupFilters.innerHTML;
+    }
 
     lastPagePath = targetURL.pathname;
     lastPageUrl = targetUrlKey;
@@ -923,13 +971,141 @@ document.addEventListener('click', (e) => {
   navigateHomeworkFilter(url.pathname + url.search);
 });
 
+// Mobile dashboard subgroup switcher with smooth fade
+let isSwitchingMobileSubgroup = false;
+
+async function navigateMobileSubgroup(targetUrl, push = true) {
+  if (isSwitchingMobileSubgroup) return false;
+
+  const mobileView = document.getElementById('mobile-week-view');
+  if (!mobileView) {
+    window.location.href = targetUrl;
+    return false;
+  }
+
+  const targetURL = new URL(targetUrl, window.location.href);
+  const targetUrlKey = targetURL.pathname + targetURL.search;
+  const outClass = 'anim-page-fade-out';
+  const inClass = 'anim-page-fade-in';
+
+  isSwitchingMobileSubgroup = true;
+
+  try {
+    const fetchPromise = fetch(targetUrl, {
+      headers: { 'X-Requested-With': 'XMLHttpRequest' }
+    });
+
+    mobileView.classList.remove('anim-page-fade-in', 'anim-page-fade-out', 'anim-week-slide-in-left', 'anim-week-slide-in-right', 'anim-week-slide-out-left', 'anim-week-slide-out-right');
+    void mobileView.offsetWidth;
+    mobileView.classList.add(outClass);
+
+    const [res] = await Promise.all([
+      fetchPromise,
+      new Promise((resolve) => setTimeout(resolve, 140))
+    ]);
+
+    if (!res.ok) throw new Error(`HTTP error ${res.status}`);
+
+    const html = await res.text();
+    const doc = new DOMParser().parseFromString(html, 'text/html');
+    const newMobileView = doc.getElementById('mobile-week-view');
+    if (!newMobileView) throw new Error('Unexpected mobile view structure');
+
+    const newDesktopView = doc.getElementById('desktop-dashboard-view');
+    const curDesktopView = document.getElementById('desktop-dashboard-view');
+    if (newDesktopView && curDesktopView) {
+      curDesktopView.innerHTML = newDesktopView.innerHTML;
+    }
+
+    mobileView.innerHTML = newMobileView.innerHTML;
+    if (newMobileView.hasAttribute('data-is-current-week')) {
+      mobileView.setAttribute('data-is-current-week', newMobileView.getAttribute('data-is-current-week'));
+    }
+    if (newMobileView.hasAttribute('data-today-day-num')) {
+      mobileView.setAttribute('data-today-day-num', newMobileView.getAttribute('data-today-day-num'));
+    }
+
+    lastPagePath = targetURL.pathname;
+    lastPageUrl = targetUrlKey;
+
+    if (push) {
+      window.history.pushState({ locusDateUrl: targetUrl }, '', targetUrl);
+    }
+    if (doc.title) {
+      document.title = doc.title;
+    }
+
+    syncDashboardLinks();
+
+    if (window.htmx) {
+      window.htmx.process(mobileView);
+      if (curDesktopView) {
+        window.htmx.process(curDesktopView);
+      }
+    }
+
+    initMobileWeekScrollSpy();
+    updateCurrentLessonBadges();
+
+    mobileView.classList.remove(outClass);
+    mobileView.classList.add(inClass);
+
+    setTimeout(() => {
+      mobileView.classList.remove(inClass);
+      isSwitchingMobileSubgroup = false;
+    }, 200);
+
+    return true;
+  } catch (err) {
+    console.warn('Mobile subgroup switch failed, falling back to full navigation:', err);
+    mobileView.classList.remove(outClass, inClass);
+    isSwitchingMobileSubgroup = false;
+    window.location.href = targetUrl;
+    return false;
+  }
+}
+
+// Subgroup filter buttons on dashboard and homework pages
+document.addEventListener('click', (e) => {
+  if (e.defaultPrevented || e.button !== 0) return;
+  if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+
+  const target = e.target;
+  const link = target && target.closest ? target.closest('a[data-subgroup-filter]') : null;
+  if (!link) return;
+  if (link.target && link.target !== '_self') return;
+  if (link.hasAttribute('download')) return;
+
+  const url = new URL(link.href, window.location.href);
+  if (url.origin !== window.location.origin) return;
+
+  e.preventDefault();
+
+  if (url.pathname === window.location.pathname && url.search === window.location.search) {
+    hideOpenOverlays();
+    return;
+  }
+
+  if (url.pathname === '/homework') {
+    navigateHomeworkFilter(url.pathname + url.search);
+  } else if (url.pathname === '/') {
+    if (window.innerWidth < 768) {
+      navigateMobileSubgroup(url.pathname + url.search);
+    } else {
+      navigateDashboardDate(url.pathname + url.search);
+    }
+  } else {
+    navigateToPage(url.pathname + url.search);
+  }
+});
+
 // Browser Back/Forward: page switch, or week switch while on the dashboard
 window.addEventListener('popstate', () => {
   const targetPath = window.location.pathname;
   const targetUrl = targetPath + window.location.search;
 
   if (targetPath === '/' && lastPagePath === '/' && window.innerWidth < 768) {
-    switchMobileWeek(window.location.href, 'prev', false);
+    navigateMobileSubgroup(window.location.href, false);
     return;
   }
 
@@ -1423,12 +1599,5 @@ document.addEventListener('mousedown', (e) => {
 document.addEventListener('mouseup', (e) => {
   if (e.button === 0 && window.innerWidth < 768) {
     handleGestureEnd(e.clientX, e.clientY);
-  }
-});
-
-// Handle browser Back/Forward navigation smoothly on mobile
-window.addEventListener('popstate', () => {
-  if (window.location.pathname === '/' && window.innerWidth < 768) {
-    switchMobileWeek(window.location.href, 'prev', false);
   }
 });

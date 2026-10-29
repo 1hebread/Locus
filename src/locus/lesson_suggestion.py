@@ -24,6 +24,7 @@ def _find_next_subject_lesson(
     source: Any,
     now: datetime,
     vacations: Optional[List[Any]] = None,
+    subgroup: Optional[int] = None,
 ):
     """Find the next occurrence of the source lesson's subject after it, skipping vacations."""
     today = now.date()
@@ -39,12 +40,18 @@ def _find_next_subject_lesson(
             continue
 
         weekday = candidate_date.isoweekday()
+        target_subgroup = subgroup if subgroup is not None else getattr(source, "subgroup", None)
         same_day = sorted(
             (
                 lesson
                 for lesson in lessons
                 if lesson.subject_id == source.subject_id
                 and lesson.day_of_week == weekday
+                and (
+                    target_subgroup is None
+                    or getattr(lesson, "subgroup", None) is None
+                    or getattr(lesson, "subgroup", None) == target_subgroup
+                )
             ),
             key=lambda lesson: lesson.start_time,
         )
@@ -62,6 +69,7 @@ def get_next_lesson_suggestion(
     lessons: List[Any],
     now: datetime,
     vacations: Optional[List[Any]] = None,
+    subgroup: Optional[int] = None,
 ) -> Optional[dict]:
     """Build a quick-add suggestion for the next lesson of the current subject.
 
@@ -76,7 +84,16 @@ def get_next_lesson_suggestion(
     now_time = now.strftime("%H:%M")
 
     today_lessons = sorted(
-        (lesson for lesson in lessons if lesson.day_of_week == today.isoweekday()),
+        (
+            lesson
+            for lesson in lessons
+            if lesson.day_of_week == today.isoweekday()
+            and (
+                subgroup is None
+                or getattr(lesson, "subgroup", None) is None
+                or getattr(lesson, "subgroup", None) == subgroup
+            )
+        ),
         key=lambda lesson: lesson.start_time,
     )
     if not today_lessons:
@@ -110,18 +127,26 @@ def get_next_lesson_suggestion(
             # Before the first lesson there is no lesson to take homework from
             return None
 
-    next_occurrence = _find_next_subject_lesson(lessons, source, now, vacations=vacations)
+    next_occurrence = _find_next_subject_lesson(
+        lessons,
+        source,
+        now,
+        vacations=vacations,
+        subgroup=subgroup,
+    )
     if not next_occurrence:
         return None
 
     next_date, next_lesson = next_occurrence
     subject = getattr(source, "subject", None)
+    resolved_subgroup = getattr(next_lesson, "subgroup", None)
 
     return {
         "source_lesson_id": source.id,
         "target_lesson_id": next_lesson.id,
         "subject_id": source.subject_id,
         "subject_name": subject.name if subject else "",
+        "subgroup": resolved_subgroup,
         "next_date_iso": next_date.isoformat(),
         "next_date_label": _format_next_date(next_date, next_lesson.start_time, today),
         "auto_apply": auto_apply,

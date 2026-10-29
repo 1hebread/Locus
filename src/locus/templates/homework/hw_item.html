@@ -24,6 +24,12 @@
             {{ hw.subject.name if hw.subject else 'Предмет' }}
           </span>
 
+          {% if hw.subgroup %}
+          <span class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold text-emerald-400 bg-emerald-500/15 border border-emerald-500/25">
+            {{ hw.subgroup }} подгруппа
+          </span>
+          {% endif %}
+
           <!-- Due date badge -->
           <span class="text-[11px] font-medium text-zinc-400 ml-auto">
             {{ hw.due_date.strftime('%d.%m') }}

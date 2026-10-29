@@ -19,6 +19,11 @@ class Subject(Base):
     teacher_phone: Mapped[Optional[str]] = mapped_column(EncryptedString(), nullable=True)
     room: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
 
+    # Subgroup 2 teacher/room details (if different from default/subgroup 1)
+    teacher2_name: Mapped[Optional[str]] = mapped_column(EncryptedString(), nullable=True)
+    teacher2_phone: Mapped[Optional[str]] = mapped_column(EncryptedString(), nullable=True)
+    room2: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
+
     lessons: Mapped[List["Lesson"]] = relationship(
         "Lesson",
         back_populates="subject",
@@ -35,3 +40,27 @@ class Subject(Base):
     @property
     def whatsapp_url(self) -> Optional[str]:
         return format_whatsapp_url(self.teacher_phone)
+
+    @property
+    def whatsapp2_url(self) -> Optional[str]:
+        return format_whatsapp_url(self.teacher2_phone)
+
+    def get_teacher_name(self, subgroup: Optional[int] = None) -> Optional[str]:
+        if subgroup == 2:
+            return self.teacher2_name
+        return self.teacher_name
+
+    def get_teacher_phone(self, subgroup: Optional[int] = None) -> Optional[str]:
+        if subgroup == 2:
+            return self.teacher2_phone
+        return self.teacher_phone
+
+    def get_whatsapp_url(self, subgroup: Optional[int] = None) -> Optional[str]:
+        if subgroup == 2:
+            return self.whatsapp2_url
+        return self.whatsapp_url
+
+    def get_room(self, subgroup: Optional[int] = None) -> Optional[str]:
+        if subgroup == 2:
+            return self.room2
+        return self.room

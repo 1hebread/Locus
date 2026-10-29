@@ -17,6 +17,7 @@ class UserOut(BaseModel):
     username: str
     is_active: bool
     is_admin: bool
+    subgroup: int | None = None
     created_at: datetime
 
     model_config = ConfigDict(from_attributes=True)

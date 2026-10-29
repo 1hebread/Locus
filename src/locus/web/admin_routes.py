@@ -30,6 +30,7 @@ async def _render_users(
     deleted: bool = False,
     password_changed: bool = False,
     username_changed: bool = False,
+    subgroup_changed: bool = False,
     status_code: int = status.HTTP_200_OK,
 ):
     result = await db.execute(select(User).order_by(User.id))
@@ -47,6 +48,7 @@ async def _render_users(
             "deleted": deleted,
             "password_changed": password_changed,
             "username_changed": username_changed,
+            "subgroup_changed": subgroup_changed,
         },
         status_code=status_code,
     )
@@ -67,6 +69,7 @@ async def users_page(
         deleted=request.query_params.get("deleted") == "1",
         password_changed=request.query_params.get("password_changed") == "1",
         username_changed=request.query_params.get("username_changed") == "1",
+        subgroup_changed=request.query_params.get("subgroup_changed") == "1",
     )
 
 
@@ -75,10 +78,25 @@ async def create_user(
     request: Request,
     username: str = Form(...),
     password: str = Form(...),
+    subgroup: str | None = Form(default=None),
     current_user: User = Depends(get_current_admin_web),
     db: AsyncSession = Depends(get_db),
 ):
     username = username.strip().lower()
+
+    clean_subgroup: int | None = None
+    if subgroup and subgroup.strip():
+        if subgroup.strip() in ("1", "2"):
+            clean_subgroup = int(subgroup.strip())
+        else:
+            return await _render_users(
+                request,
+                db,
+                current_user,
+                error="Номер подгруппы должен быть 1 или 2",
+                form_username=username,
+                status_code=status.HTTP_400_BAD_REQUEST,
+            )
 
     if len(username) < 3:
         error = "Логин должен быть не короче 3 символов"
@@ -103,6 +121,7 @@ async def create_user(
                     hashed_password=await hash_password_async(password),
                     is_active=True,
                     is_admin=False,
+                    subgroup=clean_subgroup,
                 )
             )
             await db.commit()
@@ -177,6 +196,51 @@ async def change_username(
         current_user,
         error=error,
         status_code=status.HTTP_400_BAD_REQUEST,
+    )
+
+
+@router.get("/users/{user_id}/subgroup")
+async def get_change_subgroup_redirect(user_id: int):
+    return RedirectResponse(url="/admin/users", status_code=status.HTTP_303_SEE_OTHER)
+
+
+@router.post("/users/{user_id}/subgroup")
+async def change_subgroup(
+    request: Request,
+    user_id: int,
+    subgroup: str | None = Form(default=None),
+    current_user: User = Depends(get_current_admin_web),
+    db: AsyncSession = Depends(get_db),
+):
+    user = await db.get(User, user_id)
+    if not user:
+        return await _render_users(
+            request,
+            db,
+            current_user,
+            error="Пользователь не найден",
+            status_code=status.HTTP_404_NOT_FOUND,
+        )
+
+    clean_subgroup: int | None = None
+    if subgroup and subgroup.strip():
+        if subgroup.strip() in ("1", "2"):
+            clean_subgroup = int(subgroup.strip())
+        else:
+            return await _render_users(
+                request,
+                db,
+                current_user,
+                error="Номер подгруппы должен быть 1 или 2",
+                form_username=user.username,
+                status_code=status.HTTP_400_BAD_REQUEST,
+            )
+
+    user.subgroup = clean_subgroup
+    await db.commit()
+    return RedirectResponse(
+        url="/admin/users?subgroup_changed=1",
+        status_code=status.HTTP_303_SEE_OTHER,
     )
 
 

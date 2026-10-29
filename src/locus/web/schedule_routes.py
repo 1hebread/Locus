@@ -37,7 +37,7 @@ async def schedule_page(
     stmt = (
         select(Lesson)
         .options(selectinload(Lesson.subject))
-        .order_by(Lesson.day_of_week, Lesson.lesson_number)
+        .order_by(Lesson.day_of_week, Lesson.lesson_number, Lesson.subgroup.nulls_first())
     )
     res = await db.execute(stmt)
     lessons = res.scalars().all()
@@ -61,6 +61,7 @@ async def schedule_page(
                 "start_time": l.start_time,
                 "end_time": l.end_time,
                 "week_type": l.week_type,
+                "subgroup": l.subgroup,
                 "subject_name": l.subject.name if l.subject else "Урок",
             }
             for l in schedule_by_day[d]
@@ -93,6 +94,7 @@ async def create_lesson_web(
     lesson_number: int = Form(...),
     start_time: str = Form(...),
     end_time: str = Form(...),
+    subgroup: Optional[int] = Form(default=None),
     room: Optional[str] = Form(default=None),
     note: Optional[str] = Form(default=None),
     current_user: User = Depends(get_current_admin_web),
@@ -102,6 +104,8 @@ async def create_lesson_web(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="День недели должен быть от 1 до 7")
     if lesson_number < 1 or lesson_number > 8:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Номер урока должен быть от 1 до 8")
+    if subgroup is not None and subgroup not in (1, 2):
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Номер подгруппы должен быть 1 или 2")
 
     subject = await db.get(Subject, subject_id)
     if not subject:
@@ -118,6 +122,7 @@ async def create_lesson_web(
             start_time=clean_start,
             end_time=clean_end,
             week_type="ALL",
+            subgroup=subgroup,
         )
     except LessonConflictError as exc:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc))
@@ -132,6 +137,7 @@ async def create_lesson_web(
         start_time=clean_start,
         end_time=clean_end,
         week_type="ALL",
+        subgroup=subgroup,
         room=clean_room,
         note=clean_note,
     )

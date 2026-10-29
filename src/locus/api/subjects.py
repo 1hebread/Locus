@@ -35,6 +35,9 @@ async def create_subject(
         teacher_name=data.teacher_name,
         teacher_phone=data.teacher_phone,
         room=data.room,
+        teacher2_name=data.teacher2_name,
+        teacher2_phone=data.teacher2_phone,
+        room2=data.room2,
     )
     db.add(subject)
     await db.commit()

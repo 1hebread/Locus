@@ -65,6 +65,9 @@ async def create_subject_web(
     teacher_name: Optional[str] = Form(default=None),
     teacher_phone: Optional[str] = Form(default=None),
     room: Optional[str] = Form(default=None),
+    teacher2_name: Optional[str] = Form(default=None),
+    teacher2_phone: Optional[str] = Form(default=None),
+    room2: Optional[str] = Form(default=None),
     current_user: User = Depends(get_current_admin_web),
     db: AsyncSession = Depends(get_db),
 ):
@@ -77,6 +80,9 @@ async def create_subject_web(
         teacher_name=_clean_str(teacher_name, max_len=120),
         teacher_phone=_clean_phone(teacher_phone, max_len=50),
         room=_clean_str(room, max_len=50),
+        teacher2_name=_clean_str(teacher2_name, max_len=120),
+        teacher2_phone=_clean_phone(teacher2_phone, max_len=50),
+        room2=_clean_str(room2, max_len=50),
     )
     db.add(subject)
     await db.commit()
@@ -99,6 +105,9 @@ async def edit_subject_web(
     teacher_name: Optional[str] = Form(default=None),
     teacher_phone: Optional[str] = Form(default=None),
     room: Optional[str] = Form(default=None),
+    teacher2_name: Optional[str] = Form(default=None),
+    teacher2_phone: Optional[str] = Form(default=None),
+    room2: Optional[str] = Form(default=None),
     current_user: User = Depends(get_current_admin_web),
     db: AsyncSession = Depends(get_db),
 ):
@@ -120,6 +129,18 @@ async def edit_subject_web(
                 valid_phone = _clean_phone(trimmed_phone, max_len=50)
                 if valid_phone:
                     subject.teacher_phone = valid_phone
+
+        subject.teacher2_name = _clean_str(teacher2_name, max_len=120)
+        subject.room2 = _clean_str(room2, max_len=50)
+
+        if teacher2_phone is not None:
+            trimmed_phone2 = teacher2_phone.strip()
+            if not trimmed_phone2:
+                subject.teacher2_phone = None
+            else:
+                valid_phone2 = _clean_phone(trimmed_phone2, max_len=50)
+                if valid_phone2:
+                    subject.teacher2_phone = valid_phone2
 
         await db.commit()
 

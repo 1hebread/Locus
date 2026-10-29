@@ -31,9 +31,36 @@ class Lesson(Base):
     )
     room: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
     note: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    subgroup: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
 
     subject: Mapped["Subject"] = relationship("Subject", back_populates="lessons")
     homeworks: Mapped[List["Homework"]] = relationship(
         "Homework",
         back_populates="lesson",
     )
+
+    @property
+    def effective_teacher_name(self) -> Optional[str]:
+        if self.subject:
+            return self.subject.get_teacher_name(self.subgroup)
+        return None
+
+    @property
+    def effective_room(self) -> Optional[str]:
+        if self.room:
+            return self.room
+        if self.subject:
+            return self.subject.get_room(self.subgroup)
+        return None
+
+    @property
+    def effective_teacher_phone(self) -> Optional[str]:
+        if self.subject:
+            return self.subject.get_teacher_phone(self.subgroup)
+        return None
+
+    @property
+    def effective_whatsapp_url(self) -> Optional[str]:
+        if self.subject:
+            return self.subject.get_whatsapp_url(self.subgroup)
+        return None

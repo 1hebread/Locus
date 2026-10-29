@@ -20,6 +20,7 @@ router = APIRouter(prefix="/schedule", tags=["Schedule"])
 async def list_schedule(
     day_of_week: Optional[int] = Query(default=None, ge=1, le=7),
     week_type: Optional[WeekType] = Query(default=None),
+    subgroup: Optional[int] = Query(default=None, ge=1, le=2),
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
@@ -37,7 +38,23 @@ async def list_schedule(
             )
         )
 
-    stmt = stmt.order_by(Lesson.day_of_week, Lesson.lesson_number)
+    effective_subgroup = subgroup
+    if not current_user.is_admin and current_user.subgroup is not None:
+        effective_subgroup = current_user.subgroup
+
+    if effective_subgroup is not None:
+        stmt = stmt.where(
+            or_(
+                Lesson.subgroup.is_(None),
+                Lesson.subgroup == effective_subgroup,
+            )
+        )
+
+    stmt = stmt.order_by(
+        Lesson.day_of_week,
+        Lesson.lesson_number,
+        Lesson.subgroup.nulls_first(),
+    )
     result = await db.execute(stmt)
     return result.scalars().all()
 
@@ -67,6 +84,7 @@ async def create_lesson(
             start_time=start_time,
             end_time=end_time,
             week_type=data.week_type.value,
+            subgroup=data.subgroup,
         )
     except LessonConflictError as exc:
         raise HTTPException(
@@ -81,7 +99,8 @@ async def create_lesson(
         start_time=start_time,
         end_time=end_time,
         week_type=data.week_type.value,
-        room=data.room if data.room is not None else subject.room,
+        subgroup=data.subgroup,
+        room=data.room,
         note=data.note,
     )
     db.add(lesson)
@@ -157,6 +176,7 @@ async def update_lesson(
     target_start = update_dict.get("start_time") or lesson.start_time
     target_end = update_dict.get("end_time") or lesson.end_time
     target_week = update_dict.get("week_type") or lesson.week_type
+    target_subgroup = update_dict.get("subgroup", lesson.subgroup)
 
     try:
         await validate_lesson_conflict(
@@ -166,6 +186,7 @@ async def update_lesson(
             start_time=target_start,
             end_time=target_end,
             week_type=target_week,
+            subgroup=target_subgroup,
             exclude_lesson_id=lesson.id,
         )
     except LessonConflictError as exc:

@@ -11,6 +11,7 @@ class HomeworkBase(BaseModel):
     lesson_id: Optional[int] = None
     title: str = Field(min_length=1, max_length=200)
     due_date: date
+    subgroup: Optional[int] = Field(default=None, ge=1, le=2)
     status: HomeworkStatus = HomeworkStatus.TODO
 
     @field_validator("due_date")
@@ -30,6 +31,7 @@ class HomeworkUpdate(BaseModel):
     lesson_id: Optional[int] = None
     title: Optional[str] = Field(default=None, min_length=1, max_length=200)
     due_date: Optional[date] = None
+    subgroup: Optional[int] = Field(default=None, ge=1, le=2)
     status: Optional[HomeworkStatus] = None
 
     @field_validator("due_date")

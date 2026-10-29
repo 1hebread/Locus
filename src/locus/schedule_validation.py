@@ -23,6 +23,17 @@ def check_week_overlap(week1: str, week2: str) -> bool:
     )
 
 
+def check_subgroup_overlap(subgroup1: Optional[int], subgroup2: Optional[int]) -> bool:
+    """Check if two lessons affect the same student audience.
+
+    If either lesson is for the whole class (None or 0), they overlap.
+    If both belong to explicit subgroups, they overlap only if the subgroups are equal.
+    """
+    if not subgroup1 or not subgroup2:
+        return True
+    return subgroup1 == subgroup2
+
+
 def check_time_overlap(start1: str, end1: str, start2: str, end2: str) -> bool:
     """Return True if time intervals [start1, end1) and [start2, end2) overlap."""
     return start1 < end2 and end1 > start2
@@ -43,6 +54,7 @@ async def validate_lesson_conflict(
     start_time: str,
     end_time: str,
     week_type: str = WeekType.ALL.value,
+    subgroup: Optional[int] = None,
     exclude_lesson_id: Optional[int] = None,
 ) -> None:
     """Validate that lesson number and times do not conflict with existing lessons on the same day."""
@@ -60,13 +72,22 @@ async def validate_lesson_conflict(
     existing_lessons = res.scalars().all()
 
     for other in existing_lessons:
-        if other.lesson_number == lesson_number:
-            raise LessonConflictError(
-                f"Урок №{lesson_number} в этот день уже существует"
-            )
-
         if not check_week_overlap(week_type, other.week_type):
             continue
+
+        if not check_subgroup_overlap(subgroup, other.subgroup):
+            continue
+
+        if other.lesson_number == lesson_number:
+            if other.subgroup:
+                group_info = f" для подгруппы {other.subgroup}"
+            elif subgroup:
+                group_info = " (для всего класса)"
+            else:
+                group_info = ""
+            raise LessonConflictError(
+                f"Урок №{lesson_number}{group_info} в этот день уже существует"
+            )
 
         if check_time_overlap(start_time, end_time, other.start_time, other.end_time):
             subj_name = other.subject.name if other.subject else "Урок"

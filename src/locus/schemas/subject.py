@@ -8,6 +8,9 @@ class SubjectBase(BaseModel):
     teacher_name: Optional[str] = Field(default=None, max_length=120)
     teacher_phone: Optional[str] = Field(default=None, max_length=50)
     room: Optional[str] = Field(default=None, max_length=50)
+    teacher2_name: Optional[str] = Field(default=None, max_length=120)
+    teacher2_phone: Optional[str] = Field(default=None, max_length=50)
+    room2: Optional[str] = Field(default=None, max_length=50)
 
     @field_validator("name")
     @classmethod
@@ -17,7 +20,7 @@ class SubjectBase(BaseModel):
             raise ValueError("Название предмета не может быть пустым")
         return v
 
-    @field_validator("teacher_name", "room")
+    @field_validator("teacher_name", "room", "teacher2_name", "room2")
     @classmethod
     def strip_text(cls, v: Optional[str]) -> Optional[str]:
         if v is not None:
@@ -25,7 +28,7 @@ class SubjectBase(BaseModel):
             return v if v else None
         return None
 
-    @field_validator("teacher_phone")
+    @field_validator("teacher_phone", "teacher2_phone")
     @classmethod
     def validate_phone(cls, v: Optional[str]) -> Optional[str]:
         if v is not None:
@@ -50,6 +53,9 @@ class SubjectUpdate(BaseModel):
     teacher_name: Optional[str] = Field(default=None, max_length=120)
     teacher_phone: Optional[str] = Field(default=None, max_length=50)
     room: Optional[str] = Field(default=None, max_length=50)
+    teacher2_name: Optional[str] = Field(default=None, max_length=120)
+    teacher2_phone: Optional[str] = Field(default=None, max_length=50)
+    room2: Optional[str] = Field(default=None, max_length=50)
 
     @field_validator("name")
     @classmethod
@@ -61,7 +67,7 @@ class SubjectUpdate(BaseModel):
             return v
         return None
 
-    @field_validator("teacher_name", "room")
+    @field_validator("teacher_name", "room", "teacher2_name", "room2")
     @classmethod
     def strip_text(cls, v: Optional[str]) -> Optional[str]:
         if v is not None:
@@ -69,7 +75,7 @@ class SubjectUpdate(BaseModel):
             return v if v else None
         return None
 
-    @field_validator("teacher_phone")
+    @field_validator("teacher_phone", "teacher2_phone")
     @classmethod
     def validate_phone(cls, v: Optional[str]) -> Optional[str]:
         if v is not None:
@@ -88,5 +94,6 @@ class SubjectUpdate(BaseModel):
 class SubjectOut(SubjectBase):
     id: int
     whatsapp_url: Optional[str] = None
+    whatsapp2_url: Optional[str] = None
 
     model_config = ConfigDict(from_attributes=True)

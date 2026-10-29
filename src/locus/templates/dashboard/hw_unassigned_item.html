@@ -1,10 +1,15 @@
 {% set card_id = "mobile-unassigned-hw-" ~ hw.id ~ "-" ~ day_num if prefix == "mobile" else ("desktop-unassigned-hw-" ~ hw.id if prefix == "desktop" else "unassigned-hw-" ~ hw.id) %}
 <div data-hw-card="{{ hw.id }}" id="{{ card_id }}" class="bg-black border border-zinc-800/90 rounded-2xl p-3.5 sm:p-4 shadow-[0_4px_16px_rgba(0,0,0,0.8)] flex items-start justify-between gap-3">
   <div class="min-w-0 flex-1">
-    <div class="flex items-center space-x-2 mb-1">
+    <div class="flex items-center space-x-2 mb-1 flex-wrap">
       <span class="text-[10px] font-bold px-2 py-0.5 rounded text-black bg-emerald-400">
         {{ hw.subject.name if hw.subject else 'Предмет' }}
       </span>
+      {% if hw.subgroup %}
+      <span class="text-[10px] font-bold px-1.5 py-0.5 rounded text-emerald-400 bg-emerald-500/15 border border-emerald-500/25">
+        {{ hw.subgroup }} подгруппа
+      </span>
+      {% endif %}
     </div>
     <p class="text-xs sm:text-sm text-zinc-400 font-medium break-words leading-relaxed {% if hw.status == 'DONE' %}hw-done-title{% endif %}">
       {{ hw.title }}

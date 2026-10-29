@@ -31,6 +31,7 @@ async def list_homework(
     due_date: Optional[date] = Query(default=None),
     due_from: Optional[date] = Query(default=None),
     due_to: Optional[date] = Query(default=None),
+    subgroup: Optional[int] = Query(default=None),
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
@@ -46,6 +47,22 @@ async def list_homework(
             ),
         )
     )
+
+    # Subgroup isolation
+    if not current_user.is_admin and current_user.subgroup is not None:
+        stmt = stmt.where(
+            or_(
+                Homework.subgroup.is_(None),
+                Homework.subgroup == current_user.subgroup,
+            )
+        )
+    elif subgroup is not None:
+        stmt = stmt.where(
+            or_(
+                Homework.subgroup.is_(None),
+                Homework.subgroup == subgroup,
+            )
+        )
 
     if status_filter == HomeworkStatus.DONE:
         stmt = stmt.where(HomeworkCompletion.status == HomeworkStatus.DONE.value)
@@ -88,6 +105,8 @@ async def create_homework(
             detail="Выбранный предмет не найден",
         )
 
+    resolved_subgroup = data.subgroup
+    lesson = None
     if data.lesson_id is not None:
         lesson = await db.get(Lesson, data.lesson_id)
         if not lesson:
@@ -95,12 +114,42 @@ async def create_homework(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="Выбранный урок не найден",
             )
+        if data.subgroup is not None and lesson.subgroup is not None and data.subgroup != lesson.subgroup:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Подгруппа задания не совпадает с подгруппой урока",
+            )
+        if resolved_subgroup is None:
+            resolved_subgroup = lesson.subgroup
+
+    if not current_user.is_admin and current_user.subgroup is not None:
+        if resolved_subgroup is not None and resolved_subgroup != current_user.subgroup:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Нельзя создать задание для чужой подгруппы",
+            )
+        if lesson and lesson.subgroup is not None and lesson.subgroup != current_user.subgroup:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Нельзя привязать задание к уроку чужой подгруппы",
+            )
+
+    if resolved_subgroup is not None:
+        has_subgroups = bool(subject.teacher2_name and subject.teacher2_name.strip())
+        if not has_subgroups:
+            sub_lesson = await db.execute(
+                select(Lesson.id).where(Lesson.subject_id == subject.id, Lesson.subgroup.is_not(None)).limit(1)
+            )
+            has_subgroups = sub_lesson.scalar_one_or_none() is not None
+        if not has_subgroups:
+            resolved_subgroup = None
 
     hw = Homework(
         subject_id=data.subject_id,
         lesson_id=data.lesson_id,
         title=data.title,
         due_date=data.due_date,
+        subgroup=resolved_subgroup,
     )
     db.add(hw)
     await db.flush()
@@ -135,6 +184,11 @@ async def get_homework(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Домашнее задание не найдено",
         )
+    if not current_user.is_admin and current_user.subgroup is not None and hw.subgroup is not None and hw.subgroup != current_user.subgroup:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Домашнее задание не найдено",
+        )
     return await attach_status(db, hw, current_user.id)
 
 
@@ -159,6 +213,18 @@ async def update_homework(
             detail="Домашнее задание не найдено",
         )
 
+    if not current_user.is_admin and current_user.subgroup is not None:
+        if hw.subgroup is not None and hw.subgroup != current_user.subgroup:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Нельзя изменять задание чужой подгруппы",
+            )
+        if data.subgroup is not None and data.subgroup != current_user.subgroup:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Нельзя назначить задание чужой подгруппе",
+            )
+
     if data.subject_id is not None and data.subject_id != hw.subject_id:
         subject = await db.get(Subject, data.subject_id)
         if not subject:
@@ -176,6 +242,45 @@ async def update_homework(
             )
 
     update_dict = data.model_dump(exclude_unset=True)
+
+    target_lesson_id = update_dict.get("lesson_id", hw.lesson_id)
+    target_lesson = None
+    if target_lesson_id is not None:
+        target_lesson = await db.get(Lesson, target_lesson_id)
+        if target_lesson and target_lesson.subgroup is not None:
+            if "subgroup" not in update_dict:
+                update_dict["subgroup"] = target_lesson.subgroup
+            elif update_dict["subgroup"] is not None and update_dict["subgroup"] != target_lesson.subgroup:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Подгруппа задания не совпадает с подгруппой урока",
+                )
+
+    if not current_user.is_admin and current_user.subgroup is not None:
+        new_subgroup = update_dict.get("subgroup", hw.subgroup)
+        if new_subgroup is not None and new_subgroup != current_user.subgroup:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Нельзя назначить задание чужой подгруппе",
+            )
+        if target_lesson and target_lesson.subgroup is not None and target_lesson.subgroup != current_user.subgroup:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Нельзя привязать задание к уроку чужой подгруппы",
+            )
+
+    if "subgroup" in update_dict and update_dict["subgroup"] is not None:
+        target_subject_id = update_dict.get("subject_id", hw.subject_id)
+        target_subject = await db.get(Subject, target_subject_id)
+        has_subgroups = bool(target_subject and target_subject.teacher2_name and target_subject.teacher2_name.strip())
+        if not has_subgroups:
+            sub_lesson = await db.execute(
+                select(Lesson.id).where(Lesson.subject_id == target_subject_id, Lesson.subgroup.is_not(None)).limit(1)
+            )
+            has_subgroups = sub_lesson.scalar_one_or_none() is not None
+        if not has_subgroups:
+            update_dict["subgroup"] = None
+
     new_status = update_dict.pop("status", None)
     for key, val in update_dict.items():
         setattr(hw, key, val)
@@ -210,6 +315,12 @@ async def update_homework_status(
             detail="Домашнее задание не найдено",
         )
 
+    if not current_user.is_admin and current_user.subgroup is not None and hw.subgroup is not None and hw.subgroup != current_user.subgroup:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Домашнее задание не найдено",
+        )
+
     await set_status(db, hw.id, current_user.id, data.status.value)
     await db.commit()
 
@@ -229,6 +340,12 @@ async def delete_homework(
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Домашнее задание не найдено",
+        )
+
+    if not current_user.is_admin and current_user.subgroup is not None and hw.subgroup is not None and hw.subgroup != current_user.subgroup:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Нельзя удалить задание чужой подгруппы",
         )
 
     await db.delete(hw)

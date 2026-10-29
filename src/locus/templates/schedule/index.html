@@ -57,19 +57,28 @@
           <div id="lesson-card-{{ lesson.id }}" class="p-3 rounded-xl bg-[#18181b] border border-zinc-800/90 shadow-xs relative group hover:border-zinc-700 transition">
             <div class="flex items-start justify-between gap-2">
               <div class="min-w-0 flex-1">
-                <div class="flex items-center space-x-2 mb-1">
+                <div class="flex items-center space-x-2 mb-1 flex-wrap">
                   <span class="w-2 h-2 rounded-full shrink-0 bg-emerald-400"></span>
                   <span class="text-xs font-bold text-zinc-200">№{{ lesson.lesson_number }}</span>
                   <span class="text-xs text-zinc-400 font-medium">{{ lesson.start_time }}–{{ lesson.end_time }}</span>
+                  {% if lesson.subgroup %}
+                  <span class="px-1.5 py-0.5 rounded bg-emerald-500/15 text-emerald-400 border border-emerald-500/25 text-[10px] font-bold">{{ lesson.subgroup }} подгр.</span>
+                  {% endif %}
                 </div>
 
                 <h4 class="text-xs sm:text-sm font-semibold text-white truncate">
                   {{ lesson.subject.name if lesson.subject else 'Урок' }}
                 </h4>
 
-                {% if lesson.room or (lesson.subject and lesson.subject.room) %}
-                <div class="text-[11px] text-zinc-500 mt-1">
-                  Кабинет {{ lesson.room or lesson.subject.room }}
+                {% if lesson.effective_teacher_name %}
+                <div class="text-[11px] text-zinc-400 mt-1 truncate">
+                  {{ lesson.effective_teacher_name }}
+                </div>
+                {% endif %}
+
+                {% if lesson.effective_room %}
+                <div class="text-[11px] text-zinc-500 {% if not lesson.effective_teacher_name %}mt-1{% else %}mt-0.5{% endif %}">
+                  Кабинет {{ lesson.effective_room }}
                 </div>
                 {% endif %}
               </div>
@@ -202,8 +211,10 @@
   var scheduleDataByDay = {{ (schedule_data or {})|tojson|safe }};
 
   var bellSchedule = {{ (default_bell_schedule or {})|tojson|safe }};
+  var isCustomTime = false;
 
-  function updateLessonTimes(lessonNum) {
+  function updateLessonTimes(lessonNum, force = false) {
+    if (isCustomTime && !force) return;
     const slot = bellSchedule[lessonNum];
     if (slot) {
       const startInput = document.getElementById('start_time');
@@ -213,6 +224,11 @@
     }
   }
 
+  function checkSubgroupConflict(sub1, sub2) {
+    if (!sub1 || !sub2) return true;
+    return parseInt(sub1, 10) === parseInt(sub2, 10);
+  }
+
   function validateTimesLive() {
     const daySelect = document.getElementById('day_of_week');
     const startInput = document.getElementById('start_time');
@@ -220,17 +236,19 @@
     const warning = document.getElementById('time-conflict-warning');
     const submitBtn = document.getElementById('add-lesson-submit-btn');
     const lessonSelect = document.getElementById('lesson_number');
+    const subgroupSelect = document.getElementById('subgroup');
 
     if (!daySelect || !startInput || !endInput || !warning || !submitBtn) return;
 
     const dayNum = parseInt(daySelect.value, 10);
     const start = startInput.value.trim();
     const end = endInput.value.trim();
+    const curSubgroup = (subgroupSelect && subgroupSelect.value) ? parseInt(subgroupSelect.value, 10) : null;
     const lessons = scheduleDataByDay[dayNum] || [];
 
     const currentOpt = lessonSelect ? lessonSelect.querySelector('option[value="' + lessonSelect.value + '"]') : null;
     if (currentOpt && currentOpt.disabled) {
-      warning.textContent = 'Урок с этим номером уже существует в выбранный день';
+      warning.textContent = 'Урок с этим номером уже существует для выбранной подгруппы';
       warning.classList.remove('hidden');
       submitBtn.disabled = true;
       return;
@@ -250,11 +268,14 @@
 
     for (let i = 0; i < lessons.length; i++) {
       const other = lessons[i];
-      if (start < other.end_time && end > other.start_time) {
-        warning.textContent = 'Время урока (' + start + '–' + end + ') пересекается с уроком №' + other.lesson_number + ' «' + other.subject_name + '» (' + other.start_time + '–' + other.end_time + ')';
-        warning.classList.remove('hidden');
-        submitBtn.disabled = true;
-        return;
+      if (checkSubgroupConflict(curSubgroup, other.subgroup)) {
+        if (start < other.end_time && end > other.start_time) {
+          const groupLabel = other.subgroup ? ' (' + other.subgroup + ' подгруппа)' : '';
+          warning.textContent = 'Время урока (' + start + '–' + end + ') пересекается с уроком №' + other.lesson_number + ' «' + other.subject_name + '»' + groupLabel + ' (' + other.start_time + '–' + other.end_time + ')';
+          warning.classList.remove('hidden');
+          submitBtn.disabled = true;
+          return;
+        }
       }
     }
 
@@ -262,9 +283,15 @@
     submitBtn.disabled = false;
   }
 
-  function refreshLessonFormForDay(dayNum) {
+  function refreshLessonFormForDay(dayNum, shouldUpdateTimes = false) {
     const lessons = scheduleDataByDay[dayNum] || [];
-    const occupiedNumbers = lessons.map(l => l.lesson_number);
+    const subgroupSelect = document.getElementById('subgroup');
+    const curSubgroup = (subgroupSelect && subgroupSelect.value) ? parseInt(subgroupSelect.value, 10) : null;
+
+    const occupiedNumbers = lessons
+      .filter(l => checkSubgroupConflict(curSubgroup, l.subgroup))
+      .map(l => l.lesson_number);
+
     const lessonSelect = document.getElementById('lesson_number');
     const submitBtn = document.getElementById('add-lesson-submit-btn');
     const errBox = document.getElementById('add-lesson-error');
@@ -291,9 +318,11 @@
     if (occupiedNumbers.includes(currentVal)) {
       if (firstFreeNumber !== null) {
         lessonSelect.value = firstFreeNumber;
-        updateLessonTimes(firstFreeNumber);
+        if (!isCustomTime) {
+          updateLessonTimes(firstFreeNumber, true);
+        }
       }
-    } else {
+    } else if (shouldUpdateTimes) {
       updateLessonTimes(currentVal);
     }
 
@@ -301,7 +330,7 @@
       if (submitBtn) submitBtn.disabled = true;
       const warning = document.getElementById('time-conflict-warning');
       if (warning) {
-        warning.textContent = 'Все 8 уроков в этот день уже заполнены';
+        warning.textContent = 'Все 8 уроков в этот день для этой группы уже заполнены';
         warning.classList.remove('hidden');
       }
     } else {
@@ -309,24 +338,34 @@
     }
   }
 
+  function onSubgroupChange(subgroupVal) {
+    const daySelect = document.getElementById('day_of_week');
+    if (daySelect) {
+      refreshLessonFormForDay(daySelect.value, false);
+    }
+  }
+
   function onDayOfWeekChange(dayNum) {
-    refreshLessonFormForDay(dayNum);
+    refreshLessonFormForDay(dayNum, !isCustomTime);
   }
 
   function onLessonNumberChange(num) {
-    updateLessonTimes(num);
+    isCustomTime = false;
+    updateLessonTimes(num, true);
     validateTimesLive();
   }
 
   function onTimeInputChange() {
+    isCustomTime = true;
     validateTimesLive();
   }
 
   function openAddLessonModal() {
+    isCustomTime = false;
     openModal('add-lesson-modal');
     const daySelect = document.getElementById('day_of_week');
     if (daySelect) {
-      refreshLessonFormForDay(daySelect.value);
+      refreshLessonFormForDay(daySelect.value, true);
     }
   }
 
@@ -468,6 +507,16 @@
         </div>
       </div>
 
+      <div>
+        <label for="subgroup" class="block text-xs font-medium text-zinc-300 mb-1">Подгруппа</label>
+        <select id="subgroup" name="subgroup" onchange="onSubgroupChange(this.value)"
+                class="w-full bg-[#121214] border border-zinc-700/80 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:ring-1 focus:ring-emerald-500">
+          <option value="">Весь класс (общий урок)</option>
+          <option value="1">1-я подгруппа</option>
+          <option value="2">2-я подгруппа</option>
+        </select>
+      </div>
+
       <div id="time-conflict-warning" class="hidden text-xs text-rose-400 font-medium"></div>
 
       <div>
@@ -476,6 +525,7 @@
                class="w-full bg-[#121214] border border-zinc-700/80 rounded-xl px-3 py-1.5 text-sm text-white focus:outline-none focus:ring-1 focus:ring-emerald-500 placeholder-zinc-500"
                placeholder="Например, 304">
       </div>
+
 
       <div class="flex items-center justify-end space-x-2.5 pt-3 border-t border-zinc-800">
         <button type="button" onclick="closeModal('add-lesson-modal')"
