@@ -17,6 +17,7 @@ from locus.models.lesson import Lesson
 from locus.models.subject import Subject
 from locus.models.user import User
 from locus.security import (
+    MAX_PASSWORD_BYTES,
     create_access_token,
     generate_api_key,
     get_password_fingerprint,
@@ -116,8 +117,10 @@ async def create_user(
         error = "Логин не должен содержать пробелы"
     elif not USERNAME_PATTERN.match(username):
         error = "Логин может содержать только буквы, цифры, точки, дефисы и знаки подчеркивания"
-    elif len(password) < 6:
-        error = "Пароль должен быть не короче 6 символов"
+    elif len(password) < 8:
+        error = "Пароль должен быть не короче 8 символов"
+    elif len(password.encode("utf-8")) > MAX_PASSWORD_BYTES:
+        error = f"Пароль должен быть не длиннее {MAX_PASSWORD_BYTES} байт"
     else:
         existing = await db.execute(
             select(User).where(func.lower(User.username) == username)
@@ -277,12 +280,21 @@ async def change_password(
             status_code=status.HTTP_404_NOT_FOUND,
         )
 
-    if len(password) < 6:
+    if len(password) < 8:
         return await _render_users(
             request,
             db,
             current_user,
-            error="Пароль должен быть не короче 6 символов",
+            error="Пароль должен быть не короче 8 символов",
+            status_code=status.HTTP_400_BAD_REQUEST,
+        )
+
+    if len(password.encode("utf-8")) > MAX_PASSWORD_BYTES:
+        return await _render_users(
+            request,
+            db,
+            current_user,
+            error=f"Пароль должен быть не длиннее {MAX_PASSWORD_BYTES} байт",
             status_code=status.HTTP_400_BAD_REQUEST,
         )
 
@@ -297,6 +309,7 @@ async def change_password(
         new_token = create_access_token({
             "sub": str(user.id),
             "pwd": get_password_fingerprint(user.hashed_password),
+            "ver": user.token_version,
         })
         set_session_cookie(response, new_token)
 

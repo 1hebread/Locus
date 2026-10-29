@@ -1,7 +1,12 @@
 import time
 from collections import defaultdict
+from ipaddress import ip_address
 from typing import Dict, List, Optional, Tuple
 from fastapi import Request
+
+from locus.config import get_settings
+
+settings = get_settings()
 
 
 class LoginRateLimiter:
@@ -70,15 +75,31 @@ class LoginRateLimiter:
 
 
 login_limiter = LoginRateLimiter(max_attempts=5, window_seconds=300, block_seconds=300)
+# Extra per-IP budget so password spraying across many usernames hits a wall.
+# Kept high enough that one school NAT is not locked out by a few typos.
+spray_limiter = LoginRateLimiter(max_attempts=30, window_seconds=300, block_seconds=300)
+
+
+def _is_trusted_peer(ip: str) -> bool:
+    """Loopback and private peers can only be our own proxy (or the local network)."""
+    try:
+        addr = ip_address(ip)
+    except ValueError:
+        return False
+    return addr.is_loopback or addr.is_private
 
 
 def get_client_ip(request: Request) -> str:
-    """Extract client IP, inspecting X-Forwarded-For only when behind local/trusted proxies."""
+    """Extract the client IP, reading X-Forwarded-For only when a trusted proxy sets it."""
     raw_ip = request.client.host if request.client else "127.0.0.1"
-    if raw_ip in ("127.0.0.1", "::1", "localhost", "testclient"):
+    if settings.TRUST_PROXY_HEADERS or _is_trusted_peer(raw_ip):
         forwarded = request.headers.get("x-forwarded-for")
         if forwarded:
-            return forwarded.split(",")[0].strip()
+            hops = [hop.strip() for hop in forwarded.split(",") if hop.strip()]
+            if hops:
+                # shortcut: only one trusted proxy is assumed, so its own hop is the
+                # last one; revisit if another proxy is ever put in front
+                return hops[-1]
     return raw_ip
 
 
@@ -88,24 +109,28 @@ def _make_key(ip: str, username: str) -> str:
 
 
 def check_login_rate_limit(request: Request, username: str) -> Tuple[bool, int]:
-    """Check if (IP, username) pair is currently rate-limited."""
+    """Check if the (IP, username) pair or the IP as a whole is currently rate-limited."""
     ip = get_client_ip(request)
-    key = _make_key(ip, username)
-    return login_limiter.is_blocked(key)
+    blocked, sec = login_limiter.is_blocked(_make_key(ip, username))
+    if blocked:
+        return True, sec
+    return spray_limiter.is_blocked(f"ip:{ip}")
 
 
 def record_login_failure(request: Request, username: str) -> Tuple[bool, int]:
-    """Record a failed login attempt for the (IP, username) pair."""
+    """Record a failed login attempt for the (IP, username) pair and for the IP."""
     ip = get_client_ip(request)
-    key = _make_key(ip, username)
-    return login_limiter.record_failure(key)
+    blocked, sec = login_limiter.record_failure(_make_key(ip, username))
+    ip_blocked, ip_sec = spray_limiter.record_failure(f"ip:{ip}")
+    if ip_blocked and (not blocked or ip_sec > sec):
+        return True, ip_sec
+    return blocked, sec
 
 
 def record_login_success(request: Request, username: str) -> None:
     """Clear rate-limiting attempts on successful login for the (IP, username) pair."""
     ip = get_client_ip(request)
-    key = _make_key(ip, username)
-    login_limiter.record_success(key)
+    login_limiter.record_success(_make_key(ip, username))
 
 
 def format_rate_limit_message(remaining_seconds: int) -> str:

@@ -14,6 +14,10 @@ settings = get_settings()
 DUMMY_BCRYPT_HASH = "$2b$12$mUEAaKF2pJFjwJ4zwtVq6O1cq0GrLR1FDVNMrSmzM0XkXcGw1F9Gq"
 
 API_KEY_PREFIX = "lk_"
+# "lk_" + secrets.token_urlsafe(32); used to drop junk keys before hitting the DB
+API_KEY_LENGTH = len(API_KEY_PREFIX) + 43
+# bcrypt refuses longer input (ValueError), so reject it at the form boundary
+MAX_PASSWORD_BYTES = 72
 
 
 def generate_api_key() -> str:

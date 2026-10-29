@@ -10,6 +10,7 @@ from locus.database import get_db
 from locus.models.api_key import ApiKey
 from locus.models.user import User
 from locus.security import (
+    API_KEY_LENGTH,
     API_KEY_PREFIX,
     decode_access_token,
     get_password_fingerprint,
@@ -40,6 +41,8 @@ async def get_current_user_optional(
         return None
 
     if token.startswith(API_KEY_PREFIX):
+        if len(token) != API_KEY_LENGTH:
+            return None
         row = (
             await db.execute(
                 select(User, ApiKey.name)
@@ -75,6 +78,9 @@ async def get_current_user_optional(
     token_pwd = payload.get("pwd")
     expected_pwd = get_password_fingerprint(user.hashed_password)
     if not token_pwd or not hmac.compare_digest(str(token_pwd), str(expected_pwd)):
+        return None
+
+    if payload.get("ver", 0) != (user.token_version or 0):
         return None
 
     return user

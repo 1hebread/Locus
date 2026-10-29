@@ -54,9 +54,23 @@ async def client(db_session: AsyncSession):
 
     app.dependency_overrides[get_db] = override_get_db
     transport = ASGITransport(app=app)
-    async with AsyncClient(transport=transport, base_url="http://test") as ac:
+    # Web form posts are only accepted with a trusted Origin, exactly like a browser
+    async with AsyncClient(
+        transport=transport,
+        base_url="http://test",
+        headers={"Origin": "http://test"},
+    ) as ac:
         yield ac
     app.dependency_overrides.clear()
+
+
+@pytest.fixture(autouse=True)
+def _reset_rate_limits():
+    from locus.rate_limiter import login_limiter, spray_limiter
+
+    login_limiter.reset()
+    spray_limiter.reset()
+    yield
 
 
 @pytest_asyncio.fixture(scope="function")

@@ -31,7 +31,7 @@ Authorization: Bearer lk_...
 | 403 | Недостаточно прав (чужой урок, чужое ДЗ, не админ) |
 | 404 | Объект не найден |
 | 422 | Ошибка валидации полей |
-| 429 | Слишком много попыток входа (только `/auth/login`) |
+| 429 | Слишком много неудачных попыток входа (только `/auth/login`) |
 
 Тело ошибки: `{"detail": "текст"}`.
 
@@ -228,7 +228,7 @@ curl -H "Authorization: Bearer $KEY" "https://example.com/api/v1/schedule?day_of
 
 `POST /auth/login` — `{"username": "root", "password": "..."}` → `{"access_token": "...", "token_type": "bearer"}`.
 
-`POST /auth/logout` — сбросить cookie сессии (для ботов не нужно).
+`POST /auth/logout` — выйти: удаляет cookie и отзывает выданные токены (старый `access_token` перестаёт работать). Для ботов не нужно — удалите ключ.
 
 ## Подгруппы
 

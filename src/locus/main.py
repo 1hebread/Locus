@@ -168,8 +168,28 @@ async def csrf_origin_protection(request: Request, call_next):
                     "CSRF validation failed: malformed referer",
                     status_code=status.HTTP_403_FORBIDDEN,
                 )
+        elif not request.url.path.startswith("/api/"):
+            # Browser form posts always carry Origin; API clients legitimately do not
+            return Response(
+                "CSRF validation failed: missing origin",
+                status_code=status.HTTP_403_FORBIDDEN,
+            )
 
     return await call_next(request)
+
+
+@app.middleware("http")
+async def security_headers(request: Request, call_next):
+    """Baseline hardening headers for every response."""
+    response = await call_next(request)
+    response.headers.setdefault("X-Content-Type-Options", "nosniff")
+    response.headers.setdefault("X-Frame-Options", "DENY")
+    response.headers.setdefault("Referrer-Policy", "same-origin")
+    if settings.is_production:
+        response.headers.setdefault(
+            "Strict-Transport-Security", "max-age=31536000; includeSubDomains"
+        )
+    return response
 
 
 @app.middleware("http")

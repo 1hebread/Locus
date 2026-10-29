@@ -1,3 +1,5 @@
+import logging
+
 from fastapi import APIRouter, Depends, Form, Request, Response, status
 from fastapi.responses import HTMLResponse, RedirectResponse
 from sqlalchemy import func, select
@@ -10,6 +12,7 @@ from locus.models.user import User
 from locus.rate_limiter import (
     check_login_rate_limit,
     format_rate_limit_message,
+    get_client_ip,
     record_login_failure,
     record_login_success,
 )
@@ -24,6 +27,7 @@ from locus.templates_config import templates
 
 router = APIRouter(tags=["Web Auth"])
 settings = get_settings()
+logger = logging.getLogger(__name__)
 
 
 @router.get("/login", response_class=HTMLResponse)
@@ -76,6 +80,12 @@ async def handle_login(
 
     if not user or not password_valid:
         is_now_blocked, sec = record_login_failure(request, trimmed_username)
+        logger.warning(
+            "login failed user=%r ip=%s blocked=%s",
+            trimmed_username,
+            get_client_ip(request),
+            is_now_blocked,
+        )
         error_msg = format_rate_limit_message(sec) if is_now_blocked else "Неверный логин или пароль"
         resp_status = status.HTTP_429_TOO_MANY_REQUESTS if is_now_blocked else status.HTTP_400_BAD_REQUEST
         resp_headers = {"Retry-After": str(sec)} if is_now_blocked else None
@@ -107,6 +117,7 @@ async def handle_login(
     token = create_access_token({
         "sub": str(user.id),
         "pwd": get_password_fingerprint(user.hashed_password),
+        "ver": user.token_version,
     })
     response = RedirectResponse(url="/", status_code=status.HTTP_303_SEE_OTHER)
     set_session_cookie(response, token)
@@ -114,7 +125,14 @@ async def handle_login(
 
 
 @router.post("/auth/logout")
-async def handle_logout():
+async def handle_logout(
+    current_user: User | None = Depends(get_current_user_optional),
+    db: AsyncSession = Depends(get_db),
+):
+    # Bump the version so the cookie's token cannot be replayed after logout
+    if current_user and not getattr(current_user, "api_key_name", None):
+        current_user.token_version = (current_user.token_version or 0) + 1
+        await db.commit()
     response = RedirectResponse(url="/login", status_code=status.HTTP_303_SEE_OTHER)
     response.delete_cookie(settings.COOKIE_NAME)
     return response

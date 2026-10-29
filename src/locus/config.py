@@ -18,6 +18,8 @@ class Settings(BaseSettings):
     TIMEZONE: str = "Asia/Almaty"
     HOMEWORK_RETENTION_DAYS: int = Field(default=30, ge=1)
     CORS_ORIGINS: str = ""
+    # Enable only if the reverse proxy connects from a public address
+    TRUST_PROXY_HEADERS: bool = False
 
     model_config = SettingsConfigDict(
         env_file=".env",

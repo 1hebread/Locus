@@ -1,7 +1,8 @@
 import pytest
-from httpx import AsyncClient
+from httpx import ASGITransport, AsyncClient
 
 from locus.config import get_settings
+from locus.main import app
 from locus.models.user import User
 
 settings = get_settings()
@@ -278,20 +279,35 @@ async def test_csrf_origin_protection(client: AsyncClient, test_user: User, monk
     assert res_scheme_mismatch.status_code == 403
     assert "CSRF validation failed" in res_scheme_mismatch.text
 
-    # Referer header fallback when Origin is omitted
-    res_referer_valid = await client.post(
-        "/api/v1/auth/login",
-        json={"username": test_user.username, "password": "password123"},
-        headers={"Referer": "http://test/login"},
-    )
-    assert res_referer_valid.status_code == 200
+    # Referer header fallback when Origin is omitted (bare client: no default Origin)
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as bare:
+        res_referer_valid = await bare.post(
+            "/api/v1/auth/login",
+            json={"username": test_user.username, "password": "password123"},
+            headers={"Referer": "http://test/login"},
+        )
+        assert res_referer_valid.status_code == 200
 
-    res_referer_invalid = await client.post(
-        "/api/v1/auth/login",
-        json={"username": test_user.username, "password": "password123"},
-        headers={"Referer": "https://evil.com/fake-login"},
-    )
-    assert res_referer_invalid.status_code == 403
+        res_referer_invalid = await bare.post(
+            "/api/v1/auth/login",
+            json={"username": test_user.username, "password": "password123"},
+            headers={"Referer": "https://evil.com/fake-login"},
+        )
+        assert res_referer_invalid.status_code == 403
+
+        # No Origin and no Referer: rejected on web routes, allowed on the API
+        res_missing = await bare.post(
+            "/auth/login",
+            data={"username": test_user.username, "password": "password123"},
+        )
+        assert res_missing.status_code == 403
+        assert "missing origin" in res_missing.text
+
+        res_missing_api = await bare.post(
+            "/api/v1/auth/login",
+            json={"username": test_user.username, "password": "password123"},
+        )
+        assert res_missing_api.status_code == 200
 
     # Dev default origin succeeds in development
     res_dev = await client.post(
@@ -309,3 +325,66 @@ async def test_csrf_origin_protection(client: AsyncClient, test_user: User, monk
         headers={"Origin": "http://localhost:8010"},
     )
     assert res_prod_dev.status_code == 403
+
+
+def _request(peer: str, forwarded: str | None = None):
+    from starlette.requests import Request
+
+    headers = [(b"x-forwarded-for", forwarded.encode())] if forwarded else []
+    return Request({"type": "http", "client": (peer, 1234), "headers": headers})
+
+
+def test_client_ip_uses_forwarded_hop_only_from_trusted_peer(monkeypatch):
+    from locus.rate_limiter import get_client_ip
+
+    # Private peer (our proxy): the last hop is what it appended, a spoofed prefix is ignored
+    monkeypatch.setattr(settings, "TRUST_PROXY_HEADERS", False)
+    assert get_client_ip(_request("10.0.0.5", "1.2.3.4, 5.6.7.8")) == "5.6.7.8"
+
+    # Directly exposed: X-Forwarded-For is client-controlled and must be ignored
+    assert get_client_ip(_request("8.8.8.8", "1.2.3.4")) == "8.8.8.8"
+
+    # A proxy on a public IP can be trusted explicitly
+    monkeypatch.setattr(settings, "TRUST_PROXY_HEADERS", True)
+    assert get_client_ip(_request("1.1.1.1", "1.2.3.4")) == "1.2.3.4"
+
+
+def test_spray_across_usernames_is_limited_per_ip():
+    from locus.rate_limiter import (
+        check_login_rate_limit,
+        record_login_failure,
+        spray_limiter,
+    )
+
+    request = _request("10.0.0.5")
+    for i in range(spray_limiter.max_attempts):
+        record_login_failure(request, f"user{i}")
+
+    assert check_login_rate_limit(request, "user0")[0] is True
+    assert check_login_rate_limit(request, "another_user")[0] is True
+
+
+@pytest.mark.asyncio
+async def test_logout_revokes_existing_token(client: AsyncClient, test_user: User):
+    res_login = await client.post(
+        "/api/v1/auth/login",
+        json={"username": test_user.username, "password": "password123"},
+    )
+    assert res_login.status_code == 200
+    token = res_login.json()["access_token"]
+    headers = {"Authorization": f"Bearer {token}"}
+
+    assert (await client.get("/api/v1/auth/me", headers=headers)).status_code == 200
+
+    assert (await client.post("/api/v1/auth/logout")).status_code == 200
+
+    # Replaying the same token after logout must fail
+    assert (await client.get("/api/v1/auth/me", headers=headers)).status_code == 401
+
+
+@pytest.mark.asyncio
+async def test_security_headers_present(client: AsyncClient):
+    res = await client.get("/login")
+    assert res.headers["X-Content-Type-Options"] == "nosniff"
+    assert res.headers["X-Frame-Options"] == "DENY"
+    assert res.headers["Referrer-Policy"] == "same-origin"

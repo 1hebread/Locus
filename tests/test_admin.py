@@ -405,3 +405,47 @@ async def test_admin_action_get_fallbacks_redirect(
 
 
 
+
+
+@pytest.mark.asyncio
+async def test_password_length_limits(
+    client: AsyncClient,
+    test_user: User,
+    auth_token: str,
+    regular_user: User,
+):
+    client.cookies.set(settings.COOKIE_NAME, auth_token)
+
+    # bcrypt raises on more than 72 bytes: must be rejected, not a 500
+    too_long = "a" * 100
+    res = await client.post(
+        "/admin/users",
+        data={"username": "longpass", "password": too_long},
+        follow_redirects=False,
+    )
+    assert res.status_code == 400
+    assert "72" in res.text
+
+    res = await client.post(
+        f"/admin/users/{regular_user.id}/password",
+        data={"password": too_long},
+        follow_redirects=False,
+    )
+    assert res.status_code == 400
+
+    # Minimum is 8 characters
+    res = await client.post(
+        "/admin/users",
+        data={"username": "shortpass", "password": "1234567"},
+        follow_redirects=False,
+    )
+    assert res.status_code == 400
+    assert "8" in res.text
+
+    # 72 bytes is fine
+    res = await client.post(
+        f"/admin/users/{regular_user.id}/password",
+        data={"password": "b" * 72},
+        follow_redirects=False,
+    )
+    assert res.status_code in (200, 303)
