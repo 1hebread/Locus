@@ -13,6 +13,7 @@ from locus.constants import (
     get_current_date,
 )
 from locus.database import get_db
+from locus.models.homework import Homework
 from locus.models.lesson import Lesson
 from locus.models.subject import Subject
 from locus.models.user import User
@@ -62,7 +63,10 @@ async def schedule_page(
                 "end_time": l.end_time,
                 "week_type": l.week_type,
                 "subgroup": l.subgroup,
+                "subject_id": l.subject_id,
                 "subject_name": l.subject.name if l.subject else "Урок",
+                "room": l.room or "",
+                "note": l.note or "",
             }
             for l in schedule_by_day[d]
         ]
@@ -86,6 +90,50 @@ async def schedule_page(
     )
 
 
+async def _get_day_lessons(db: AsyncSession, day_of_week: int) -> list[Lesson]:
+    stmt = (
+        select(Lesson)
+        .where(Lesson.day_of_week == day_of_week)
+        .options(selectinload(Lesson.subject))
+        .order_by(Lesson.lesson_number, Lesson.subgroup.nulls_first())
+    )
+    res = await db.execute(stmt)
+    return list(res.scalars().all())
+
+
+def _serialize_lessons_data(lessons: list[Lesson]) -> list[dict]:
+    return [
+        {
+            "id": l.id,
+            "lesson_number": l.lesson_number,
+            "start_time": l.start_time,
+            "end_time": l.end_time,
+            "week_type": l.week_type,
+            "subgroup": l.subgroup,
+            "subject_id": l.subject_id,
+            "subject_name": l.subject.name if l.subject else "Урок",
+            "room": l.room or "",
+            "note": l.note or "",
+        }
+        for l in lessons
+    ]
+
+
+def _render_day_lessons_html(
+    request: Request,
+    day_of_week: int,
+    lessons: list[Lesson],
+    current_user: User,
+) -> str:
+    template = templates.get_template("schedule/day_lessons.html")
+    return template.render(
+        request=request,
+        schedule_by_day={day_of_week: lessons},
+        d_num=day_of_week,
+        current_user=current_user,
+    )
+
+
 @router.post("")
 async def create_lesson_web(
     request: Request,
@@ -100,8 +148,8 @@ async def create_lesson_web(
     current_user: User = Depends(get_current_admin_web),
     db: AsyncSession = Depends(get_db),
 ):
-    if day_of_week < 1 or day_of_week > 7:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="День недели должен быть от 1 до 7")
+    if day_of_week < 1 or day_of_week > 6:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="День недели должен быть от 1 до 6")
     if lesson_number < 1 or lesson_number > 8:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Номер урока должен быть от 1 до 8")
     if subgroup is not None and subgroup not in (1, 2):
@@ -144,21 +192,153 @@ async def create_lesson_web(
     db.add(lesson)
     await db.commit()
 
-    if request.headers.get("accept") == "application/json":
-        return JSONResponse({"ok": True, "redirect": "/schedule"})
+    if "application/json" in request.headers.get("accept", ""):
+        day_lessons = await _get_day_lessons(db, lesson.day_of_week)
+        day_html = _render_day_lessons_html(request, lesson.day_of_week, day_lessons, current_user)
+        return JSONResponse({
+            "ok": True,
+            "redirect": "/schedule",
+            "days": {
+                str(lesson.day_of_week): {
+                    "html": day_html,
+                    "count": len(day_lessons),
+                    "schedule_data": _serialize_lessons_data(day_lessons),
+                }
+            },
+        })
+    return RedirectResponse(url="/schedule", status_code=status.HTTP_303_SEE_OTHER)
+
+
+@router.get("/{lesson_id}/edit")
+async def edit_lesson_web_get(
+    lesson_id: int,
+    current_user: User = Depends(get_current_admin_web),
+):
+    return RedirectResponse(url="/schedule", status_code=status.HTTP_303_SEE_OTHER)
+
+
+@router.post("/{lesson_id}/edit")
+async def edit_lesson_web(
+    request: Request,
+    lesson_id: int,
+    subject_id: int = Form(...),
+    day_of_week: int = Form(...),
+    lesson_number: int = Form(...),
+    start_time: str = Form(...),
+    end_time: str = Form(...),
+    subgroup: Optional[int] = Form(default=None),
+    room: Optional[str] = Form(default=None),
+    note: Optional[str] = Form(default=None),
+    current_user: User = Depends(get_current_admin_web),
+    db: AsyncSession = Depends(get_db),
+):
+    lesson = await db.get(Lesson, lesson_id)
+    if not lesson:
+        raise HTTPException(status_code=404, detail="Урок не найден")
+
+    if day_of_week < 1 or day_of_week > 6:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="День недели должен быть от 1 до 6")
+    if lesson_number < 1 or lesson_number > 8:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Номер урока должен быть от 1 до 8")
+    if subgroup is not None and subgroup not in (1, 2):
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Номер подгруппы должен быть 1 или 2")
+
+    subject = await db.get(Subject, subject_id)
+    if not subject:
+        raise HTTPException(status_code=404, detail="Предмет не найден")
+
+    clean_start = start_time.strip()
+    clean_end = end_time.strip()
+
+    try:
+        await validate_lesson_conflict(
+            db=db,
+            day_of_week=day_of_week,
+            lesson_number=lesson_number,
+            start_time=clean_start,
+            end_time=clean_end,
+            week_type=lesson.week_type,
+            subgroup=subgroup,
+            exclude_lesson_id=lesson.id,
+        )
+    except LessonConflictError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc))
+
+    clean_room = room.strip()[:50] if room and room.strip() else None
+    clean_note = note.strip()[:255] if note and note.strip() else None
+
+    subject_changed = (lesson.subject_id != subject_id)
+    old_day = lesson.day_of_week
+    day_changed = (old_day != day_of_week)
+
+    lesson.subject_id = subject_id
+    lesson.day_of_week = day_of_week
+    lesson.lesson_number = lesson_number
+    lesson.start_time = clean_start
+    lesson.end_time = clean_end
+    lesson.subgroup = subgroup
+    lesson.room = clean_room
+    lesson.note = clean_note
+
+    # Update or unbind any homework assigned directly to this lesson
+    hw_stmt = select(Homework).where(Homework.lesson_id == lesson.id)
+    hw_res = await db.execute(hw_stmt)
+    for hw in hw_res.scalars().all():
+        if subject_changed or day_changed:
+            hw.lesson_id = None
+        else:
+            hw.subgroup = subgroup
+
+    await db.commit()
+
+    if "application/json" in request.headers.get("accept", ""):
+        days_to_update = {lesson.day_of_week}
+        if day_changed:
+            days_to_update.add(old_day)
+        days_payload = {}
+        for d in days_to_update:
+            d_lessons = await _get_day_lessons(db, d)
+            days_payload[str(d)] = {
+                "html": _render_day_lessons_html(request, d, d_lessons, current_user),
+                "count": len(d_lessons),
+                "schedule_data": _serialize_lessons_data(d_lessons),
+            }
+        return JSONResponse({
+            "ok": True,
+            "redirect": "/schedule",
+            "days": days_payload,
+        })
     return RedirectResponse(url="/schedule", status_code=status.HTTP_303_SEE_OTHER)
 
 
 @router.delete("/{lesson_id}")
 async def delete_lesson_web(
+    request: Request,
     lesson_id: int,
     current_user: User = Depends(get_current_admin_web),
     db: AsyncSession = Depends(get_db),
 ):
     lesson = await db.get(Lesson, lesson_id)
-    if lesson:
-        await db.delete(lesson)
-        await db.commit()
+    if not lesson:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Урок не найден")
+
+    affected_day = lesson.day_of_week
+    await db.delete(lesson)
+    await db.commit()
+
+    if "application/json" in request.headers.get("accept", ""):
+        d_lessons = await _get_day_lessons(db, affected_day)
+        return JSONResponse({
+            "ok": True,
+            "redirect": "/schedule",
+            "days": {
+                str(affected_day): {
+                    "html": _render_day_lessons_html(request, affected_day, d_lessons, current_user),
+                    "count": len(d_lessons),
+                    "schedule_data": _serialize_lessons_data(d_lessons),
+                }
+            },
+        })
 
     return Response(content="", status_code=status.HTTP_200_OK)
 

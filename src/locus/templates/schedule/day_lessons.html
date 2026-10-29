@@ -1,0 +1,82 @@
+{% if schedule_by_day[d_num] %}
+  {% for lesson in schedule_by_day[d_num] %}
+  <div id="lesson-card-{{ lesson.id }}" class="lesson-card p-3 rounded-xl bg-[#18181b] border border-zinc-800/90 shadow-xs relative group hover:border-zinc-700 transition {% if current_user.is_admin %}cursor-pointer{% endif %}"
+       {% if current_user.is_admin %}onclick="openEditLessonModalById({{ lesson.id }})"{% endif %}>
+    <div class="flex items-start justify-between gap-2">
+      <div class="min-w-0 flex-1">
+        <div class="flex items-center space-x-2 mb-1 flex-wrap">
+          <span class="w-2 h-2 rounded-full shrink-0 bg-emerald-400"></span>
+          <span class="text-xs font-bold text-zinc-200">№{{ lesson.lesson_number }}</span>
+          <span class="text-xs text-zinc-400 font-medium">{{ lesson.start_time }}–{{ lesson.end_time }}</span>
+          {% if lesson.subgroup %}
+          <span class="px-1.5 py-0.5 rounded bg-emerald-500/15 text-emerald-400 border border-emerald-500/25 text-[10px] font-bold">{{ lesson.subgroup }} подгр.</span>
+          {% endif %}
+        </div>
+
+        <h4 class="text-xs sm:text-sm font-semibold text-white truncate">
+          {{ lesson.subject.name if lesson.subject else 'Урок' }}
+        </h4>
+
+        {% if lesson.effective_teacher_name %}
+        <div class="text-[11px] text-zinc-400 mt-1 truncate">
+          {{ lesson.effective_teacher_name }}
+        </div>
+        {% endif %}
+
+        {% if lesson.effective_room %}
+        <div class="text-[11px] text-zinc-500 {% if not lesson.effective_teacher_name %}mt-1{% else %}mt-0.5{% endif %}">
+          Кабинет {{ lesson.effective_room }}
+        </div>
+        {% endif %}
+
+        {% if lesson.note %}
+        <div class="text-[11px] text-zinc-500 mt-1 italic truncate">
+          {{ lesson.note }}
+        </div>
+        {% endif %}
+      </div>
+
+      {% if current_user.is_admin %}
+      <div class="flex items-center space-x-1 shrink-0" onclick="event.stopPropagation()">
+        <!-- Settings / Edit button -->
+        <button type="button"
+                id="btn-edit-lesson-{{ lesson.id }}"
+                data-id="{{ lesson.id }}"
+                data-subject-id="{{ lesson.subject_id }}"
+                data-day-of-week="{{ lesson.day_of_week }}"
+                data-lesson-number="{{ lesson.lesson_number }}"
+                data-start-time="{{ lesson.start_time }}"
+                data-end-time="{{ lesson.end_time }}"
+                data-subgroup="{{ lesson.subgroup or '' }}"
+                data-room="{{ lesson.room or '' }}"
+                data-note="{{ lesson.note or '' }}"
+                data-week-type="{{ lesson.week_type }}"
+                onclick="openEditLessonModal(this)"
+                class="text-zinc-500 hover:text-emerald-400 p-1 transition"
+                title="Настройки урока">
+          <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+          </svg>
+        </button>
+
+        <!-- Delete button -->
+        <button hx-delete="/schedule/{{ lesson.id }}"
+                hx-target="#lesson-card-{{ lesson.id }}"
+                hx-swap="outerHTML"
+                hx-confirm="Удалить этот урок?"
+                class="text-zinc-500 hover:text-rose-400 p-1 transition"
+                title="Удалить урок">
+          <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+  {% endfor %}
+{% else %}
+  <div class="py-8 text-center text-zinc-600 text-xs">
+    Нет уроков
+  </div>
+{% endif %}

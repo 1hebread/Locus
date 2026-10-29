@@ -45,65 +45,14 @@
         <h3 class="font-bold text-sm text-zinc-200">
           {{ day_names[d_num] }}
         </h3>
-        <span class="text-xs text-zinc-500 font-medium">
+        <span id="day-counter-{{ d_num }}" class="text-xs text-zinc-500 font-medium">
           {{ schedule_by_day[d_num]|length }} ур.
         </span>
       </div>
 
       <!-- Lessons in Day -->
-      <div class="space-y-2 flex-1">
-        {% if schedule_by_day[d_num] %}
-          {% for lesson in schedule_by_day[d_num] %}
-          <div id="lesson-card-{{ lesson.id }}" class="p-3 rounded-xl bg-[#18181b] border border-zinc-800/90 shadow-xs relative group hover:border-zinc-700 transition">
-            <div class="flex items-start justify-between gap-2">
-              <div class="min-w-0 flex-1">
-                <div class="flex items-center space-x-2 mb-1 flex-wrap">
-                  <span class="w-2 h-2 rounded-full shrink-0 bg-emerald-400"></span>
-                  <span class="text-xs font-bold text-zinc-200">№{{ lesson.lesson_number }}</span>
-                  <span class="text-xs text-zinc-400 font-medium">{{ lesson.start_time }}–{{ lesson.end_time }}</span>
-                  {% if lesson.subgroup %}
-                  <span class="px-1.5 py-0.5 rounded bg-emerald-500/15 text-emerald-400 border border-emerald-500/25 text-[10px] font-bold">{{ lesson.subgroup }} подгр.</span>
-                  {% endif %}
-                </div>
-
-                <h4 class="text-xs sm:text-sm font-semibold text-white truncate">
-                  {{ lesson.subject.name if lesson.subject else 'Урок' }}
-                </h4>
-
-                {% if lesson.effective_teacher_name %}
-                <div class="text-[11px] text-zinc-400 mt-1 truncate">
-                  {{ lesson.effective_teacher_name }}
-                </div>
-                {% endif %}
-
-                {% if lesson.effective_room %}
-                <div class="text-[11px] text-zinc-500 {% if not lesson.effective_teacher_name %}mt-1{% else %}mt-0.5{% endif %}">
-                  Кабинет {{ lesson.effective_room }}
-                </div>
-                {% endif %}
-              </div>
-
-              {% if current_user.is_admin %}
-              <!-- Delete button -->
-              <button hx-delete="/schedule/{{ lesson.id }}"
-                      hx-target="#lesson-card-{{ lesson.id }}"
-                      hx-swap="outerHTML"
-                      hx-confirm="Удалить этот урок?"
-                      class="text-zinc-500 hover:text-rose-400 p-1 transition"
-                      title="Удалить урок">
-                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
-              {% endif %}
-            </div>
-          </div>
-          {% endfor %}
-        {% else %}
-          <div class="py-8 text-center text-zinc-600 text-xs">
-            Нет уроков
-          </div>
-        {% endif %}
+      <div id="day-lessons-{{ d_num }}" class="space-y-2 flex-1">
+        {% include "schedule/day_lessons.html" %}
       </div>
     </div>
     {% endfor %}
@@ -227,6 +176,11 @@
   function checkSubgroupConflict(sub1, sub2) {
     if (!sub1 || !sub2) return true;
     return parseInt(sub1, 10) === parseInt(sub2, 10);
+  }
+
+  function checkWeekOverlap(w1, w2) {
+    if (!w1 || !w2 || w1 === 'ALL' || w2 === 'ALL') return true;
+    return w1 === w2;
   }
 
   function validateTimesLive() {
@@ -360,6 +314,224 @@
     validateTimesLive();
   }
 
+  var currentEditingLessonId = null;
+  var currentEditingWeekType = 'ALL';
+  var isEditCustomTime = false;
+
+  function openEditLessonModalById(id) {
+    const btn = document.getElementById('btn-edit-lesson-' + id);
+    if (btn) openEditLessonModal(btn);
+  }
+
+  function openEditLessonModal(btn) {
+    if (!btn || !btn.dataset) return;
+    currentEditingLessonId = parseInt(btn.dataset.id, 10);
+    currentEditingWeekType = btn.dataset.weekType || 'ALL';
+
+    const lessonNum = parseInt(btn.dataset.lessonNumber, 10);
+    const startTime = btn.dataset.startTime || '08:00';
+    const endTime = btn.dataset.endTime || '08:45';
+    const defaultSlot = bellSchedule[lessonNum];
+    isEditCustomTime = !defaultSlot || defaultSlot[0] !== startTime || defaultSlot[1] !== endTime;
+
+    const form = document.getElementById('edit-lesson-form');
+    if (form) form.action = '/schedule/' + currentEditingLessonId + '/edit';
+
+    const errBox = document.getElementById('edit-lesson-error');
+    if (errBox) errBox.classList.add('hidden');
+
+    const subjectSelect = document.getElementById('edit_modal_subject_id');
+    if (subjectSelect) subjectSelect.value = btn.dataset.subjectId || '';
+
+    const daySelect = document.getElementById('edit_day_of_week');
+    if (daySelect) daySelect.value = btn.dataset.dayOfWeek || '1';
+
+    const lessonSelect = document.getElementById('edit_lesson_number');
+    if (lessonSelect) lessonSelect.value = btn.dataset.lessonNumber || '1';
+
+    const startInput = document.getElementById('edit_start_time');
+    if (startInput) startInput.value = startTime;
+
+    const endInput = document.getElementById('edit_end_time');
+    if (endInput) endInput.value = endTime;
+
+    const subgroupSelect = document.getElementById('edit_subgroup');
+    if (subgroupSelect) subgroupSelect.value = btn.dataset.subgroup || '';
+
+    const roomInput = document.getElementById('edit_room');
+    if (roomInput) roomInput.value = btn.dataset.room || '';
+
+    const noteInput = document.getElementById('edit_note');
+    if (noteInput) noteInput.value = btn.dataset.note || '';
+
+    const submitBtn = document.getElementById('edit-lesson-submit-btn');
+    if (submitBtn) submitBtn.disabled = false;
+
+    const deleteBtn = document.getElementById('edit-lesson-delete-btn');
+    if (deleteBtn) deleteBtn.disabled = false;
+
+    validateEditTimesLive();
+    openModal('edit-lesson-modal');
+  }
+
+  function validateEditTimesLive() {
+    const daySelect = document.getElementById('edit_day_of_week');
+    const startInput = document.getElementById('edit_start_time');
+    const endInput = document.getElementById('edit_end_time');
+    const warning = document.getElementById('edit-time-conflict-warning');
+    const submitBtn = document.getElementById('edit-lesson-submit-btn');
+    const lessonSelect = document.getElementById('edit_lesson_number');
+    const subgroupSelect = document.getElementById('edit_subgroup');
+
+    if (!daySelect || !startInput || !endInput || !warning || !submitBtn || !lessonSelect) return;
+
+    const dayNum = parseInt(daySelect.value, 10);
+    const start = startInput.value.trim();
+    const end = endInput.value.trim();
+    const curLessonNum = parseInt(lessonSelect.value, 10);
+    const curSubgroup = (subgroupSelect && subgroupSelect.value) ? parseInt(subgroupSelect.value, 10) : null;
+    const lessons = (scheduleDataByDay[dayNum] || []).filter(function(l) { return l.id !== currentEditingLessonId; });
+
+    for (let i = 0; i < lessons.length; i++) {
+      const other = lessons[i];
+      if (other.lesson_number === curLessonNum && checkSubgroupConflict(curSubgroup, other.subgroup) && checkWeekOverlap(currentEditingWeekType, other.week_type)) {
+        const groupLabel = other.subgroup ? ' (' + other.subgroup + ' подгруппа)' : '';
+        warning.textContent = 'Урок №' + curLessonNum + groupLabel + ' «' + other.subject_name + '» уже существует в этот день';
+        warning.classList.remove('hidden');
+        submitBtn.disabled = true;
+        return;
+      }
+    }
+
+    if (!start || !end) {
+      warning.classList.add('hidden');
+      return;
+    }
+
+    if (start >= end) {
+      warning.textContent = 'Время окончания урока должно быть позже времени начала';
+      warning.classList.remove('hidden');
+      submitBtn.disabled = true;
+      return;
+    }
+
+    for (let i = 0; i < lessons.length; i++) {
+      const other = lessons[i];
+      if (checkSubgroupConflict(curSubgroup, other.subgroup) && checkWeekOverlap(currentEditingWeekType, other.week_type)) {
+        if (start < other.end_time && end > other.start_time) {
+          const groupLabel = other.subgroup ? ' (' + other.subgroup + ' подгруппа)' : '';
+          warning.textContent = 'Время урока (' + start + '–' + end + ') пересекается с уроком №' + other.lesson_number + ' «' + other.subject_name + '»' + groupLabel + ' (' + other.start_time + '–' + other.end_time + ')';
+          warning.classList.remove('hidden');
+          submitBtn.disabled = true;
+          return;
+        }
+      }
+    }
+
+    warning.classList.add('hidden');
+    submitBtn.disabled = false;
+  }
+
+  function onEditLessonNumberChange(num, force = false) {
+    if (isEditCustomTime && !force) return;
+    const slot = bellSchedule[num];
+    if (slot) {
+      const startInput = document.getElementById('edit_start_time');
+      const endInput = document.getElementById('edit_end_time');
+      if (startInput) startInput.value = slot[0];
+      if (endInput) endInput.value = slot[1];
+      isEditCustomTime = false;
+    }
+    validateEditTimesLive();
+  }
+
+  function onEditDayOfWeekChange(dayNum) {
+    validateEditTimesLive();
+  }
+
+  function onEditSubgroupChange(val) {
+    validateEditTimesLive();
+  }
+
+  function onEditTimeInputChange() {
+    isEditCustomTime = true;
+    validateEditTimesLive();
+  }
+
+  function applyDayUpdate(dayNum, dayHtml, count, scheduleData) {
+    const container = document.getElementById('day-lessons-' + dayNum);
+    if (container && typeof dayHtml === 'string') {
+      container.innerHTML = dayHtml;
+      if (window.htmx) {
+        window.htmx.process(container);
+      }
+    }
+    const counterEl = document.getElementById('day-counter-' + dayNum);
+    if (counterEl && typeof count === 'number') {
+      counterEl.textContent = count + ' ур.';
+    }
+    if (Array.isArray(scheduleData)) {
+      scheduleDataByDay[dayNum] = scheduleData;
+    }
+  }
+
+  var isDeletingLesson = false;
+
+  async function deleteCurrentEditingLesson() {
+    if (!currentEditingLessonId || isDeletingLesson) return;
+    if (!confirm('Удалить этот урок?')) return;
+
+    isDeletingLesson = true;
+    const deleteBtn = document.getElementById('edit-lesson-delete-btn');
+    const errBox = document.getElementById('edit-lesson-error');
+    if (errBox) errBox.classList.add('hidden');
+    if (deleteBtn) deleteBtn.disabled = true;
+
+    try {
+      const resp = await fetch('/schedule/' + currentEditingLessonId, {
+        method: 'DELETE',
+        headers: { 'Accept': 'application/json' }
+      });
+      if (resp.ok) {
+        const data = await resp.json().catch(function() { return {}; });
+        if (data.days && Object.keys(data.days).length > 0) {
+          for (const d in data.days) {
+            applyDayUpdate(parseInt(d, 10), data.days[d].html, data.days[d].count, data.days[d].schedule_data);
+          }
+        } else {
+          const deletedId = currentEditingLessonId;
+          const card = document.getElementById('lesson-card-' + deletedId);
+          if (card) card.remove();
+          for (const d in scheduleDataByDay) {
+            scheduleDataByDay[d] = scheduleDataByDay[d].filter(function(l) { return l.id !== deletedId; });
+            updateDayLessonsUI(parseInt(d, 10));
+          }
+        }
+        currentEditingLessonId = null;
+        closeModal('edit-lesson-modal');
+        const daySelect = document.getElementById('day_of_week');
+        if (daySelect) {
+          refreshLessonFormForDay(daySelect.value);
+        }
+      } else {
+        const data = await resp.json().catch(function() { return {}; });
+        const msg = (data && data.detail) || 'Не удалось удалить урок';
+        if (errBox) {
+          errBox.textContent = typeof msg === 'string' ? msg : JSON.stringify(msg);
+          errBox.classList.remove('hidden');
+        }
+      }
+    } catch (e) {
+      if (errBox) {
+        errBox.textContent = 'Ошибка сети при удалении урока';
+        errBox.classList.remove('hidden');
+      }
+    } finally {
+      isDeletingLesson = false;
+      if (deleteBtn) deleteBtn.disabled = false;
+    }
+  }
+
   function openAddLessonModal() {
     isCustomTime = false;
     openModal('add-lesson-modal');
@@ -369,7 +541,29 @@
     }
   }
 
-  // Sync scheduleDataByDay when lessons are deleted via HTMX
+  function updateDayLessonsUI(dayNum) {
+    const counterEl = document.getElementById('day-counter-' + dayNum);
+    const container = document.getElementById('day-lessons-' + dayNum);
+
+    let count = 0;
+    if (scheduleDataByDay[dayNum] !== undefined) {
+      count = scheduleDataByDay[dayNum].length;
+    } else if (container) {
+      count = container.querySelectorAll('.lesson-card').length;
+    }
+
+    if (counterEl) {
+      counterEl.textContent = count + ' ур.';
+    }
+
+    if (container) {
+      if (count === 0) {
+        container.innerHTML = '<div class="py-8 text-center text-zinc-600 text-xs">Нет уроков</div>';
+      }
+    }
+  }
+
+  // Sync scheduleDataByDay and day UI when lessons are deleted via HTMX
   document.addEventListener('htmx:afterRequest', function(evt) {
     if (evt.detail && evt.detail.successful) {
       const verb = ((evt.detail.requestConfig && evt.detail.requestConfig.verb) || '').toLowerCase();
@@ -378,9 +572,31 @@
         const match = path.match(/^\/schedule\/(\d+)$/);
         if (match) {
           const deletedId = parseInt(match[1], 10);
+          let affectedDay = null;
+
+          const card = document.getElementById('lesson-card-' + deletedId);
+          if (card) {
+            const col = card.closest('.day-column');
+            if (col && col.id) {
+              const colMatch = col.id.match(/^day-column-(\d+)$/);
+              if (colMatch) affectedDay = parseInt(colMatch[1], 10);
+            }
+          }
+
           for (const d in scheduleDataByDay) {
+            const dayInt = parseInt(d, 10);
+            if (scheduleDataByDay[d].some(function(l) { return l.id === deletedId; })) {
+              if (affectedDay === null) affectedDay = dayInt;
+            }
             scheduleDataByDay[d] = scheduleDataByDay[d].filter(function(l) { return l.id !== deletedId; });
           }
+
+          if (affectedDay !== null) {
+            setTimeout(function() {
+              updateDayLessonsUI(affectedDay);
+            }, 0);
+          }
+
           const daySelect = document.getElementById('day_of_week');
           if (daySelect) {
             refreshLessonFormForDay(daySelect.value);
@@ -391,6 +607,59 @@
   });
 
   document.addEventListener('DOMContentLoaded', function() {
+    const editForm = document.getElementById('edit-lesson-form');
+    if (editForm) {
+      editForm.addEventListener('submit', async function(e) {
+        e.preventDefault();
+        const errBox = document.getElementById('edit-lesson-error');
+        const submitBtn = document.getElementById('edit-lesson-submit-btn');
+        if (errBox) errBox.classList.add('hidden');
+        if (submitBtn) submitBtn.disabled = true;
+
+        const formData = new FormData(editForm);
+        try {
+          const resp = await fetch(editForm.action, {
+            method: 'POST',
+            body: formData,
+            headers: { 'Accept': 'application/json' }
+          });
+          if (resp.ok) {
+            const data = await resp.json().catch(function() { return {}; });
+            if (data.days) {
+              for (const d in data.days) {
+                applyDayUpdate(parseInt(d, 10), data.days[d].html, data.days[d].count, data.days[d].schedule_data);
+              }
+            }
+            closeModal('edit-lesson-modal');
+            const daySelect = document.getElementById('day_of_week');
+            if (daySelect) {
+              refreshLessonFormForDay(daySelect.value);
+            }
+          } else {
+            const data = await resp.json().catch(function() { return {}; });
+            let msg = 'Не удалось сохранить настройки урока';
+            if (typeof data.detail === 'string') {
+              msg = data.detail;
+            } else if (Array.isArray(data.detail)) {
+              msg = data.detail.map(function(item) { return item.msg || JSON.stringify(item); }).join(', ');
+            } else if (data.detail && typeof data.detail === 'object') {
+              msg = data.detail.msg || JSON.stringify(data.detail);
+            }
+            if (errBox) {
+              errBox.textContent = msg;
+              errBox.classList.remove('hidden');
+            }
+            if (submitBtn) submitBtn.disabled = false;
+          }
+        } catch (err) {
+          if (errBox) {
+            errBox.textContent = 'Ошибка сети при сохранении урока';
+            errBox.classList.remove('hidden');
+          }
+          if (submitBtn) submitBtn.disabled = false;
+        }
+      });
+    }
     const form = document.getElementById('add-lesson-form');
     if (form) {
       form.addEventListener('submit', async function(e) {
@@ -408,7 +677,18 @@
             headers: { 'Accept': 'application/json' }
           });
           if (resp.ok) {
-            window.location.href = '/schedule';
+            const data = await resp.json().catch(function() { return {}; });
+            if (data.days) {
+              for (const d in data.days) {
+                applyDayUpdate(parseInt(d, 10), data.days[d].html, data.days[d].count, data.days[d].schedule_data);
+              }
+            }
+            closeModal('add-lesson-modal');
+            form.reset();
+            const daySelect = document.getElementById('day_of_week');
+            if (daySelect) {
+              refreshLessonFormForDay(daySelect.value);
+            }
           } else {
             const data = await resp.json().catch(function() { return {}; });
             let msg = 'Не удалось добавить урок';
@@ -521,9 +801,16 @@
 
       <div>
         <label for="room" class="block text-xs font-medium text-zinc-300 mb-1">Кабинет (если отличается)</label>
-        <input type="text" id="room" name="room"
+        <input type="text" id="room" name="room" maxlength="50"
                class="w-full bg-[#121214] border border-zinc-700/80 rounded-xl px-3 py-1.5 text-sm text-white focus:outline-none focus:ring-1 focus:ring-emerald-500 placeholder-zinc-500"
                placeholder="Например, 304">
+      </div>
+
+      <div>
+        <label for="note" class="block text-xs font-medium text-zinc-300 mb-1">Примечание (заметка к уроку)</label>
+        <input type="text" id="note" name="note" maxlength="255"
+               class="w-full bg-[#121214] border border-zinc-700/80 rounded-xl px-3 py-1.5 text-sm text-white focus:outline-none focus:ring-1 focus:ring-emerald-500 placeholder-zinc-500"
+               placeholder="Например, Четная неделя / В актовом зале">
       </div>
 
 
@@ -536,6 +823,127 @@
                 class="px-4 py-1.5 rounded-xl text-xs sm:text-sm font-semibold bg-emerald-500 hover:bg-emerald-600 disabled:opacity-50 disabled:cursor-not-allowed text-white shadow-md shadow-emerald-500/20 transition">
           Добавить
         </button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Edit Lesson Modal (Настройки урока) -->
+<div id="edit-lesson-modal" data-modal class="fixed inset-0 z-50 hidden items-end sm:items-center justify-center p-0 sm:p-4">
+  <div class="fixed inset-0 bg-black/75 backdrop-blur-sm cursor-pointer" onclick="closeModal('edit-lesson-modal')"></div>
+
+  <div class="relative z-10 w-full sm:max-w-md bg-[#161618] border-t sm:border border-zinc-800 rounded-t-3xl sm:rounded-2xl p-5 sm:p-6 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
+    <div class="flex items-center justify-between pb-3 border-b border-zinc-800">
+      <div class="flex items-center gap-2">
+        <div class="w-7 h-7 rounded-lg bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400">
+          <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+          </svg>
+        </div>
+        <h3 class="font-bold text-base sm:text-lg text-white">Настройки урока</h3>
+      </div>
+      <button onclick="closeModal('edit-lesson-modal')" class="text-zinc-400 hover:text-white p-1 rounded-lg">
+        <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+        </svg>
+      </button>
+    </div>
+
+    <form id="edit-lesson-form" method="post" action="/schedule/0/edit" class="space-y-3.5">
+      <div id="edit-lesson-error" class="hidden p-3 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-400 text-xs font-medium"></div>
+
+      <div>
+        <label for="edit_modal_subject_id" class="block text-xs font-medium text-zinc-300 mb-1">Предмет *</label>
+        <select id="edit_modal_subject_id" name="subject_id" required
+                class="w-full bg-[#121214] border border-zinc-700/80 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:ring-1 focus:ring-emerald-500">
+          {% for sub in subjects %}
+          <option value="{{ sub.id }}">{{ sub.name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <div class="grid grid-cols-2 gap-3">
+        <div>
+          <label for="edit_day_of_week" class="block text-xs font-medium text-zinc-300 mb-1">День недели *</label>
+          <select id="edit_day_of_week" name="day_of_week" required onchange="onEditDayOfWeekChange(this.value)"
+                  class="w-full bg-[#121214] border border-zinc-700/80 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:ring-1 focus:ring-emerald-500">
+            {% for d_num in range(1, 7) %}
+            <option value="{{ d_num }}">{{ day_names[d_num] }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div>
+          <label for="edit_lesson_number" class="block text-xs font-medium text-zinc-300 mb-1">Номер урока *</label>
+          <select id="edit_lesson_number" name="lesson_number" required onchange="onEditLessonNumberChange(this.value)"
+                  class="w-full bg-[#121214] border border-zinc-700/80 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:ring-1 focus:ring-emerald-500">
+            {% for num in range(1, 9) %}
+            <option value="{{ num }}">{{ num }}-й урок</option>
+            {% endfor %}
+          </select>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-2 gap-3">
+        <div>
+          <label for="edit_start_time" class="block text-xs font-medium text-zinc-300 mb-1">Начало</label>
+          <input type="time" id="edit_start_time" name="start_time" required oninput="onEditTimeInputChange()"
+                 class="w-full bg-[#121214] border border-zinc-700/80 rounded-xl px-3 py-1.5 text-sm text-white focus:outline-none focus:ring-1 focus:ring-emerald-500">
+        </div>
+
+        <div>
+          <label for="edit_end_time" class="block text-xs font-medium text-zinc-300 mb-1">Конец</label>
+          <input type="time" id="edit_end_time" name="end_time" required oninput="onEditTimeInputChange()"
+                 class="w-full bg-[#121214] border border-zinc-700/80 rounded-xl px-3 py-1.5 text-sm text-white focus:outline-none focus:ring-1 focus:ring-emerald-500">
+        </div>
+      </div>
+
+      <div>
+        <label for="edit_subgroup" class="block text-xs font-medium text-zinc-300 mb-1">Подгруппа</label>
+        <select id="edit_subgroup" name="subgroup" onchange="onEditSubgroupChange(this.value)"
+                class="w-full bg-[#121214] border border-zinc-700/80 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:ring-1 focus:ring-emerald-500">
+          <option value="">Весь класс (общий урок)</option>
+          <option value="1">1-я подгруппа</option>
+          <option value="2">2-я подгруппа</option>
+        </select>
+      </div>
+
+      <div id="edit-time-conflict-warning" class="hidden text-xs text-rose-400 font-medium"></div>
+
+      <div>
+        <label for="edit_room" class="block text-xs font-medium text-zinc-300 mb-1">Кабинет (если отличается)</label>
+        <input type="text" id="edit_room" name="room" maxlength="50"
+               class="w-full bg-[#121214] border border-zinc-700/80 rounded-xl px-3 py-1.5 text-sm text-white focus:outline-none focus:ring-1 focus:ring-emerald-500 placeholder-zinc-500"
+               placeholder="Например, 304">
+      </div>
+
+      <div>
+        <label for="edit_note" class="block text-xs font-medium text-zinc-300 mb-1">Примечание (заметка к уроку)</label>
+        <input type="text" id="edit_note" name="note" maxlength="255"
+               class="w-full bg-[#121214] border border-zinc-700/80 rounded-xl px-3 py-1.5 text-sm text-white focus:outline-none focus:ring-1 focus:ring-emerald-500 placeholder-zinc-500"
+               placeholder="Например, Четная неделя / В актовом зале">
+      </div>
+
+      <div class="flex items-center justify-between pt-3 border-t border-zinc-800">
+        <button type="button" id="edit-lesson-delete-btn" onclick="deleteCurrentEditingLesson()"
+                class="inline-flex items-center gap-1.5 text-xs font-medium text-rose-400 hover:text-rose-300 transition py-1 px-2 rounded-lg hover:bg-rose-500/10">
+          <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+          </svg>
+          <span>Удалить урок</span>
+        </button>
+
+        <div class="flex items-center space-x-2.5">
+          <button type="button" onclick="closeModal('edit-lesson-modal')"
+                  class="px-3.5 py-1.5 rounded-xl text-xs font-medium text-zinc-300 hover:text-white hover:bg-zinc-800 transition">
+            Отмена
+          </button>
+          <button type="submit" id="edit-lesson-submit-btn"
+                  class="px-4 py-1.5 rounded-xl text-xs sm:text-sm font-semibold bg-emerald-500 hover:bg-emerald-600 disabled:opacity-50 disabled:cursor-not-allowed text-white shadow-md shadow-emerald-500/20 transition">
+            Сохранить
+          </button>
+        </div>
       </div>
     </form>
   </div>

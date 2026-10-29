@@ -145,7 +145,7 @@ function bindSheetSwipe(modal) {
   // Mouse drag for desktop responsive mode / devtools device toolbar
   sheet.addEventListener('mousedown', (e) => {
     if (e.button !== 0 || dragging) return;
-    if (window.getSelection && String(window.getSelection())) return;
+    if (Boolean(window.getSelection?.()?.toString())) return;
     if (!canStartDrag(e.target)) return;
     e.preventDefault();
     startDrag(e.clientX, e.clientY);
@@ -314,12 +314,58 @@ function initModals() {
   });
 }
 
-// Close modal when clicking on backdrop container
-document.addEventListener('click', (e) => {
-  if (e.target && e.target.hasAttribute('data-modal')) {
-    closeModal(e.target.id);
+// Track pointer/mouse down location to distinguish deliberate backdrop clicks
+// from text selection drags that started inside the modal and ended outside on the backdrop.
+let isPointerDownInsideModal = false;
+
+function handlePointerDownModalCheck(e) {
+  const openModal = e.target.closest('[data-modal].modal-visible') || document.querySelector('[data-modal].modal-visible');
+  if (!openModal) {
+    isPointerDownInsideModal = false;
+    return;
   }
-});
+  const sheet = openModal.lastElementChild;
+  isPointerDownInsideModal = !!(sheet && sheet.contains(e.target));
+}
+
+document.addEventListener('pointerdown', handlePointerDownModalCheck, true);
+document.addEventListener('mousedown', handlePointerDownModalCheck, true);
+
+function handlePointerUpModalCheck() {
+  if (!isPointerDownInsideModal) return;
+  setTimeout(() => {
+    isPointerDownInsideModal = false;
+  }, 100);
+}
+
+document.addEventListener('pointerup', handlePointerUpModalCheck, true);
+document.addEventListener('mouseup', handlePointerUpModalCheck, true);
+document.addEventListener('pointercancel', () => { isPointerDownInsideModal = false; }, true);
+
+// Close modal when clicking on backdrop container or backdrop overlay,
+// but NEVER close if the interaction started as a text selection / drag inside the modal.
+window.addEventListener('click', (e) => {
+  const openModal = e.target.closest('[data-modal].modal-visible');
+  if (!openModal) return;
+
+  const sheet = openModal.lastElementChild;
+  const isClickInside = !!(sheet && sheet.contains(e.target));
+
+  if (!isClickInside) {
+    if (isPointerDownInsideModal) {
+      isPointerDownInsideModal = false;
+      e.preventDefault();
+      e.stopPropagation();
+      e.stopImmediatePropagation();
+      return;
+    }
+
+    closeModal(openModal.id);
+    e.preventDefault();
+    e.stopPropagation();
+    e.stopImmediatePropagation();
+  }
+}, true);
 
 // ============================================================
 // Client-side section navigation (Dock + Sidebar)

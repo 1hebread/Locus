@@ -1018,6 +1018,20 @@ async def test_lesson_web_admin_creation_and_conflict_validation(
     )
     assert res_bad_day.status_code == 400
 
+    res_sunday = await client.post(
+        "/schedule",
+        data={
+            "subject_id": test_subject.id,
+            "day_of_week": 7,
+            "lesson_number": 1,
+            "start_time": "08:00",
+            "end_time": "08:45",
+        },
+        follow_redirects=False,
+    )
+    assert res_sunday.status_code == 400
+    assert "День недели должен быть от 1 до 6" in res_sunday.json()["detail"]
+
     # 6. Schedule page contains schedule_data JSON
     res_page = await client.get("/schedule")
     assert res_page.status_code == 200
@@ -1042,6 +1056,9 @@ async def test_lesson_web_admin_creation_and_conflict_validation(
     assert res_trunc.status_code == 200
     assert res_trunc.json()["ok"] is True
     assert res_trunc.json()["redirect"] == "/schedule"
+    assert "2" in res_trunc.json()["days"]
+    assert res_trunc.json()["days"]["2"]["count"] == 1
+    assert "lesson-card-" in res_trunc.json()["days"]["2"]["html"]
 
     # Verify truncated values in DB
     lesson2_res = await db_session.execute(
@@ -1051,3 +1068,275 @@ async def test_lesson_web_admin_creation_and_conflict_validation(
     assert lesson2 is not None
     assert len(lesson2.room) == 50
     assert len(lesson2.note) == 255
+
+
+@pytest.mark.asyncio
+async def test_lesson_web_admin_edit_settings_and_conflict_validation(
+    client: AsyncClient,
+    test_user: User,
+    auth_token: str,
+    test_subject: Subject,
+    db_session,
+):
+    from datetime import date
+    from locus.config import get_settings
+    from locus.models.homework import Homework
+    from locus.models.lesson import Lesson
+    from locus.models.user import User
+    from locus.security import create_access_token, get_password_fingerprint, hash_password
+    from sqlalchemy import select
+
+    settings = get_settings()
+    client.cookies.set(settings.COOKIE_NAME, auth_token)
+
+    # 1. Create a lesson and another subject
+    subj2 = Subject(name="География")
+    db_session.add(subj2)
+    await db_session.commit()
+    await db_session.refresh(subj2)
+
+    lesson1 = Lesson(
+        subject_id=test_subject.id,
+        day_of_week=3,
+        lesson_number=2,
+        start_time="09:00",
+        end_time="09:45",
+        week_type="ALL",
+        room="101",
+        note="Заметка 1",
+    )
+    lesson2 = Lesson(
+        subject_id=test_subject.id,
+        day_of_week=3,
+        lesson_number=3,
+        start_time="10:00",
+        end_time="10:45",
+        week_type="ALL",
+        subgroup=1,
+    )
+    db_session.add_all([lesson1, lesson2])
+    await db_session.commit()
+    await db_session.refresh(lesson1)
+    await db_session.refresh(lesson2)
+
+    # Link a homework assignment to lesson1
+    hw = Homework(
+        subject_id=test_subject.id,
+        lesson_id=lesson1.id,
+        title="Тест ДЗ",
+        due_date=date(2026, 11, 4),
+        subgroup=None,
+    )
+    db_session.add(hw)
+    await db_session.commit()
+
+    # 2. GET fallback redirects to /schedule
+    res_get = await client.get(f"/schedule/{lesson1.id}/edit", follow_redirects=False)
+    assert res_get.status_code == 303
+    assert res_get.headers["Location"] == "/schedule"
+
+    # 3. Admin edits lesson settings (changes subject, room, note, subgroup to 1)
+    res_edit = await client.post(
+        f"/schedule/{lesson1.id}/edit",
+        data={
+            "subject_id": subj2.id,
+            "day_of_week": 3,
+            "lesson_number": 2,
+            "start_time": "08:55",
+            "end_time": "09:40",
+            "subgroup": 1,
+            "room": "205",
+            "note": "Обновленная заметка",
+        },
+        headers={"Accept": "application/json"},
+    )
+    assert res_edit.status_code == 200
+    assert res_edit.json()["ok"] is True
+    assert "3" in res_edit.json()["days"]
+    assert res_edit.json()["days"]["3"]["count"] == 2
+
+    # Verify changes in DB
+    await db_session.refresh(lesson1)
+    assert lesson1.subject_id == subj2.id
+    assert lesson1.start_time == "08:55"
+    assert lesson1.end_time == "09:40"
+    assert lesson1.subgroup == 1
+    assert lesson1.room == "205"
+    assert lesson1.note == "Обновленная заметка"
+
+    # Verify linked homework was unbound from the lesson because subject changed
+    await db_session.refresh(hw)
+    assert hw.lesson_id is None
+    assert hw.subject_id == test_subject.id
+
+    # Create a homework for subj2 linked to lesson1
+    hw2 = Homework(
+        subject_id=subj2.id,
+        lesson_id=lesson1.id,
+        title="Тест ДЗ по географии",
+        due_date=date(2026, 11, 4),
+        subgroup=1,
+    )
+    db_session.add(hw2)
+    await db_session.commit()
+
+    # Edit lesson1 subgroup to 2 (without changing subject or day)
+    res_edit_sub = await client.post(
+        f"/schedule/{lesson1.id}/edit",
+        data={
+            "subject_id": subj2.id,
+            "day_of_week": 3,
+            "lesson_number": 2,
+            "start_time": "08:55",
+            "end_time": "09:40",
+            "subgroup": 2,
+            "room": "205",
+        },
+        headers={"Accept": "application/json"},
+    )
+    assert res_edit_sub.status_code == 200
+
+    # Verify hw2 remained attached and synced its subgroup
+    await db_session.refresh(hw2)
+    assert hw2.lesson_id == lesson1.id
+    assert hw2.subgroup == 2
+
+    # 4. Conflict: trying to edit lesson1 to conflict with lesson2 (lesson_number=3, subgroup=1)
+    res_conflict = await client.post(
+        f"/schedule/{lesson1.id}/edit",
+        data={
+            "subject_id": subj2.id,
+            "day_of_week": 3,
+            "lesson_number": 3,
+            "start_time": "10:00",
+            "end_time": "10:45",
+            "subgroup": 1,
+        },
+    )
+    assert res_conflict.status_code == 400
+    assert "Урок №3" in res_conflict.json()["detail"] and "уже существует" in res_conflict.json()["detail"]
+
+    # 5. Non-admin cannot edit lesson (403 Forbidden)
+    reg_user = User(
+        username="student_regular",
+        hashed_password=hash_password("pass123"),
+        is_active=True,
+        is_admin=False,
+    )
+    db_session.add(reg_user)
+    await db_session.commit()
+    await db_session.refresh(reg_user)
+    t_reg = create_access_token({"sub": str(reg_user.id), "pwd": get_password_fingerprint(reg_user.hashed_password)})
+
+    client.cookies.set(settings.COOKIE_NAME, t_reg)
+    res_forbidden = await client.post(
+        f"/schedule/{lesson1.id}/edit",
+        data={
+            "subject_id": subj2.id,
+            "day_of_week": 3,
+            "lesson_number": 2,
+            "start_time": "08:55",
+            "end_time": "09:40",
+        },
+    )
+    assert res_forbidden.status_code == 403
+
+    # 6. Verify schedule page renders edit button and modal for admin
+    client.cookies.set(settings.COOKIE_NAME, auth_token)
+    res_page = await client.get("/schedule")
+    assert res_page.status_code == 200
+    assert f'id="btn-edit-lesson-{lesson1.id}"' in res_page.text
+    assert 'id="edit-lesson-modal"' in res_page.text
+    assert "Настройки урока" in res_page.text
+    assert 'id="day-counter-3"' in res_page.text
+    assert 'id="day-lessons-3"' in res_page.text
+    assert "updateDayLessonsUI" in res_page.text
+
+    # 7. Test moving lesson1 across days: day 3 -> day 4
+    res_move = await client.post(
+        f"/schedule/{lesson1.id}/edit",
+        data={
+            "subject_id": subj2.id,
+            "day_of_week": 4,
+            "lesson_number": 2,
+            "start_time": "08:55",
+            "end_time": "09:40",
+            "subgroup": 2,
+            "room": "205",
+        },
+        headers={"Accept": "application/json"},
+    )
+    assert res_move.status_code == 200
+    assert "3" in res_move.json()["days"]
+    assert "4" in res_move.json()["days"]
+    assert res_move.json()["days"]["3"]["count"] == 1  # Only lesson2 remains on day 3
+    assert res_move.json()["days"]["4"]["count"] == 1  # lesson1 is now on day 4
+
+    # Verify hw2 (which was on lesson1) is unlinked because day changed
+    await db_session.refresh(hw2)
+    assert hw2.lesson_id is None
+
+    # Move lesson1 back to day 3 without Accept: application/json (tests 303 Redirect fallback)
+    res_fallback = await client.post(
+        f"/schedule/{lesson1.id}/edit",
+        data={
+            "subject_id": subj2.id,
+            "day_of_week": 3,
+            "lesson_number": 2,
+            "start_time": "08:55",
+            "end_time": "09:40",
+            "subgroup": 2,
+            "room": "205",
+        },
+        follow_redirects=False,
+    )
+    assert res_fallback.status_code == 303
+    assert res_fallback.headers["Location"] == "/schedule"
+
+    # Test invalid day_of_week=7 (Sunday) on edit rejected with 400
+    res_edit_sunday = await client.post(
+        f"/schedule/{lesson1.id}/edit",
+        data={
+            "subject_id": subj2.id,
+            "day_of_week": 7,
+            "lesson_number": 2,
+            "start_time": "08:55",
+            "end_time": "09:40",
+        },
+    )
+    assert res_edit_sunday.status_code == 400
+    assert "День недели должен быть от 1 до 6" in res_edit_sunday.json()["detail"]
+
+    # Test editing non-existent lesson returns 404
+    res_edit_404 = await client.post(
+        "/schedule/999999/edit",
+        data={
+            "subject_id": subj2.id,
+            "day_of_week": 3,
+            "lesson_number": 2,
+            "start_time": "08:55",
+            "end_time": "09:40",
+        },
+    )
+    assert res_edit_404.status_code == 404
+
+    # Test deleting non-existent lesson returns 404
+    res_del_404 = await client.delete("/schedule/999999")
+    assert res_del_404.status_code == 404
+
+    # 8. Admin deletes lesson via JSON DELETE endpoint (used by modal delete)
+    res_del_json = await client.delete(
+        f"/schedule/{lesson1.id}",
+        headers={"Accept": "application/json"},
+    )
+    assert res_del_json.status_code == 200
+    assert res_del_json.json()["ok"] is True
+    assert "3" in res_del_json.json()["days"]
+    assert res_del_json.json()["days"]["3"]["count"] == 1
+    assert (await db_session.get(Lesson, lesson1.id)) is None
+
+    # 9. Admin deletes lesson2 via HTMX DELETE endpoint (used by card cross button)
+    res_del_htmx = await client.delete(f"/schedule/{lesson2.id}")
+    assert res_del_htmx.status_code == 200
+    assert res_del_htmx.text == ""
+    assert (await db_session.get(Lesson, lesson2.id)) is None
