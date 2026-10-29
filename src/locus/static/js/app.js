@@ -21,7 +21,7 @@ if ('serviceWorker' in navigator) {
 }
 
 // Modal helpers with smooth fade transitions
-let modalCloseTimeout = null;
+const modalCloseTimeouts = new Map();
 let modalScrollY = window.scrollY;
 
 // Mobile bottom-sheet: swipe down on the sheet to dismiss it.
@@ -161,12 +161,14 @@ function bindSheetSwipe(modal) {
 }
 
 function openModal(id) {
-  if (modalCloseTimeout) {
-    clearTimeout(modalCloseTimeout);
-    modalCloseTimeout = null;
+  const pendingClose = modalCloseTimeouts.get(id);
+  if (pendingClose) {
+    clearTimeout(pendingClose);
+    modalCloseTimeouts.delete(id);
   }
   const modal = document.getElementById(id);
   if (modal) {
+    delete modal.dataset.closing;
     // Remember where the page was before the first modal opens, so iOS
     // keyboard scroll-into-view does not leave the page shifted down.
     // Ignore the modal being opened: the dashboard lesson modal is injected
@@ -202,10 +204,13 @@ function closeModal(id) {
       document.activeElement.blur();
     }
     modal.classList.remove('modal-visible');
-    if (modalCloseTimeout) {
-      clearTimeout(modalCloseTimeout);
+    // Marks the modal while its fade-out runs, so a page swap neither
+    // re-shows it nor replaces the animating sheet mid-flight
+    modal.dataset.closing = '1';
+    if (modalCloseTimeouts.has(id)) {
+      clearTimeout(modalCloseTimeouts.get(id));
     }
-    modalCloseTimeout = setTimeout(() => {
+    modalCloseTimeouts.set(id, setTimeout(() => {
       if (!modal.classList.contains('modal-visible')) {
         modal.classList.add('hidden');
         modal.classList.remove('flex');
@@ -219,15 +224,20 @@ function closeModal(id) {
         if (backdrop) backdrop.style.opacity = '';
         if (!document.querySelector('[data-modal]:not(.hidden)')) {
           document.body.style.overflow = '';
-          window.scrollTo({ top: modalScrollY, behavior: 'instant' });
+          // The page switch scrolls to the top itself; restoring the old
+          // position here would fight it
+          if (!isNavigatingPage) {
+            window.scrollTo({ top: modalScrollY, behavior: 'instant' });
+          }
         }
         if (id === 'lesson-detail-modal') {
           const container = document.getElementById('lesson-modal-container');
           if (container) container.innerHTML = '';
         }
       }
-      modalCloseTimeout = null;
-    }, 260);
+      delete modal.dataset.closing;
+      modalCloseTimeouts.delete(id);
+    }, 260));
   }
 }
 
@@ -305,6 +315,7 @@ function initModals() {
   }
   syncDateDisplays();
   document.querySelectorAll('[data-modal].flex').forEach((modal) => {
+    if (modal.dataset.closing) return; // fading out after a page switch
     requestAnimationFrame(() => {
       if (!modal.classList.contains('hidden')) {
         modal.classList.add('modal-visible');
@@ -386,15 +397,14 @@ function runScripts(container) {
   });
 }
 
-// Instantly dismiss any open modal/menu before swapping the page
+// Dismiss any open modal/menu while swapping the page: it fades out over the
+// incoming page instead of disappearing abruptly
 function hideOpenOverlays() {
   if (document.activeElement && document.activeElement.blur) {
     document.activeElement.blur();
   }
   document.querySelectorAll('[data-modal]:not(.hidden)').forEach((modal) => {
-    modal.classList.remove('modal-visible');
-    modal.classList.add('hidden');
-    modal.classList.remove('flex');
+    if (modal.id) closeModal(modal.id);
   });
   document.body.style.overflow = '';
 }
@@ -604,7 +614,8 @@ function syncNavigationState(doc) {
 
   const newMobileMenu = doc.getElementById('mobile-menu-modal');
   const curMobileMenu = document.getElementById('mobile-menu-modal');
-  if (newMobileMenu && curMobileMenu) {
+  // Skip while the menu is fading out: replacing its markup would cut the animation
+  if (newMobileMenu && curMobileMenu && !curMobileMenu.dataset.closing) {
     curMobileMenu.innerHTML = newMobileMenu.innerHTML;
   }
 }
