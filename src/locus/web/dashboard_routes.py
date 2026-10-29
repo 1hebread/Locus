@@ -21,6 +21,17 @@ from locus.constants import (
     is_lesson_now,
 )
 from locus.database import get_db
+from locus.homework_audit import (
+    ACTION_CREATED,
+    ACTION_DELETED,
+    ACTION_UPDATED,
+    diff,
+    get_last_event,
+    local_datetime,
+    log_homework_event,
+    snapshot,
+    snapshot_changes,
+)
 from locus.homework_status import attach_status, attach_statuses, set_status
 from locus.lesson_suggestion import get_next_lesson_suggestion
 from locus.models.homework import Homework
@@ -417,6 +428,7 @@ async def get_lesson_modal(
     if hw:
         await attach_status(db, hw, current_user.id)
 
+    last_edit = await get_last_event(db, hw.id) if hw else None
     homeworks = [hw] if hw else []
 
     short_dow = DAY_SHORT_NAMES.get(target_date.isoweekday(), "")
@@ -431,6 +443,12 @@ async def get_lesson_modal(
             "subject": lesson.subject,
             "homeworks": homeworks,
             "hw": hw,
+            "last_edit": last_edit,
+            "last_edit_time": (
+                local_datetime(last_edit.created_at).strftime("%d.%m %H:%M")
+                if last_edit
+                else None
+            ),
             "date_iso": target_date.isoformat(),
             "date_formatted": date_formatted,
             "is_sunday": (target_date.isoweekday() == 7),
@@ -503,21 +521,31 @@ async def save_lesson_homework(
     if action == "delete":
         if hw:
             deleted_hw_id = hw.id
+            log_homework_event(
+                db, current_user, ACTION_DELETED, None, snapshot_changes(hw, deleted=True)
+            )
             await db.delete(hw)
             await db.commit()
     elif hw:
         # If title is cleared -> delete ("пустое, значит ничего не задано")
         if not clean_title:
             deleted_hw_id = hw.id
+            log_homework_event(
+                db, current_user, ACTION_DELETED, None, snapshot_changes(hw, deleted=True)
+            )
             await db.delete(hw)
             await db.commit()
         else:
             if target_date.isoweekday() == 7:
                 raise HTTPException(status_code=400, detail="Нельзя записать домашнее задание на воскресенье")
             was_unassigned = (hw.lesson_id is None)
+            before = snapshot(hw)
             hw.title = clean_title
             hw.lesson_id = lesson.id
             hw.subgroup = lesson.subgroup
+            changes = diff(before, snapshot(hw))
+            if changes:
+                log_homework_event(db, current_user, ACTION_UPDATED, hw.id, changes)
             await set_status(db, hw.id, current_user.id, status_val)
             if was_unassigned:
                 unassigned_removed_id = hw.id
@@ -535,6 +563,9 @@ async def save_lesson_homework(
         db.add(new_hw)
         await db.flush()
         await set_status(db, new_hw.id, current_user.id, status_val)
+        log_homework_event(
+            db, current_user, ACTION_CREATED, new_hw.id, snapshot_changes(new_hw)
+        )
         await db.commit()
 
     # Re-fetch single homework for this lesson

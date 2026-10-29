@@ -9,6 +9,12 @@ from sqlalchemy.orm import selectinload
 from locus.api.deps import get_current_user_web
 from locus.constants import HomeworkStatus, get_current_datetime
 from locus.database import get_db
+from locus.homework_audit import (
+    ACTION_CREATED,
+    ACTION_DELETED,
+    log_homework_event,
+    snapshot_changes,
+)
 from locus.homework_status import attach_statuses, get_completion, set_status
 from locus.lesson_suggestion import get_next_lesson_suggestion
 from locus.models.homework import Homework
@@ -214,6 +220,7 @@ async def create_homework_web(
     db.add(hw)
     await db.flush()
     await set_status(db, hw.id, current_user.id, HomeworkStatus.TODO.value)
+    log_homework_event(db, current_user, ACTION_CREATED, hw.id, snapshot_changes(hw))
     await db.commit()
 
     target_url = return_url if return_url and return_url.startswith("/") else "/homework"
@@ -285,6 +292,9 @@ async def delete_homework_web(
         if not current_user.is_admin and current_user.subgroup is not None:
             if hw.subgroup is not None and hw.subgroup != current_user.subgroup:
                 raise HTTPException(status_code=403, detail="Нельзя удалить задание чужой подгруппы")
+        log_homework_event(
+            db, current_user, ACTION_DELETED, None, snapshot_changes(hw, deleted=True)
+        )
         await db.delete(hw)
         await db.commit()
 

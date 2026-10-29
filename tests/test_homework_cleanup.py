@@ -1,13 +1,14 @@
-from datetime import timedelta
+from datetime import datetime, timedelta, timezone
 
 import pytest
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from locus.constants import HomeworkStatus, get_current_date
-from locus.homework_cleanup import purge_old_homework
+from locus.homework_cleanup import purge_old_homework, purge_old_homework_events
 from locus.models.homework import Homework
 from locus.models.homework_completion import HomeworkCompletion
+from locus.models.homework_event import HomeworkEvent
 from locus.models.subject import Subject
 from locus.models.user import User
 
@@ -56,3 +57,28 @@ async def test_old_homework_is_purged(
     assert titles == ["edge", "fresh"]
     # Completions of deleted homework are removed by the FK cascade
     assert await db_session.scalar(select(func.count(HomeworkCompletion.id))) == 0
+
+
+@pytest.mark.asyncio
+async def test_old_audit_events_are_purged(db_session: AsyncSession):
+    now = datetime.now(timezone.utc)
+    old = HomeworkEvent(
+        actor_username="student",
+        action="created",
+        changes={},
+        created_at=now - timedelta(days=31),
+    )
+    fresh = HomeworkEvent(
+        actor_username="student",
+        action="created",
+        changes={},
+        created_at=now - timedelta(days=29),
+    )
+    db_session.add_all([old, fresh])
+    await db_session.commit()
+
+    removed = await purge_old_homework_events(db_session, 30)
+
+    assert removed == 1
+    remaining = (await db_session.execute(select(HomeworkEvent))).scalars().all()
+    assert [event.id for event in remaining] == [fresh.id]

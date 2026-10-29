@@ -3,10 +3,16 @@ from fastapi import APIRouter, Depends, Form, Request, status
 from fastapi.responses import HTMLResponse, RedirectResponse
 from sqlalchemy import delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from locus.api.deps import get_current_admin_web
+from locus.constants import DAY_SHORT_NAMES
 from locus.database import get_db
+from locus.homework_audit import local_datetime
 from locus.models.homework_completion import HomeworkCompletion
+from locus.models.homework_event import HomeworkEvent
+from locus.models.lesson import Lesson
+from locus.models.subject import Subject
 from locus.models.user import User
 from locus.security import (
     create_access_token,
@@ -332,4 +338,104 @@ async def delete_user(
     return RedirectResponse(
         url="/admin/users?deleted=1",
         status_code=status.HTTP_303_SEE_OTHER,
+    )
+
+
+HISTORY_LIMIT = 200
+
+ACTION_LABELS = {
+    "created": "Создал",
+    "updated": "Изменил",
+    "deleted": "Удалил",
+}
+FIELD_LABELS = {
+    "subject_id": "Предмет",
+    "lesson_id": "Урок",
+    "title": "Текст",
+    "due_date": "Срок",
+    "subgroup": "Подгруппа",
+}
+
+
+def _display_value(
+    field: str,
+    value,
+    subject_names: dict[int, str],
+    lesson_names: dict[int, str],
+) -> str:
+    if value is None or value == "":
+        return "—"
+    if field == "subject_id":
+        return subject_names.get(value, f"#{value}")
+    if field == "lesson_id":
+        return lesson_names.get(value, f"урок #{value}")
+    return str(value)
+
+
+@router.get("/history", response_class=HTMLResponse)
+async def history_page(
+    request: Request,
+    current_user: User = Depends(get_current_admin_web),
+    db: AsyncSession = Depends(get_db),
+):
+    result = await db.execute(
+        select(HomeworkEvent)
+        .order_by(HomeworkEvent.created_at.desc(), HomeworkEvent.id.desc())
+        .limit(HISTORY_LIMIT)
+    )
+    events = list(result.scalars().all())
+    subject_names = dict((await db.execute(select(Subject.id, Subject.name))).all())
+
+    lesson_ids = {
+        value
+        for event in events
+        for field, values in (event.changes or {}).items()
+        if field == "lesson_id"
+        for value in values
+        if isinstance(value, int)
+    }
+    lesson_names: dict[int, str] = {}
+    if lesson_ids:
+        lessons = (
+            await db.execute(
+                select(Lesson)
+                .options(selectinload(Lesson.subject))
+                .where(Lesson.id.in_(lesson_ids))
+            )
+        ).scalars().all()
+        lesson_names = {
+            lesson.id: (
+                f"{lesson.subject.name} · "
+                f"{DAY_SHORT_NAMES.get(lesson.day_of_week, '')}, "
+                f"{lesson.lesson_number} урок"
+            )
+            for lesson in lessons
+        }
+
+    rows = []
+    for event in events:
+        rows.append(
+            {
+                "when": local_datetime(event.created_at).strftime("%d.%m.%Y %H:%M"),
+                "actor": event.actor_username,
+                "action": ACTION_LABELS.get(event.action, event.action),
+                "changes": [
+                    {
+                        "label": FIELD_LABELS.get(field, field),
+                        "old": _display_value(field, values[0], subject_names, lesson_names),
+                        "new": _display_value(field, values[1], subject_names, lesson_names),
+                    }
+                    for field, values in (event.changes or {}).items()
+                ],
+            }
+        )
+
+    return templates.TemplateResponse(
+        request=request,
+        name="admin/history.html",
+        context={
+            "current_user": current_user,
+            "active_page": "admin_history",
+            "rows": rows,
+        },
     )

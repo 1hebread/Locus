@@ -11,6 +11,7 @@
 ### Ключевые возможности:
 - **Единый дневник и расписание**: просмотр уроков по дням недели, время звонков, кабинеты, имена учителей, учет перемен. Расписание и предметы общие для всех пользователей школы/класса и управляются администратором (`is_admin`).
 - **Общий пул ДЗ и персональный трекинг**: задания общие для всех пользователей (любой может добавлять, редактировать или удалять их), а статусы выполнения (`TODO` / `DONE`) хранятся персонально для каждого пользователя в таблице `homework_completions`.
+- **Журнал изменений ДЗ**: создание, правка и удаление заданий пишутся в `homework_events` (кто, когда, какие поля изменились). В модалке урока показывается последний изменивший, полная история доступна админу на `/admin/history`.
 - **PWA и мобильный фокус**: адаптивный интерфейс с чистым AMOLED-дизайном (`#000000`), плавными микроанимациями, динамической плавающей навигацией (Dock) и PWA-манифестом.
 - **Гибридный рендеринг**: Server-Side Rendering (SSR) через Jinja2 + реактивные частичные обновления через HTMX без необходимости в тяжелых SPA-фреймворках.
 - **Безопасность и администрирование**: JWT-аутентификация в защищенных HTTP-only cookies (для SSR) и в заголовках `Authorization: Bearer` (для REST API). Вход выполняется по логину. Публичной регистрации нет: пользователей создаёт и администрирует (смена паролей, удаление) администратор. Первый существующий пользователь становится админом, а для пустой базы админ создаётся из `ADMIN_USERNAME` / `ADMIN_PASSWORD`. Администратор не может удалить самого себя.
@@ -53,6 +54,7 @@
 │       ├── constants.py          # Константы (расписание звонков по умолчанию и т.д.)
 │       ├── database.py           # AsyncEngine, async_sessionmaker, Base
 │       ├── homework_status.py    # Хелперы персональных статусов (attach_statuses, set_status)
+│       ├── homework_audit.py     # Журнал изменений ДЗ (создание/правка/удаление)
 │       ├── homework_cleanup.py   # Автоочистка старых ДЗ (HOMEWORK_RETENTION_DAYS)
 │       ├── lesson_suggestion.py  # Автоподстановка следующего урока
 │       ├── security.py           # Хеширование паролей (bcrypt), генерация/валидация JWT
@@ -68,7 +70,8 @@
 │       │   ├── subject.py        # Модель Subject (id, name, teacher_name, room)
 │       │   ├── lesson.py         # Модель Lesson (id, subject_id, day_of_week, lesson_number, bell_times...)
 │       │   ├── homework.py       # Модель Homework (id, subject_id, lesson_id, title, due_date)
-│       │   └── homework_completion.py # Модель HomeworkCompletion (id, homework_id, user_id, status)
+│       │   ├── homework_completion.py # Модель HomeworkCompletion (id, homework_id, user_id, status)
+│       │   └── homework_event.py # Модель HomeworkEvent (журнал изменений ДЗ)
 │       ├── schemas/              # Pydantic-схемы запросов и ответов
 │       │   ├── auth.py
 │       │   ├── homework.py
@@ -99,6 +102,7 @@
     ├── test_admin.py
     ├── test_auth.py
     ├── test_homework.py
+    ├── test_homework_audit.py
     ├── test_homework_cleanup.py
     ├── test_schedule.py
     └── test_web.py

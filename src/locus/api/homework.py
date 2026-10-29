@@ -8,6 +8,15 @@ from sqlalchemy.orm import selectinload
 from locus.api.deps import get_current_user
 from locus.constants import HomeworkStatus
 from locus.database import get_db
+from locus.homework_audit import (
+    ACTION_CREATED,
+    ACTION_DELETED,
+    ACTION_UPDATED,
+    diff,
+    log_homework_event,
+    snapshot,
+    snapshot_changes,
+)
 from locus.homework_status import attach_status, attach_statuses, set_status
 from locus.models.homework import Homework
 from locus.models.homework_completion import HomeworkCompletion
@@ -154,6 +163,7 @@ async def create_homework(
     db.add(hw)
     await db.flush()
     await set_status(db, hw.id, current_user.id, data.status.value)
+    log_homework_event(db, current_user, ACTION_CREATED, hw.id, snapshot_changes(hw))
     await db.commit()
 
     stmt = (
@@ -282,8 +292,13 @@ async def update_homework(
             update_dict["subgroup"] = None
 
     new_status = update_dict.pop("status", None)
+    before = snapshot(hw)
     for key, val in update_dict.items():
         setattr(hw, key, val)
+
+    changes = diff(before, snapshot(hw))
+    if changes:
+        log_homework_event(db, current_user, ACTION_UPDATED, hw.id, changes)
 
     if new_status is not None:
         await set_status(db, hw.id, current_user.id, new_status.value)
@@ -348,6 +363,9 @@ async def delete_homework(
             detail="Нельзя удалить задание чужой подгруппы",
         )
 
+    log_homework_event(
+        db, current_user, ACTION_DELETED, None, snapshot_changes(hw, deleted=True)
+    )
     await db.delete(hw)
     await db.commit()
     return None

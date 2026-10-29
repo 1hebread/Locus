@@ -86,13 +86,20 @@
 
       <!-- Homework Section (Directly editable under teacher card) -->
       <div class="space-y-2 pt-0 flex-1 flex flex-col">
-        <div class="flex items-center justify-between">
+        <div class="flex items-baseline justify-between gap-2">
           <h3 class="text-sm sm:text-base font-bold text-white">Домашнее задание</h3>
-          {% if hw and hw.status == 'DONE' %}
-          <span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
-            Выполнено
-          </span>
-          {% endif %}
+          <div class="flex items-baseline gap-2 shrink-0">
+            {% if last_edit %}
+            <span class="text-[11px] text-zinc-500 truncate max-w-[45vw] sm:max-w-[180px]" title="Изменил: {{ last_edit.actor_username }} • {{ last_edit_time }}">
+              Изменил: {{ last_edit.actor_username }} • {{ last_edit_time }}
+            </span>
+            {% endif %}
+            {% if hw and hw.status == 'DONE' %}
+            <span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
+              Выполнено
+            </span>
+            {% endif %}
+          </div>
         </div>
 
         {% if is_sunday %}
