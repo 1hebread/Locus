@@ -46,6 +46,7 @@ async def test_api_content_changes_are_logged(
     events = await _events(db_session)
     assert [event.action for event in events] == ["created"]
     assert events[0].actor_username == "student"
+    assert events[0].actor_key_name is None
     assert events[0].changes["title"] == [None, "Старое ДЗ"]
 
     # Personal status toggles are not content edits and must not be logged

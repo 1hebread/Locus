@@ -1,6 +1,7 @@
 import asyncio
 from datetime import datetime, timedelta, timezone
 import hashlib
+import secrets
 from typing import Any, Dict, Optional
 import bcrypt
 from fastapi import Response
@@ -11,6 +12,18 @@ from locus.config import get_settings
 settings = get_settings()
 
 DUMMY_BCRYPT_HASH = "$2b$12$mUEAaKF2pJFjwJ4zwtVq6O1cq0GrLR1FDVNMrSmzM0XkXcGw1F9Gq"
+
+API_KEY_PREFIX = "lk_"
+
+
+def generate_api_key() -> str:
+    """Generate a random API key; only its hash is stored."""
+    return API_KEY_PREFIX + secrets.token_urlsafe(32)
+
+
+def hash_api_key(key: str) -> str:
+    """Hash an API key for storage and lookup (keys are high-entropy)."""
+    return hashlib.sha256(key.encode("utf-8")).hexdigest()
 
 
 def get_password_fingerprint(hashed_password: str) -> str:

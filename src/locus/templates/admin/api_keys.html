@@ -1,0 +1,88 @@
+{% extends "base.html" %}
+
+{% block title %}API-ключи - Locus{% endblock %}
+
+{% block content %}
+<div class="space-y-5">
+  <div>
+    <h1 class="text-xl sm:text-2xl md:text-3xl font-extrabold tracking-tight text-white">API-ключи</h1>
+    <p class="text-xs sm:text-sm text-zinc-400 mt-0.5">Ключи для внешних клиентов (ботов, скриптов)</p>
+  </div>
+
+  {% if error %}
+  <div class="p-3.5 rounded-xl bg-rose-950/40 border border-rose-900/60 text-rose-300 text-xs sm:text-sm">
+    {{ error }}
+  </div>
+  {% endif %}
+
+  {% if deleted %}
+  <div class="p-3.5 rounded-xl bg-emerald-950/40 border border-emerald-900/60 text-emerald-300 text-xs sm:text-sm">
+    Ключ отозван.
+  </div>
+  {% endif %}
+
+  {% if new_key %}
+  <div class="p-4 rounded-2xl bg-emerald-950/40 border border-emerald-900/60 space-y-2">
+    <p class="text-xs sm:text-sm text-emerald-300 font-semibold">Ключ создан. Скопируйте его сейчас — повторно он не покажется.</p>
+    <code class="block p-3 rounded-xl bg-black border border-zinc-800 text-xs sm:text-sm text-emerald-200 break-all select-all">{{ new_key }}</code>
+  </div>
+  {% endif %}
+
+  <form method="post" action="/admin/api-keys" class="p-4 sm:p-5 rounded-2xl bg-[#18181b] border border-zinc-800/90 shadow-[0_4px_20px_rgba(0,0,0,0.85)]">
+    <h2 class="font-bold text-white text-sm sm:text-base">Новый ключ</h2>
+
+    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-2.5">
+      <div>
+        <label for="name" class="block text-xs font-medium text-zinc-300 mb-1.5">Название</label>
+        <input type="text" id="name" name="name" required maxlength="100"
+               autocomplete="off" placeholder="Telegram-бот"
+               class="w-full h-10 bg-black border border-zinc-700/80 rounded-xl px-3.5 text-sm text-white focus:outline-none focus:ring-1 focus:ring-emerald-500 placeholder-zinc-500 transition">
+      </div>
+
+      <div>
+        <label for="user_id" class="block text-xs font-medium text-zinc-300 mb-1.5">Пользователь</label>
+        <select id="user_id" name="user_id" required
+                class="w-full h-10 bg-black border border-zinc-700/80 rounded-xl px-3 text-sm text-white focus:outline-none focus:ring-1 focus:ring-emerald-500 transition">
+          {% for user in users %}
+          <option value="{{ user.id }}">{{ user.username }}</option>
+          {% endfor %}
+        </select>
+      </div>
+    </div>
+
+    <p class="text-xs text-zinc-500 mt-1">Ключ действует от имени выбранного пользователя: те же права на чтение и запись.</p>
+
+    <button type="submit"
+            class="mt-2.5 h-10 inline-flex items-center justify-center bg-emerald-500 hover:bg-emerald-600 active:scale-95 text-white px-5 rounded-xl font-bold text-xs sm:text-sm shadow-md shadow-emerald-500/20 transition">
+      Создать ключ
+    </button>
+  </form>
+
+  {% if not rows %}
+  <div class="p-4 text-center bg-black border border-zinc-800 rounded-2xl shadow-[0_4px_16px_rgba(0,0,0,0.8)]">
+    <p class="text-sm font-bold text-zinc-400">Ключей пока нет</p>
+  </div>
+  {% else %}
+  <div class="space-y-2">
+    {% for row in rows %}
+    <div class="p-4 rounded-2xl bg-black border border-zinc-800/90 shadow-[0_4px_16px_rgba(0,0,0,0.8)] flex items-center justify-between gap-3">
+      <div class="min-w-0">
+        <p class="font-bold text-white text-sm truncate">{{ row.name }}</p>
+        <p class="text-xs text-zinc-500 mt-0.5">{{ row.username }} • создан {{ row.created_at }}</p>
+      </div>
+      <form method="post" action="/admin/api-keys/{{ row.id }}/delete" onsubmit="return confirm('Отозвать этот ключ?')" class="shrink-0">
+        <button type="submit"
+                class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold text-rose-400 hover:text-rose-300 hover:bg-rose-500/10 border border-rose-900/60 transition"
+                title="Отозвать ключ">
+          <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+          </svg>
+          <span>Отозвать</span>
+        </button>
+      </form>
+    </div>
+    {% endfor %}
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

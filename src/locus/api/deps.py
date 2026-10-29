@@ -7,8 +7,14 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from locus.config import get_settings
 from locus.database import get_db
+from locus.models.api_key import ApiKey
 from locus.models.user import User
-from locus.security import decode_access_token, get_password_fingerprint
+from locus.security import (
+    API_KEY_PREFIX,
+    decode_access_token,
+    get_password_fingerprint,
+    hash_api_key,
+)
 
 settings = get_settings()
 
@@ -32,6 +38,21 @@ async def get_current_user_optional(
     """Get authenticated user if token is present and valid, otherwise None."""
     if not token:
         return None
+
+    if token.startswith(API_KEY_PREFIX):
+        row = (
+            await db.execute(
+                select(User, ApiKey.name)
+                .join(ApiKey, ApiKey.user_id == User.id)
+                .where(ApiKey.key_hash == hash_api_key(token), User.is_active == True)
+            )
+        ).first()
+        if not row:
+            return None
+        user, key_name = row
+        # Transient marker so the audit log can record which key made the change
+        user.api_key_name = key_name
+        return user
 
     payload = decode_access_token(token)
     if not payload:

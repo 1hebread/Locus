@@ -6,9 +6,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from locus.api.deps import get_current_admin_web
+from locus.config import get_settings
 from locus.constants import DAY_SHORT_NAMES
 from locus.database import get_db
 from locus.homework_audit import local_datetime
+from locus.models.api_key import ApiKey
 from locus.models.homework_completion import HomeworkCompletion
 from locus.models.homework_event import HomeworkEvent
 from locus.models.lesson import Lesson
@@ -16,7 +18,9 @@ from locus.models.subject import Subject
 from locus.models.user import User
 from locus.security import (
     create_access_token,
+    generate_api_key,
     get_password_fingerprint,
+    hash_api_key,
     hash_password_async,
     set_session_cookie,
 )
@@ -418,6 +422,7 @@ async def history_page(
             {
                 "when": local_datetime(event.created_at).strftime("%d.%m.%Y %H:%M"),
                 "actor": event.actor_username,
+                "key": event.actor_key_name,
                 "action": ACTION_LABELS.get(event.action, event.action),
                 "changes": [
                     {
@@ -438,4 +443,144 @@ async def history_page(
             "active_page": "admin_history",
             "rows": rows,
         },
+    )
+
+
+API_KEY_NAME_MAX = 100
+NEW_API_KEY_COOKIE = "locus_new_api_key"
+
+
+async def _render_api_keys(
+    request: Request,
+    db: AsyncSession,
+    current_user: User,
+    new_key: str | None = None,
+    error: str | None = None,
+    deleted: bool = False,
+    status_code: int = status.HTTP_200_OK,
+):
+    rows = (
+        await db.execute(
+            select(ApiKey, User.username)
+            .join(User, ApiKey.user_id == User.id)
+            .order_by(ApiKey.created_at.desc(), ApiKey.id.desc())
+        )
+    ).all()
+    users = (await db.execute(select(User).order_by(User.username))).scalars().all()
+    return templates.TemplateResponse(
+        request=request,
+        name="admin/api_keys.html",
+        context={
+            "current_user": current_user,
+            "active_page": "admin_api_keys",
+            "rows": [
+                {
+                    "id": key.id,
+                    "name": key.name,
+                    "username": username,
+                    "created_at": local_datetime(key.created_at).strftime("%d.%m.%Y %H:%M"),
+                }
+                for key, username in rows
+            ],
+            "users": users,
+            "new_key": new_key,
+            "error": error,
+            "deleted": deleted,
+        },
+        status_code=status_code,
+    )
+
+
+@router.get("/api-keys", response_class=HTMLResponse)
+async def api_keys_page(
+    request: Request,
+    current_user: User = Depends(get_current_admin_web),
+    db: AsyncSession = Depends(get_db),
+):
+    # The freshly created key is flashed via a short-lived cookie so that a page
+    # reload after creation cannot re-submit the form and mint another key.
+    new_key = request.cookies.get(NEW_API_KEY_COOKIE)
+    response = await _render_api_keys(
+        request,
+        db,
+        current_user,
+        new_key=new_key,
+        deleted=request.query_params.get("deleted") == "1",
+    )
+    if new_key:
+        response.delete_cookie(NEW_API_KEY_COOKIE, path="/admin")
+    return response
+
+
+@router.post("/api-keys")
+async def create_api_key(
+    request: Request,
+    name: str = Form(...),
+    user_id: int = Form(...),
+    current_user: User = Depends(get_current_admin_web),
+    db: AsyncSession = Depends(get_db),
+):
+    name = name.strip()
+    if not name:
+        return await _render_api_keys(
+            request,
+            db,
+            current_user,
+            error="Название ключа не может быть пустым",
+            status_code=status.HTTP_400_BAD_REQUEST,
+        )
+    if len(name) > API_KEY_NAME_MAX:
+        return await _render_api_keys(
+            request,
+            db,
+            current_user,
+            error=f"Название ключа не должно быть длиннее {API_KEY_NAME_MAX} символов",
+            status_code=status.HTTP_400_BAD_REQUEST,
+        )
+
+    user = await db.get(User, user_id)
+    if not user:
+        return await _render_api_keys(
+            request,
+            db,
+            current_user,
+            error="Пользователь не найден",
+            status_code=status.HTTP_404_NOT_FOUND,
+        )
+
+    key = generate_api_key()
+    db.add(ApiKey(name=name, key_hash=hash_api_key(key), user_id=user.id))
+    await db.commit()
+
+    response = RedirectResponse(url="/admin/api-keys", status_code=status.HTTP_303_SEE_OTHER)
+    response.set_cookie(
+        NEW_API_KEY_COOKIE,
+        key,
+        max_age=60,
+        httponly=True,
+        samesite="lax",
+        secure=get_settings().is_production,
+        path="/admin",
+    )
+    return response
+
+
+@router.get("/api-keys/{key_id}/delete")
+async def get_delete_api_key_redirect(key_id: int):
+    return RedirectResponse(url="/admin/api-keys", status_code=status.HTTP_303_SEE_OTHER)
+
+
+@router.post("/api-keys/{key_id}/delete")
+async def delete_api_key(
+    key_id: int,
+    current_user: User = Depends(get_current_admin_web),
+    db: AsyncSession = Depends(get_db),
+):
+    key = await db.get(ApiKey, key_id)
+    if key:
+        await db.delete(key)
+        await db.commit()
+    return RedirectResponse(
+        url="/admin/api-keys?deleted=1",
+        status_code=status.HTTP_303_SEE_OTHER,
     )

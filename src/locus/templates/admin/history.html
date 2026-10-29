@@ -22,7 +22,7 @@
                      {% if row.action == 'Удалил' %}bg-rose-500/10 text-rose-300 border-rose-500/25{% else %}bg-emerald-500/15 text-emerald-400 border-emerald-500/25{% endif %}">
           {{ row.action }}
         </span>
-        <span class="text-[11px] text-zinc-500">{{ row.actor }} • {{ row.when }}</span>
+        <span class="text-[11px] text-zinc-500">{{ row.actor }}{% if row.key %} ({{ row.key }}){% endif %} • {{ row.when }}</span>
       </div>
       <div class="mt-2 space-y-1">
         {% for change in row.changes %}

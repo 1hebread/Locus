@@ -28,6 +28,8 @@ class HomeworkEvent(Base):
     )
     # Snapshot: the log must survive user deletion
     actor_username: Mapped[str] = mapped_column(String(100), nullable=False)
+    # Set when the change came through an API key: name of that key
+    actor_key_name: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
     action: Mapped[str] = mapped_column(String(10), nullable=False)
     # field -> [old value, new value]
     changes: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict, nullable=False)

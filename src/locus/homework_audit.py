@@ -56,6 +56,7 @@ def log_homework_event(
             homework_id=homework_id,
             actor_id=actor.id,
             actor_username=actor.username,
+            actor_key_name=getattr(actor, "api_key_name", None),
             action=action,
             changes=changes,
         )

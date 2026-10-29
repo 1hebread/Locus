@@ -59,12 +59,14 @@ async def lifespan(app: FastAPI):
     await engine.dispose()
 
 
+# Swagger/OpenAPI are handy in development but expose the whole surface publicly
 app = FastAPI(
     title="Locus API",
     description="REST API для школьного онлайн-дневника с расписанием и кастомным ДЗ",
     version="0.1.0",
-    docs_url="/docs",
-    redoc_url="/redoc",
+    docs_url=None if settings.is_production else "/docs",
+    redoc_url=None if settings.is_production else "/redoc",
+    openapi_url=None if settings.is_production else "/openapi.json",
     lifespan=lifespan,
 )
 
