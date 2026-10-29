@@ -53,6 +53,7 @@
 │       ├── constants.py          # Константы (расписание звонков по умолчанию и т.д.)
 │       ├── database.py           # AsyncEngine, async_sessionmaker, Base
 │       ├── homework_status.py    # Хелперы персональных статусов (attach_statuses, set_status)
+│       ├── homework_cleanup.py   # Автоочистка старых ДЗ (HOMEWORK_RETENTION_DAYS)
 │       ├── lesson_suggestion.py  # Автоподстановка следующего урока
 │       ├── security.py           # Хеширование паролей (bcrypt), генерация/валидация JWT
 │       ├── templates_config.py   # Конфигурация Jinja2Templates и кастомных фильтров
@@ -98,6 +99,7 @@
     ├── test_admin.py
     ├── test_auth.py
     ├── test_homework.py
+    ├── test_homework_cleanup.py
     ├── test_schedule.py
     └── test_web.py
 ```

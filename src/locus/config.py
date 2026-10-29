@@ -1,6 +1,6 @@
 from functools import lru_cache
 from typing import List
-from pydantic import model_validator
+from pydantic import Field, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -16,6 +16,7 @@ class Settings(BaseSettings):
     COOKIE_NAME: str = "locus_session"
     PORT: int = 8010
     TIMEZONE: str = "Asia/Almaty"
+    HOMEWORK_RETENTION_DAYS: int = Field(default=30, ge=1)
     CORS_ORIGINS: str = ""
 
     model_config = SettingsConfigDict(

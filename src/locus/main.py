@@ -1,4 +1,5 @@
-from contextlib import asynccontextmanager
+from contextlib import asynccontextmanager, suppress
+import asyncio
 import os
 from urllib.parse import urlparse
 from fastapi import FastAPI, HTTPException, Request, Response, status
@@ -11,6 +12,7 @@ from sqlalchemy import func, select
 from locus.api import api_router
 from locus.config import get_settings
 from locus.database import Base, async_session_maker, engine
+from locus.homework_cleanup import run_homework_cleanup
 from locus.models.user import User
 from locus.security import hash_password
 from locus.web import web_router
@@ -47,7 +49,13 @@ async def lifespan(app: FastAPI):
         async with engine.begin() as conn:
             await conn.run_sync(Base.metadata.create_all)
     await ensure_admin_user()
+    cleanup_task = asyncio.create_task(
+        run_homework_cleanup(settings.HOMEWORK_RETENTION_DAYS)
+    )
     yield
+    cleanup_task.cancel()
+    with suppress(asyncio.CancelledError):
+        await cleanup_task
     await engine.dispose()
 
 
