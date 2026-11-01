@@ -2,7 +2,7 @@
 <div id="lesson-card-{{ lesson.id }}"
      data-start-time="{{ lesson.start_time }}"
      data-end-time="{{ lesson.end_time }}"
-     hx-get="/dashboard/lesson/{{ lesson.id }}/modal?date={{ selected_date_iso }}"
+     hx-get="/dashboard/lesson/{{ lesson.id }}/modal?date={{ day.date_iso if day else selected_date_iso }}"
      hx-target="#lesson-modal-container"
      hx-swap="innerHTML"
      {% if is_oob %}hx-swap-oob="outerHTML"{% endif %}

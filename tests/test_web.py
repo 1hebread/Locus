@@ -1346,3 +1346,81 @@ async def test_lesson_web_admin_edit_settings_and_conflict_validation(
     assert res_del_htmx.status_code == 200
     assert res_del_htmx.text == ""
     assert (await db_session.get(Lesson, lesson2.id)) is None
+
+
+@pytest.mark.asyncio
+async def test_desktop_multi_day_panes_rendering(
+    client: AsyncClient,
+    test_user: User,
+    auth_token: str,
+    test_subject: Subject,
+    db_session,
+    monkeypatch,
+):
+    from datetime import date
+    from locus.config import get_settings
+    from locus.models.lesson import Lesson
+
+    settings = get_settings()
+    client.cookies.set(settings.COOKIE_NAME, auth_token)
+
+    # Monday 2026-10-19
+    fixed_date = date(2026, 10, 19)
+    monkeypatch.setattr("locus.web.dashboard_routes.get_current_date", lambda: fixed_date)
+    monkeypatch.setattr("locus.constants.get_current_date", lambda: fixed_date)
+
+    # Lesson on Monday (day 1)
+    lesson_mon = Lesson(
+        subject_id=test_subject.id,
+        day_of_week=1,
+        lesson_number=1,
+        start_time="08:30",
+        end_time="09:15",
+    )
+    # Lesson on Tuesday (day 2)
+    lesson_tue = Lesson(
+        subject_id=test_subject.id,
+        day_of_week=2,
+        lesson_number=1,
+        start_time="08:30",
+        end_time="09:15",
+    )
+    db_session.add_all([lesson_mon, lesson_tue])
+    await db_session.commit()
+
+    # Request dashboard for Monday
+    res = await client.get("/?date=2026-10-19")
+    assert res.status_code == 200
+
+    # Verify both day panes exist in the DOM
+    assert 'id="desktop-day-pane-2026-10-19"' in res.text
+    assert 'id="desktop-day-pane-2026-10-20"' in res.text
+
+    # Monday should NOT be hidden (is_selected is True)
+    assert 'id="desktop-day-pane-2026-10-19"' in res.text
+    assert 'desktop-day-pane space-y-6 ' in res.text
+
+    # Tuesday should be hidden (is_selected is False)
+    assert 'id="desktop-day-pane-2026-10-20"' in res.text
+    assert 'hidden' in res.text
+
+    # Both lessons are rendered in the HTML
+    assert f'id="lesson-card-{lesson_mon.id}"' in res.text
+    assert f'id="lesson-card-{lesson_tue.id}"' in res.text
+
+    # Tuesday lesson card has target date 2026-10-20 in its modal url
+    assert f'hx-get="/dashboard/lesson/{lesson_tue.id}/modal?date=2026-10-20"' in res.text
+    # Monday lesson card has target date 2026-10-19 in its modal url
+    assert f'hx-get="/dashboard/lesson/{lesson_mon.id}/modal?date=2026-10-19"' in res.text
+
+    # Tabs have data-day-tab attributes
+    assert 'data-day-tab="2026-10-19"' in res.text
+    assert 'data-day-tab="2026-10-20"' in res.text
+
+    # Default subgroup attribute is present
+    assert 'data-current-subgroup="all"' in res.text
+
+    # Request dashboard with specific subgroup
+    res_sub = await client.get("/?date=2026-10-19&subgroup=1")
+    assert res_sub.status_code == 200
+    assert 'data-current-subgroup="1"' in res_sub.text

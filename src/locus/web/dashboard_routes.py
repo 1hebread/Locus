@@ -173,15 +173,6 @@ async def dashboard_index(
     vac_res = await db.execute(vac_stmt)
     week_vacations = list(vac_res.scalars().all())
 
-    desktop_days = [
-        d for d in week_days
-        if d["day_num"] <= 5
-        or d["day_num"] in weekend_days
-        or d["is_selected"]
-        or any(v.start_date <= d["date"] <= v.end_date for v in week_vacations)
-        or bool(hw_by_date.get(d["date"]))
-    ]
-
     def get_vacation_for_date(d: date) -> Optional[Vacation]:
         for v in week_vacations:
             if v.start_date <= d <= v.end_date:
@@ -272,6 +263,7 @@ async def dashboard_index(
         days_data.append({
             "day_num": d_num,
             "name": day["name"],
+            "name_upper": day["name_upper"],
             "short_name": day["short_name"],
             "day_number": day["day_number"],
             "date": d_date,
@@ -285,6 +277,15 @@ async def dashboard_index(
             "has_lessons": len(day_lessons_with_meta) > 0,
             "vacation": d_vacation,
         })
+
+    desktop_days = [
+        d for d in days_data
+        if d["day_num"] <= 5
+        or d["day_num"] in weekend_days
+        or d["is_selected"]
+        or d["vacation"] is not None
+        or bool(hw_by_date.get(d["date"]))
+    ]
 
     # For desktop selected day view
     selected_day_data = next((d for d in days_data if d["is_selected"]), days_data[0])
@@ -309,8 +310,8 @@ async def dashboard_index(
     )
     upcoming_vacations = list(all_upcoming_vac_res.scalars().all())
 
-    # The quick action is tied to the actual current lesson, so only offer it
-    # while the dashboard is showing today's date. Vacations are skipped automatically.
+    # The quick action is tied to the actual current lesson. We offer it whenever
+    # viewing the current week (it will be visible when on "today" and hidden on other days).
     next_lesson = (
         get_next_lesson_suggestion(
             list(all_lessons),
@@ -318,7 +319,7 @@ async def dashboard_index(
             vacations=upcoming_vacations,
             subgroup=active_subgroup or current_user.subgroup,
         )
-        if is_today
+        if is_current_week
         else None
     )
 

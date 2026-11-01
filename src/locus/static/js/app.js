@@ -905,8 +905,17 @@ function maybeAutoApplyNextLesson(modal) {
     return;
   }
 
+  const desktopView = document.getElementById('desktop-dashboard-view');
+  const isDesktop = window.innerWidth >= 768;
+  const isDesktopToday = desktopView ? desktopView.getAttribute('data-is-today') === 'true' : true;
+
   const button = modal.querySelector('[data-next-lesson-btn]');
-  if (button && button.getAttribute('data-auto-apply') === 'true') {
+  if (
+    button &&
+    !button.classList.contains('hidden') &&
+    (!isDesktop || isDesktopToday) &&
+    button.getAttribute('data-auto-apply') === 'true'
+  ) {
     applyNextLessonSuggestion(modal);
   } else {
     updateHwModalSubgroupVisibility(modal);
@@ -1176,6 +1185,97 @@ async function navigateDashboardDate(targetUrl, push = true) {
 
   const targetURL = new URL(targetUrl, window.location.href);
   const targetUrlKey = targetURL.pathname + targetURL.search;
+  const targetDate = targetURL.searchParams.get('date');
+
+  // Check if target day pane exists within the currently rendered week and subgroup
+  const currentView = document.getElementById('desktop-dashboard-view');
+  const defaultDate = currentView ? currentView.getAttribute('data-default-date') : null;
+  const effectiveDate = targetDate || defaultDate;
+  const currentSubgroup = currentView ? (currentView.getAttribute('data-current-subgroup') || 'all') : 'all';
+  const targetSubgroup = targetURL.searchParams.get('subgroup') || 'all';
+
+  const isSameSubgroup = (targetSubgroup === currentSubgroup);
+  const targetPane = (isSameSubgroup && effectiveDate) ? document.getElementById('desktop-day-pane-' + effectiveDate) : null;
+
+  if (targetPane) {
+    const currentPane = content.querySelector('.desktop-day-pane:not(.hidden)');
+    if (currentPane === targetPane) {
+      return true;
+    }
+
+    isSwitchingDashboardDate = true;
+
+    if (currentPane) {
+      currentPane.classList.add('hidden');
+    }
+    targetPane.classList.remove('hidden');
+
+    targetPane.classList.remove('anim-page-fade-in', 'anim-page-fade-out');
+    void targetPane.offsetWidth; // Force reflow
+    targetPane.classList.add('anim-page-fade-in');
+
+    setTimeout(() => {
+      targetPane.classList.remove('anim-page-fade-in');
+      isSwitchingDashboardDate = false;
+    }, 200);
+
+    // Update active tab in the desktop week selector
+    const tabs = selector.querySelectorAll('a[data-day-tab]');
+    tabs.forEach((tab) => {
+      if (tab.getAttribute('data-day-tab') === effectiveDate) {
+        tab.classList.remove('bg-transparent', 'hover:bg-[#2b8f50]', 'text-white/90', 'font-extrabold');
+        tab.classList.add('bg-[#2ea35b]', 'text-white', 'font-black', 'shadow-inner');
+      } else {
+        tab.classList.remove('bg-[#2ea35b]', 'shadow-inner', 'font-black');
+        tab.classList.add('bg-transparent', 'hover:bg-[#2b8f50]', 'text-white/90', 'hover:text-white', 'font-extrabold');
+      }
+    });
+
+    const isToday = targetPane.getAttribute('data-is-today') === 'true';
+    if (currentView) {
+      currentView.setAttribute('data-is-today', isToday ? 'true' : 'false');
+    }
+
+    const currentDue = document.getElementById('due_date');
+    if (currentDue && effectiveDate) {
+      currentDue.value = effectiveDate;
+      syncDateDisplays();
+    }
+
+    const curModalSubtitle = document.getElementById('add-hw-modal-date-title');
+    const targetDateText = targetPane.getAttribute('data-date-text');
+    if (curModalSubtitle && targetDateText) {
+      curModalSubtitle.textContent = targetDateText;
+    }
+
+    const currentReturnUrl = document.querySelector('#add-hw-modal input[name="return_url"]');
+    if (currentReturnUrl) {
+      currentReturnUrl.value = targetURL.pathname + targetURL.search;
+    }
+
+    const nextLessonBtn = document.querySelector('#add-hw-modal [data-next-lesson-btn]');
+    if (nextLessonBtn) {
+      nextLessonBtn.classList.toggle('hidden', !isToday);
+    }
+
+    const targetDayNum = targetPane.getAttribute('data-day-num');
+    if (targetDayNum && typeof setActiveMobileDayTab === 'function') {
+      setActiveMobileDayTab(targetDayNum);
+    }
+
+    lastPagePath = targetURL.pathname;
+    lastPageUrl = targetUrlKey;
+
+    if (push) {
+      window.history.pushState({ locusDateUrl: targetUrl }, '', targetUrl);
+    }
+
+    syncDashboardLinks();
+    updateCurrentLessonBadges();
+
+    return true;
+  }
+
   const outClass = 'anim-page-fade-out';
   const inClass = 'anim-page-fade-in';
 
@@ -1213,9 +1313,12 @@ async function navigateDashboardDate(targetUrl, push = true) {
     selector.innerHTML = newSelector.innerHTML;
     content.innerHTML = newContent.innerHTML;
 
-    const currentView = document.getElementById('desktop-dashboard-view');
-    if (currentView && newView.hasAttribute('data-is-today')) {
-      currentView.setAttribute('data-is-today', newView.getAttribute('data-is-today'));
+    if (currentView) {
+      ['data-is-today', 'data-default-date', 'data-current-subgroup'].forEach((attr) => {
+        if (newView.hasAttribute(attr)) {
+          currentView.setAttribute(attr, newView.getAttribute(attr));
+        }
+      });
     }
 
     // Keep the hidden mobile view in sync for responsive resizing
@@ -1232,14 +1335,20 @@ async function navigateDashboardDate(targetUrl, push = true) {
 
     // Keep the quick-add modal pointed at the selected day
     const newDue = doc.getElementById('due_date');
-    const currentDue = document.getElementById('due_date');
-    if (newDue && currentDue) currentDue.value = newDue.value;
+    const curDue = document.getElementById('due_date');
+    if (newDue && curDue) curDue.value = newDue.value;
     syncNextLessonSuggestion(doc);
 
+    const newModalSubtitle = doc.getElementById('add-hw-modal-date-title');
+    const curModalSubtitle = document.getElementById('add-hw-modal-date-title');
+    if (newModalSubtitle && curModalSubtitle) {
+      curModalSubtitle.textContent = newModalSubtitle.textContent;
+    }
+
     const newReturnUrl = doc.querySelector('#add-hw-modal input[name="return_url"]');
-    const currentReturnUrl = document.querySelector('#add-hw-modal input[name="return_url"]');
-    if (newReturnUrl && currentReturnUrl) {
-      currentReturnUrl.value = newReturnUrl.value;
+    const curReturnUrl = document.querySelector('#add-hw-modal input[name="return_url"]');
+    if (newReturnUrl && curReturnUrl) {
+      curReturnUrl.value = newReturnUrl.value;
     }
 
     lastPagePath = targetURL.pathname;
@@ -1487,6 +1596,11 @@ async function navigateMobileSubgroup(targetUrl, push = true) {
     const curDesktopView = document.getElementById('desktop-dashboard-view');
     if (newDesktopView && curDesktopView) {
       curDesktopView.innerHTML = newDesktopView.innerHTML;
+      ['data-is-today', 'data-default-date', 'data-current-subgroup'].forEach((attr) => {
+        if (newDesktopView.hasAttribute(attr)) {
+          curDesktopView.setAttribute(attr, newDesktopView.getAttribute(attr));
+        }
+      });
     }
 
     mobileView.innerHTML = newMobileView.innerHTML;
@@ -1546,8 +1660,9 @@ async function navigateDashboardSubgroup(targetUrl, push = true) {
   if (isSwitchingDashboardSubgroup) return false;
 
   const mobileView = document.getElementById('mobile-week-view');
-  const desktopLessons = document.getElementById('desktop-day-lessons');
-  if (!mobileView || !desktopLessons) {
+  const desktopContent = document.getElementById('desktop-dashboard-content');
+  const desktopSelector = document.getElementById('desktop-week-selector');
+  if (!mobileView || (!desktopContent && !document.getElementById('desktop-day-lessons'))) {
     window.location.href = targetUrl;
     return false;
   }
@@ -1562,27 +1677,54 @@ async function navigateDashboardSubgroup(targetUrl, push = true) {
     if (!res.ok) throw new Error(`HTTP error ${res.status}`);
 
     const doc = new DOMParser().parseFromString(await res.text(), 'text/html');
-    const newDesktopLessons = doc.getElementById('desktop-day-lessons');
-    if (!newDesktopLessons) throw new Error('Unexpected dashboard structure');
+    const newDesktopContent = doc.getElementById('desktop-dashboard-content');
+    const newDesktopSelector = doc.getElementById('desktop-week-selector');
 
-    desktopLessons.innerHTML = newDesktopLessons.innerHTML;
+    if (desktopContent && newDesktopContent) {
+      desktopContent.innerHTML = newDesktopContent.innerHTML;
+      if (desktopSelector && newDesktopSelector) {
+        desktopSelector.innerHTML = newDesktopSelector.innerHTML;
+      }
+      const curView = document.getElementById('desktop-dashboard-view');
+      const targetSub = targetURL.searchParams.get('subgroup') || 'all';
+      if (curView) {
+        curView.setAttribute('data-current-subgroup', targetSub);
+      }
+    } else {
+      const desktopLessons = document.getElementById('desktop-day-lessons');
+      const newDesktopLessons = doc.getElementById('desktop-day-lessons');
+      if (desktopLessons && newDesktopLessons) {
+        desktopLessons.innerHTML = newDesktopLessons.innerHTML;
+      }
+      const curFilter = document.getElementById('desktop-subgroup-filter');
+      const nextFilter = doc.getElementById('desktop-subgroup-filter');
+      if (curFilter && nextFilter) curFilter.innerHTML = nextFilter.innerHTML;
+    }
 
     // The add-homework modal lives outside the swapped area: refresh its
     // "next lesson" quick-fill so it follows the selected subgroup.
     syncNextLessonSuggestion(doc);
 
+    // Keep modal return_url pointed at the current URL with subgroup
+    const curReturnUrl = document.querySelector('#add-hw-modal input[name="return_url"]');
+    if (curReturnUrl) {
+      curReturnUrl.value = targetURL.pathname + targetURL.search;
+    }
+
     // Only the active subgroup highlight changes above the lessons
-    ['desktop-subgroup-filter', 'mobile-subgroup-filter'].forEach((id) => {
-      const cur = document.getElementById(id);
-      const next = doc.getElementById(id);
-      if (cur && next) cur.innerHTML = next.innerHTML;
-    });
+    const curMobileFilter = document.getElementById('mobile-subgroup-filter');
+    const nextMobileFilter = doc.getElementById('mobile-subgroup-filter');
+    if (curMobileFilter && nextMobileFilter) {
+      curMobileFilter.innerHTML = nextMobileFilter.innerHTML;
+    }
 
     mobileView.querySelectorAll('.mobile-day-lessons').forEach((cur) => {
       const dayNum = cur.getAttribute('data-day-num');
       const next = doc.querySelector(`.mobile-day-lessons[data-day-num="${dayNum}"]`);
       if (next) cur.innerHTML = next.innerHTML;
     });
+
+    updateCurrentLessonBadges();
 
     lastPagePath = targetURL.pathname;
     lastPageUrl = targetURL.pathname + targetURL.search;
@@ -1592,7 +1734,7 @@ async function navigateDashboardSubgroup(targetUrl, push = true) {
     }
 
     if (window.htmx) {
-      window.htmx.process(desktopLessons);
+      if (desktopContent) window.htmx.process(desktopContent);
       window.htmx.process(mobileView);
     }
 
@@ -1640,8 +1782,13 @@ document.addEventListener('click', (e) => {
 function isSubgroupOnlyChange(fromUrl, toUrl) {
   if (!fromUrl || !toUrl) return false;
   const param = (url, key) => new URL(url, window.location.origin).searchParams.get(key);
-  return param(fromUrl, 'date') === param(toUrl, 'date') &&
-    param(fromUrl, 'subgroup') !== param(toUrl, 'subgroup');
+  const currentView = document.getElementById('desktop-dashboard-view');
+  const defaultDate = currentView ? currentView.getAttribute('data-default-date') : null;
+  const fromDate = param(fromUrl, 'date') || defaultDate;
+  const toDate = param(toUrl, 'date') || defaultDate;
+  const fromSub = param(fromUrl, 'subgroup') || 'all';
+  const toSub = param(toUrl, 'subgroup') || 'all';
+  return fromDate === toDate && fromSub !== toSub;
 }
 
 window.addEventListener('popstate', () => {
@@ -1837,16 +1984,30 @@ function updateCurrentLessonBadges() {
   });
 
   // 2. Desktop view cards
-  const desktopView = document.getElementById('desktop-dashboard-view');
-  if (desktopView) {
-    const isDesktopToday = desktopView.getAttribute('data-is-today') === 'true';
-    const cards = desktopView.querySelectorAll('[data-start-time]');
-    cards.forEach((card) => {
-      const start = card.getAttribute('data-start-time');
-      const end = card.getAttribute('data-end-time');
-      const isNow = isDesktopToday && Boolean(start && end && start <= currentTimeStr && currentTimeStr <= end);
-      toggleCardNow(card, isNow, false);
+  const desktopPanes = document.querySelectorAll('.desktop-day-pane');
+  if (desktopPanes.length > 0) {
+    desktopPanes.forEach((pane) => {
+      const isDayToday = pane.getAttribute('data-is-today') === 'true';
+      const cards = pane.querySelectorAll('[data-start-time]');
+      cards.forEach((card) => {
+        const start = card.getAttribute('data-start-time');
+        const end = card.getAttribute('data-end-time');
+        const isNow = isDayToday && Boolean(start && end && start <= currentTimeStr && currentTimeStr <= end);
+        toggleCardNow(card, isNow, false);
+      });
     });
+  } else {
+    const desktopView = document.getElementById('desktop-dashboard-view');
+    if (desktopView) {
+      const isDesktopToday = desktopView.getAttribute('data-is-today') === 'true';
+      const cards = desktopView.querySelectorAll('[data-start-time]');
+      cards.forEach((card) => {
+        const start = card.getAttribute('data-start-time');
+        const end = card.getAttribute('data-end-time');
+        const isNow = isDesktopToday && Boolean(start && end && start <= currentTimeStr && currentTimeStr <= end);
+        toggleCardNow(card, isNow, false);
+      });
+    }
   }
 }
 
@@ -2005,9 +2166,11 @@ async function switchMobileWeek(targetUrl, direction = 'next', pushHistory = tru
     const curDesktopView = document.getElementById('desktop-dashboard-view');
     if (newDesktopView && curDesktopView) {
       curDesktopView.innerHTML = newDesktopView.innerHTML;
-      if (newDesktopView.hasAttribute('data-is-today')) {
-        curDesktopView.setAttribute('data-is-today', newDesktopView.getAttribute('data-is-today'));
-      }
+      ['data-is-today', 'data-default-date', 'data-current-subgroup'].forEach((attr) => {
+        if (newDesktopView.hasAttribute(attr)) {
+          curDesktopView.setAttribute(attr, newDesktopView.getAttribute(attr));
+        }
+      });
     }
 
     // Sync modal values
