@@ -127,7 +127,17 @@ async def test_dashboard_offers_next_lesson_quick_action(
     settings = get_settings()
     client.cookies.set(settings.COOKIE_NAME, auth_token)
 
-    today = get_current_date()
+    fixed_now = datetime(2026, 10, 22, 9, 0, tzinfo=ZoneInfo("Asia/Almaty"))
+    today = fixed_now.date()
+    monkeypatch.setattr(
+        "locus.web.dashboard_routes.get_current_date",
+        lambda: today,
+    )
+    monkeypatch.setattr(
+        "locus.web.dashboard_routes.get_current_datetime",
+        lambda: fixed_now,
+    )
+
     lesson = Lesson(
         subject_id=test_subject.id,
         day_of_week=today.isoweekday(),
@@ -138,16 +148,6 @@ async def test_dashboard_offers_next_lesson_quick_action(
     db_session.add(lesson)
     await db_session.commit()
     await db_session.refresh(lesson)
-
-    fixed_now = datetime.combine(
-        today,
-        time(9, 0),
-        tzinfo=ZoneInfo("Asia/Almaty"),
-    )
-    monkeypatch.setattr(
-        "locus.web.dashboard_routes.get_current_datetime",
-        lambda: fixed_now,
-    )
 
     res = await client.get("/")
     assert res.status_code == 200
