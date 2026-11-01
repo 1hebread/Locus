@@ -2,6 +2,7 @@ import os
 
 # Ensure tests run hermetically isolated from developer's local .env
 os.environ["DATABASE_URL"] = "sqlite+aiosqlite:///:memory:"
+os.environ["ENVIRONMENT"] = "development"
 os.environ["VAPID_PUBLIC_KEY"] = ""
 os.environ["VAPID_PRIVATE_KEY"] = ""
 

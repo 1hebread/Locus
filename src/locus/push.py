@@ -25,14 +25,19 @@ logger = logging.getLogger(__name__)
 
 STALE_STATUSES = (404, 410)
 
-# Only known push services: the endpoint is later POSTed to by the server,
+# Only known browser push services: the endpoint is later POSTed to by the server,
 # so an arbitrary URL here would be an SSRF hole.
-PUSH_HOSTS_EXACT = (
-    "fcm.googleapis.com",
-    "updates.push.services.mozilla.com",
-    "web.push.apple.com",
+ALLOWED_PUSH_DOMAINS = (
+    "googleapis.com",
+    "google.com",
+    "push.services.mozilla.com",
+    "services.mozilla.com",
+    "notify.windows.com",
+    "push.apple.com",
 )
-PUSH_HOST_SUFFIXES = (".notify.windows.com", ".push.apple.com")
+DISALLOWED_HOSTS = (
+    "script.google.com",
+)
 
 
 def push_enabled() -> bool:
@@ -45,11 +50,15 @@ def is_allowed_endpoint(endpoint: str) -> bool:
     host = (url.hostname or "").lower()
     if url.scheme != "https" or not host:
         return False
-    if host in PUSH_HOSTS_EXACT:
-        return True
+    if url.port not in (None, 443):
+        return False
+    if url.username or url.password:
+        return False
+    if host in DISALLOWED_HOSTS:
+        return False
     return any(
-        host == suffix.lstrip(".") or host.endswith(suffix)
-        for suffix in PUSH_HOST_SUFFIXES
+        host == domain or host.endswith("." + domain)
+        for domain in ALLOWED_PUSH_DOMAINS
     )
 
 

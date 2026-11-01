@@ -44,11 +44,13 @@ async def test_subscribe_and_unsubscribe(
 ):
     monkeypatch.setattr(push_routes, "push_enabled", lambda: True)
     client.cookies.update(auth_cookies)
-    body = {"endpoint": ENDPOINT, "keys": {"p256dh": "key", "auth": "secret"}}
+    long_endpoint = "https://sub.notify.windows.com/token?" + "a" * 700
+    body = {"endpoint": long_endpoint, "keys": {"p256dh": "key", "auth": "secret"}}
 
     assert (await client.post("/push/subscribe", json=body)).status_code == 200
     saved = await db_session.scalar(select(PushSubscription))
     assert (saved.user_id, saved.p256dh, saved.auth) == (test_user.id, "key", "secret")
+    assert saved.endpoint == long_endpoint
 
     # Same browser, updated keys: update in place instead of a duplicate row
     body["keys"] = {"p256dh": "key2", "auth": "secret2"}
@@ -58,7 +60,7 @@ async def test_subscribe_and_unsubscribe(
     assert subscriptions[0].p256dh == "key2"
 
     assert (
-        await client.post("/push/unsubscribe", json={"endpoint": ENDPOINT})
+        await client.post("/push/unsubscribe", json={"endpoint": long_endpoint})
     ).status_code == 200
     assert await db_session.scalar(select(PushSubscription)) is None
 
@@ -152,11 +154,19 @@ async def test_send_push_filters_recipients(
 
 def test_is_allowed_endpoint():
     assert push_module.is_allowed_endpoint("https://push.apple.com/v1/token") is True
+    assert push_module.is_allowed_endpoint("https://web.push.apple.com/v1/token") is True
     assert push_module.is_allowed_endpoint("https://sub.notify.windows.com/token") is True
     assert push_module.is_allowed_endpoint("https://notify.windows.com/token") is True
     assert push_module.is_allowed_endpoint("https://updates.push.services.mozilla.com/push/v1") is True
+    assert push_module.is_allowed_endpoint("https://push.services.mozilla.com/v1") is True
     assert push_module.is_allowed_endpoint("https://fcm.googleapis.com/fcm/send/abc") is True
+    assert push_module.is_allowed_endpoint("https://android.googleapis.com/gcm/send/abc") is True
+    assert push_module.is_allowed_endpoint("https://jmt17.google.com/test") is True
+    assert push_module.is_allowed_endpoint("https://script.google.com/macros/exec") is False
+    assert push_module.is_allowed_endpoint("https://fcm.googleapis.com:8080/send") is False
+    assert push_module.is_allowed_endpoint("https://user:pass@fcm.googleapis.com/send") is False
     assert push_module.is_allowed_endpoint("https://evil.example.com/endpoint") is False
+    assert push_module.is_allowed_endpoint("https://fakegoogleapis.com/test") is False
     assert push_module.is_allowed_endpoint("http://push.apple.com/token") is False
     assert push_module.is_allowed_endpoint("not-a-url") is False
 

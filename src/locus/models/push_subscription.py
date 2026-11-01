@@ -21,9 +21,9 @@ class PushSubscription(Base):
         nullable=False,
     )
     # One browser endpoint belongs to exactly one user
-    endpoint: Mapped[str] = mapped_column(String(500), unique=True, index=True, nullable=False)
-    p256dh: Mapped[str] = mapped_column(String(200), nullable=False)
-    auth: Mapped[str] = mapped_column(String(100), nullable=False)
+    endpoint: Mapped[str] = mapped_column(String(1024), unique=True, index=True, nullable=False)
+    p256dh: Mapped[str] = mapped_column(String(500), nullable=False)
+    auth: Mapped[str] = mapped_column(String(200), nullable=False)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         default=get_utc_now,

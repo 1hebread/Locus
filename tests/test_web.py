@@ -16,6 +16,12 @@ async def test_pwa_manifest_and_static(client: AsyncClient):
     assert data["short_name"] == "Locus"
     assert len(data["icons"]) >= 2
 
+    # Root service worker delivery with scope header
+    sw_res = await client.get("/sw.js")
+    assert sw_res.status_code == 200
+    assert sw_res.headers.get("Service-Worker-Allowed") == "/"
+    assert "application/javascript" in sw_res.headers.get("Content-Type", "")
+
 
 @pytest.mark.asyncio
 async def test_unauthenticated_redirect_to_login(client: AsyncClient):

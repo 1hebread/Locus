@@ -3,6 +3,15 @@ if ('serviceWorker' in navigator) {
   const hadServiceWorker = Boolean(navigator.serviceWorker.controller);
   let isReloadingForSwUpdate = false;
 
+  // Unregister legacy scoped registrations (/static/) to avoid scope conflicts
+  navigator.serviceWorker.getRegistrations().then((registrations) => {
+    for (const reg of registrations) {
+      if (reg.scope && reg.scope.endsWith('/static/')) {
+        reg.unregister().catch(() => {});
+      }
+    }
+  }).catch(() => {});
+
   // Pick up a new SW immediately and reload once it takes control
   navigator.serviceWorker.addEventListener('controllerchange', () => {
     if (!hadServiceWorker || isReloadingForSwUpdate) return;
@@ -10,12 +19,35 @@ if ('serviceWorker' in navigator) {
     window.location.reload();
   });
 
-  navigator.serviceWorker.register('/static/sw.js', { updateViaCache: 'none' })
+  navigator.serviceWorker.register('/sw.js', { scope: '/', updateViaCache: 'none' })
     .then((reg) => {
       reg.update();
-      console.log('Locus SW registered:', reg.scope);
+      console.log('Locus SW registered with scope:', reg.scope);
     })
-    .catch((err) => console.log('Locus SW registration failed:', err));
+    .catch((err) => {
+      console.warn('Locus SW registration at /sw.js failed, trying /static/sw.js:', err);
+      navigator.serviceWorker.register('/static/sw.js', { scope: '/', updateViaCache: 'none' })
+        .then((reg) => reg.update())
+        .catch((e) => console.error('Locus SW registration failed:', e));
+    });
+}
+
+async function getReadyServiceWorkerRegistration(timeoutMs = 6000) {
+  if (!('serviceWorker' in navigator)) return null;
+
+  try {
+    const reg = await navigator.serviceWorker.getRegistration('/');
+    if (reg && reg.pushManager && reg.active) {
+      return reg;
+    }
+  } catch (_) {}
+
+  return await Promise.race([
+    navigator.serviceWorker.ready,
+    new Promise((_, reject) =>
+      setTimeout(() => reject(new Error('Таймаут инициализации Service Worker')), timeoutMs)
+    ),
+  ]);
 }
 
 // Web Push opt-in (homework change notifications)
@@ -24,6 +56,50 @@ function urlBase64ToUint8Array(base64String) {
   const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
   const raw = atob(base64);
   return Uint8Array.from([...raw].map((char) => char.charCodeAt(0)));
+}
+
+function isPushSupported() {
+  if (!('serviceWorker' in navigator) || !('Notification' in window)) return false;
+  return 'PushManager' in window || 'pushManager' in ServiceWorkerRegistration.prototype;
+}
+
+function isIosDevice() {
+  return /iphone|ipad|ipod/i.test(navigator.userAgent);
+}
+
+function isStandalonePwa() {
+  return window.navigator.standalone === true || window.matchMedia('(display-mode: standalone)').matches;
+}
+
+function extractPushSubscriptionData(subscription) {
+  if (!subscription) return null;
+  const json = subscription.toJSON ? subscription.toJSON() : {};
+  const keys = json.keys || {};
+  let p256dh = (typeof keys.p256dh === 'string' && keys.p256dh) ? keys.p256dh : '';
+  let auth = (typeof keys.auth === 'string' && keys.auth) ? keys.auth : '';
+
+  if (!p256dh && subscription.getKey) {
+    try {
+      const rawKey = subscription.getKey('p256dh');
+      if (rawKey) {
+        p256dh = btoa(String.fromCharCode.apply(null, new Uint8Array(rawKey)))
+          .replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+      }
+    } catch (_) {}
+  }
+  if (!auth && subscription.getKey) {
+    try {
+      const rawAuth = subscription.getKey('auth');
+      if (rawAuth) {
+        auth = btoa(String.fromCharCode.apply(null, new Uint8Array(rawAuth)))
+          .replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+      }
+    } catch (_) {}
+  }
+  return {
+    endpoint: subscription.endpoint,
+    keys: { p256dh, auth }
+  };
 }
 
 function setPushState(enabled) {
@@ -51,6 +127,12 @@ async function togglePushNotifications() {
   };
 
   try {
+    // iOS outside PWA prompt
+    if (isIosDevice() && !isStandalonePwa()) {
+      alert('В iOS уведомления работают только в установленном приложении: нажмите «Поделиться» → «На экран Домой», затем запустите Locus с иконки.');
+      return;
+    }
+
     // Ask first: keep synchronous to prevent iOS from dropping user activation gesture
     if (Notification.permission !== 'granted') {
       if (Notification.permission === 'denied') {
@@ -66,16 +148,17 @@ async function togglePushNotifications() {
       if (perm !== 'granted') return;
     }
 
-    // Permission is granted: hide button immediately
-    hideButtons();
-
     const config = await loadPushConfig();
-    if (!config || !config.enabled) return;
+    if (!config || !config.enabled) {
+      alert('Уведомления не настроены на сервере (отсутствуют VAPID ключи).');
+      return;
+    }
 
-    const registration = await Promise.race([
-      navigator.serviceWorker.ready,
-      new Promise((_, reject) => setTimeout(() => reject(new Error('SW timeout')), 4000)),
-    ]);
+    const registration = await getReadyServiceWorkerRegistration(8000);
+
+    if (!registration || !registration.pushManager) {
+      throw new Error('PushManager недоступен в текущем браузере.');
+    }
 
     let subscription = await registration.pushManager.getSubscription();
     if (!subscription && config.public_key) {
@@ -86,19 +169,30 @@ async function togglePushNotifications() {
     }
 
     if (subscription) {
-      const keys = subscription.toJSON().keys;
+      const payload = extractPushSubscriptionData(subscription);
+      if (!payload || !payload.keys || !payload.keys.p256dh || !payload.keys.auth) {
+        throw new Error('Не удалось извлечь ключи шифрования push-подписки из браузера.');
+      }
+
       const response = await fetch('/push/subscribe', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ endpoint: subscription.endpoint, keys }),
+        body: JSON.stringify(payload),
       });
+
       if (response.ok) {
         pushSubscribed = true;
         pushSyncedThisSession = true;
+        hideButtons();
+      } else {
+        const errorDetail = await response.text();
+        console.error('Ошибка сохранения push-подписки:', response.status, errorDetail);
+        alert('Не удалось сохранить push-подписку на сервере (код ' + response.status + '). Проверьте логи сервера.');
       }
     }
   } catch (error) {
-    console.warn('Push subscription failed:', error);
+    console.error('Push subscription failed:', error);
+    alert('Не удалось включить уведомления: ' + (error.message || error));
   } finally {
     isTogglingPush = false;
   }
@@ -122,6 +216,11 @@ function loadPushConfig() {
   return pushConfigPromise;
 }
 
+// Preload push configuration as early as possible so user gestures are not lost in iOS WebKit
+if ('serviceWorker' in navigator) {
+  loadPushConfig();
+}
+
 // Runs on load and after client-side navigation, when the dock/sidebar markup is re-rendered
 async function refreshPushUI() {
   if (isRefreshingPushUI) return;
@@ -137,82 +236,84 @@ async function refreshPushUI() {
     if (!('serviceWorker' in navigator)) return hide();
 
     const config = await loadPushConfig();
-    const supported = 'PushManager' in window && 'Notification' in window;
-    const ios = /iphone|ipad|ipod/i.test(navigator.userAgent);
-    if (!config || !config.enabled || (!supported && !ios)) return hide();
+    const hasNotification = 'Notification' in window;
+    const supported = isPushSupported() || (isIosDevice() && !isStandalonePwa());
+    if (!config || !config.enabled || !supported) return hide();
 
     // 1. Explicitly blocked in browser settings: hide per user request
-    if (supported && Notification.permission === 'denied') {
+    if (hasNotification && Notification.permission === 'denied') {
       return hide();
     }
 
     // 2. Default ("Спрашивать"): user has not granted or denied notifications yet.
-    // The opt-in bell MUST be shown!
-    if (supported && Notification.permission === 'default') {
+    if (hasNotification && Notification.permission === 'default') {
       show();
       return setPushState(false);
     }
 
     // 3. Granted ("Разрешено"):
-    if (supported && Notification.permission === 'granted') {
-      if (!ios) {
+    if (hasNotification && Notification.permission === 'granted') {
+      if (!isIosDevice()) {
         // Desktop / Android: notifications are permitted, hide the bell immediately
         hide();
         if (!pushSyncedThisSession) {
           try {
-            const registration = await Promise.race([
-              navigator.serviceWorker.ready,
-              new Promise((_, reject) => setTimeout(() => reject(new Error('SW timeout')), 2500)),
-            ]);
-            let subscription = await registration.pushManager.getSubscription();
-            if (!subscription && config.public_key) {
-              subscription = await registration.pushManager.subscribe({
-                userVisibleOnly: true,
-                applicationServerKey: urlBase64ToUint8Array(config.public_key),
-              });
-            }
-            if (subscription) {
-              const keys = subscription.toJSON().keys;
-              const response = await fetch('/push/subscribe', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ endpoint: subscription.endpoint, keys }),
-              });
-              if (response.ok) {
-                pushSubscribed = true;
-                pushSyncedThisSession = true;
+            const registration = await getReadyServiceWorkerRegistration(4000);
+            if (registration && registration.pushManager) {
+              let subscription = await registration.pushManager.getSubscription();
+              if (!subscription && config.public_key) {
+                subscription = await registration.pushManager.subscribe({
+                  userVisibleOnly: true,
+                  applicationServerKey: urlBase64ToUint8Array(config.public_key),
+                });
+              }
+              if (subscription) {
+                const payload = extractPushSubscriptionData(subscription);
+                if (payload && payload.keys && payload.keys.p256dh && payload.keys.auth) {
+                  const response = await fetch('/push/subscribe', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload),
+                  });
+                  if (response.ok) {
+                    pushSubscribed = true;
+                    pushSyncedThisSession = true;
+                  } else {
+                    console.warn('Фоновая синхронизация push не удалась:', response.status);
+                  }
+                }
               }
             }
           } catch (error) {
-            // Background sync error: keep bell hidden
+            console.warn('Background push sync failed:', error);
           }
         }
         return;
       }
 
       // iOS WebKit: subscribe() requires a user click.
-      // If a subscription already exists, hide the bell; otherwise show it so user can click.
       try {
-        const registration = await Promise.race([
-          navigator.serviceWorker.ready,
-          new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 1500)),
-        ]);
-        const subscription = await registration.pushManager.getSubscription();
-        if (subscription) {
-          pushSubscribed = true;
-          hide();
-          if (!pushSyncedThisSession) {
-            const keys = subscription.toJSON().keys;
-            const response = await fetch('/push/subscribe', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ endpoint: subscription.endpoint, keys }),
-            });
-            if (response.ok) {
-              pushSyncedThisSession = true;
+        const registration = await getReadyServiceWorkerRegistration(4000);
+        if (registration && registration.pushManager) {
+          const subscription = await registration.pushManager.getSubscription();
+          if (subscription) {
+            pushSubscribed = true;
+            hide();
+            if (!pushSyncedThisSession) {
+              const payload = extractPushSubscriptionData(subscription);
+              if (payload && payload.keys && payload.keys.p256dh && payload.keys.auth) {
+                const response = await fetch('/push/subscribe', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify(payload),
+                });
+                if (response.ok) {
+                  pushSyncedThisSession = true;
+                }
+              }
             }
+            return;
           }
-          return;
         }
       } catch (error) {
         // Timeout or error on iOS
@@ -233,11 +334,9 @@ async function refreshPushUI() {
 document.addEventListener('click', (event) => {
   const button = event.target.closest('[data-push-toggle]');
   if (!button) return;
-  if ('PushManager' in window && 'Notification' in window) {
-    togglePushNotifications().catch(() => alert('Не удалось включить уведомления.'));
-  } else if (/iphone|ipad|ipod/i.test(navigator.userAgent)) {
-    alert('В iOS уведомления работают только в приложении: «Поделиться» → «На экран Домой», затем откройте Locus с иконки.');
-  }
+  togglePushNotifications().catch((err) => {
+    console.error('togglePushNotifications failed:', err);
+  });
 });
 
 // Drop this browser's push subscription before logging out (shared devices).
@@ -252,8 +351,8 @@ document.addEventListener('submit', (event) => {
     form.dataset.pushCleaned = '1';
     form.submit();
   };
-  const cleanup = navigator.serviceWorker.ready
-    .then((registration) => registration.pushManager.getSubscription())
+  const cleanup = getReadyServiceWorkerRegistration(2500)
+    .then((registration) => registration && registration.pushManager ? registration.pushManager.getSubscription() : null)
     .then(async (subscription) => {
       if (!subscription) return;
       const input = document.createElement('input');

@@ -1,3 +1,4 @@
+import logging
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 from sqlalchemy import delete, select
@@ -10,21 +11,23 @@ from locus.models.push_subscription import PushSubscription
 from locus.models.user import User
 from locus.push import is_allowed_endpoint, push_enabled
 
+logger = logging.getLogger(__name__)
+
 router = APIRouter(prefix="/push", tags=["Push"])
 
 
 class PushKeys(BaseModel):
-    p256dh: str = Field(min_length=1, max_length=200)
-    auth: str = Field(min_length=1, max_length=100)
+    p256dh: str = Field(min_length=1, max_length=500)
+    auth: str = Field(min_length=1, max_length=200)
 
 
 class PushSubscriptionIn(BaseModel):
-    endpoint: str = Field(min_length=1, max_length=500)
+    endpoint: str = Field(min_length=1, max_length=1024)
     keys: PushKeys
 
 
 class PushEndpointIn(BaseModel):
-    endpoint: str = Field(min_length=1, max_length=500)
+    endpoint: str = Field(min_length=1, max_length=1024)
 
 
 @router.get("/config")
@@ -47,7 +50,11 @@ async def subscribe(
     if not push_enabled():
         raise HTTPException(status_code=503, detail="Уведомления не настроены на сервере")
     if not is_allowed_endpoint(data.endpoint):
-        raise HTTPException(status_code=400, detail="Недопустимый адрес push-сервиса")
+        logger.warning("Rejected push endpoint for user %s: %s", current_user.username, data.endpoint)
+        raise HTTPException(
+            status_code=400,
+            detail=f"Недопустимый адрес push-сервиса: {data.endpoint}",
+        )
 
     subscription = await db.scalar(
         select(PushSubscription).where(PushSubscription.endpoint == data.endpoint)

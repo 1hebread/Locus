@@ -5,7 +5,7 @@ from urllib.parse import urlparse
 from fastapi import FastAPI, HTTPException, Request, Response, status
 from fastapi.exception_handlers import http_exception_handler
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import RedirectResponse
+from fastapi.responses import FileResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy import func, select
 
@@ -198,6 +198,8 @@ async def static_cache_headers(request: Request, call_next):
     response = await call_next(request)
     if request.url.path.startswith("/static/"):
         response.headers["Cache-Control"] = "no-cache, must-revalidate"
+        if request.url.path.endswith("/sw.js"):
+            response.headers["Service-Worker-Allowed"] = "/"
     return response
 
 
@@ -205,6 +207,21 @@ async def static_cache_headers(request: Request, call_next):
 static_dir = os.path.join(os.path.dirname(__file__), "static")
 if os.path.isdir(static_dir):
     app.mount("/static", StaticFiles(directory=static_dir), name="static")
+
+
+@app.get("/sw.js", include_in_schema=False)
+async def service_worker():
+    """Deliver Service Worker from root so its natural scope covers all app routes (/)."""
+    sw_file = os.path.join(os.path.dirname(__file__), "static", "sw.js")
+    return FileResponse(
+        sw_file,
+        media_type="application/javascript",
+        headers={
+            "Cache-Control": "no-cache, must-revalidate",
+            "Service-Worker-Allowed": "/",
+        },
+    )
+
 
 # Mount Routers: Web interface and REST API
 app.include_router(web_router)
