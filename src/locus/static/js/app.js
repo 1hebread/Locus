@@ -52,10 +52,23 @@ async function getReadyServiceWorkerRegistration(timeoutMs = 6000) {
 
 // Web Push opt-in (homework change notifications)
 function urlBase64ToUint8Array(base64String) {
-  const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
-  const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
-  const raw = atob(base64);
-  return Uint8Array.from([...raw].map((char) => char.charCodeAt(0)));
+  if (!base64String || typeof base64String !== 'string') {
+    return new Uint8Array(0);
+  }
+  const clean = base64String.trim().replace(/^["']|["']$/g, '').trim();
+  const padding = '='.repeat((4 - (clean.length % 4)) % 4);
+  const base64 = (clean + padding).replace(/-/g, '+').replace(/_/g, '/');
+  try {
+    const raw = window.atob(base64);
+    const outputArray = new Uint8Array(raw.length);
+    for (let i = 0; i < raw.length; ++i) {
+      outputArray[i] = raw.charCodeAt(i);
+    }
+    return outputArray;
+  } catch (e) {
+    console.error('Failed to decode base64 VAPID key:', e);
+    return new Uint8Array(0);
+  }
 }
 
 function isPushSupported() {
@@ -160,12 +173,36 @@ async function togglePushNotifications() {
       throw new Error('PushManager недоступен в текущем браузере.');
     }
 
+    const serverKey = urlBase64ToUint8Array(config.public_key);
+    if (!serverKey || serverKey.byteLength !== 65 || serverKey[0] !== 4) {
+      const len = serverKey ? serverKey.byteLength : 0;
+      console.error('Invalid VAPID public key:', config.public_key, 'Decoded length:', len);
+      throw new Error(
+        `Некорректный VAPID_PUBLIC_KEY на сервере (длина ${len} байт вместо 65). ` +
+        `Убедитесь, что в переменных окружения на проде задан именно публичный ключ из 'uv run locus-vapid' (начинается на B..., 87 символов), а не приватный ключ.`
+      );
+    }
+
     let subscription = await registration.pushManager.getSubscription();
-    if (!subscription && config.public_key) {
-      subscription = await registration.pushManager.subscribe({
-        userVisibleOnly: true,
-        applicationServerKey: urlBase64ToUint8Array(config.public_key),
-      });
+    if (!subscription) {
+      try {
+        subscription = await registration.pushManager.subscribe({
+          userVisibleOnly: true,
+          applicationServerKey: serverKey,
+        });
+      } catch (subErr) {
+        // If an old conflicting subscription exists, reset it and retry
+        const staleSub = await registration.pushManager.getSubscription();
+        if (staleSub) {
+          await staleSub.unsubscribe().catch(() => {});
+          subscription = await registration.pushManager.subscribe({
+            userVisibleOnly: true,
+            applicationServerKey: serverKey,
+          });
+        } else {
+          throw subErr;
+        }
+      }
     }
 
     if (subscription) {
@@ -261,11 +298,14 @@ async function refreshPushUI() {
             const registration = await getReadyServiceWorkerRegistration(4000);
             if (registration && registration.pushManager) {
               let subscription = await registration.pushManager.getSubscription();
-              if (!subscription && config.public_key) {
-                subscription = await registration.pushManager.subscribe({
-                  userVisibleOnly: true,
-                  applicationServerKey: urlBase64ToUint8Array(config.public_key),
-                });
+              const serverKey = urlBase64ToUint8Array(config.public_key);
+              if (serverKey && serverKey.byteLength === 65 && serverKey[0] === 4) {
+                if (!subscription) {
+                  subscription = await registration.pushManager.subscribe({
+                    userVisibleOnly: true,
+                    applicationServerKey: serverKey,
+                  }).catch(() => null);
+                }
               }
               if (subscription) {
                 const payload = extractPushSubscriptionData(subscription);

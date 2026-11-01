@@ -36,9 +36,15 @@ class Settings(BaseSettings):
         if self.SECRET_KEY:
             self.SECRET_KEY = self.SECRET_KEY.strip()
         # Empty env vars would otherwise override these defaults with ""
-        self.VAPID_PUBLIC_KEY = self.VAPID_PUBLIC_KEY.strip()
-        self.VAPID_PRIVATE_KEY = self.VAPID_PRIVATE_KEY.strip()
-        self.VAPID_SUBJECT = self.VAPID_SUBJECT.strip() or "mailto:admin@example.com"
+        self.VAPID_PUBLIC_KEY = self.VAPID_PUBLIC_KEY.strip().strip("\"'").strip()
+        self.VAPID_PRIVATE_KEY = self.VAPID_PRIVATE_KEY.strip().strip("\"'").strip()
+        self.VAPID_SUBJECT = self.VAPID_SUBJECT.strip().strip("\"'").strip() or "mailto:admin@example.com"
+        if self.VAPID_PUBLIC_KEY and len(self.VAPID_PUBLIC_KEY) < 60:
+            raise ValueError(
+                "VAPID_PUBLIC_KEY некорректен (длина менее 60 символов). "
+                "Убедитесь, что в VAPID_PUBLIC_KEY не был по ошибке скопирован приватный ключ. "
+                "Публичный ключ имеет длину 87 символов и генерируется через `uv run locus-vapid`."
+            )
         if self.is_production:
             if (
                 not self.SECRET_KEY

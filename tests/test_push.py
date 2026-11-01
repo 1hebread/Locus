@@ -265,3 +265,22 @@ async def test_send_push_removes_stale_subscriptions(
     remaining = list((await db_session.execute(select(PushSubscription))).scalars().all())
     assert len(remaining) == 1
     assert remaining[0].endpoint == f"{ENDPOINT}-active"
+
+
+def test_vapid_settings_sanitization():
+    from locus.config import Settings
+
+    valid_pub = "B" + "a" * 86
+    valid_priv = "x" * 43
+    settings = Settings(
+        VAPID_PUBLIC_KEY=f'"{valid_pub}"',
+        VAPID_PRIVATE_KEY=f"'{valid_priv}'",
+        VAPID_SUBJECT='"mailto:custom@example.com"',
+    )
+    assert settings.VAPID_PUBLIC_KEY == valid_pub
+    assert settings.VAPID_PRIVATE_KEY == valid_priv
+    assert settings.VAPID_SUBJECT == "mailto:custom@example.com"
+
+    # Reject too short public key (e.g. accidentally swapped with 43-char private key)
+    with pytest.raises(ValueError, match="VAPID_PUBLIC_KEY некорректен"):
+        Settings(VAPID_PUBLIC_KEY=valid_priv)
