@@ -11,6 +11,7 @@ from locus.models.lesson import Lesson
 from locus.models.subject import Subject
 from locus.models.user import User
 from locus.schemas.lesson import LessonCreate, LessonOut, LessonUpdate
+from locus.schedule_service import LessonNotFoundError, clone_lesson_record
 from locus.schedule_validation import LessonConflictError, validate_lesson_conflict
 
 router = APIRouter(prefix="/schedule", tags=["Schedule"])
@@ -222,3 +223,24 @@ async def delete_lesson(
     await db.delete(lesson)
     await db.commit()
     return None
+
+
+@router.post("/{lesson_id}/clone", response_model=LessonOut, status_code=status.HTTP_201_CREATED)
+async def clone_lesson(
+    lesson_id: int,
+    current_user: User = Depends(get_current_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    """Clone an existing lesson with the other subgroup (admin only)."""
+    try:
+        return await clone_lesson_record(db, lesson_id)
+    except LessonNotFoundError:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Урок не найден",
+        )
+    except LessonConflictError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail=str(exc),
+        )

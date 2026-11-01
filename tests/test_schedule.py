@@ -125,6 +125,22 @@ async def test_lesson_with_default_bell_times(
     assert data["end_time"] == "08:45"
     assert data["subject"]["name"] == test_subject.name
 
+    # 2nd lesson default with 5 min break: 08:50 - 09:35
+    res2 = await client.post(
+        "/api/v1/schedule",
+        headers=auth_headers,
+        json={
+            "subject_id": test_subject.id,
+            "day_of_week": 1,
+            "lesson_number": 2,
+            "week_type": "ALL",
+        },
+    )
+    assert res2.status_code == 201
+    data2 = res2.json()
+    assert data2["start_time"] == "08:50"
+    assert data2["end_time"] == "09:35"
+
 
 @pytest.mark.asyncio
 async def test_lesson_with_custom_times_and_filtering(
@@ -639,3 +655,121 @@ async def test_lesson_duplicate_number_and_overlapping_time_rejected_via_api(
     )
     assert res_null_num.status_code == 422
     assert "не может быть пустым" in res_null_num.text
+
+
+@pytest.mark.asyncio
+async def test_clone_lesson_api(
+    client: AsyncClient,
+    auth_headers: dict,
+    regular_auth_headers: dict,
+    test_subject: Subject,
+):
+    """Test cloning a lesson with the other subgroup."""
+    subj_id = test_subject.id
+
+    # 1. Create a lesson with subgroup 1 on Thursday
+    create_res = await client.post(
+        "/api/v1/schedule",
+        headers=auth_headers,
+        json={
+            "subject_id": subj_id,
+            "day_of_week": 4,
+            "lesson_number": 1,
+            "start_time": "08:00",
+            "end_time": "08:45",
+            "subgroup": 1,
+            "room": "101",
+            "note": "Подгруппа А",
+        },
+    )
+    assert create_res.status_code == 201
+    lesson1_id = create_res.json()["id"]
+
+    # 2. Non-admin cannot clone
+    res_forbidden = await client.post(
+        f"/api/v1/schedule/{lesson1_id}/clone",
+        headers=regular_auth_headers,
+    )
+    assert res_forbidden.status_code == 403
+
+    # 3. Admin clones lesson 1 -> creates counterpart for subgroup 2
+    # Since test_subject has no room2 configured, room for subgroup 2 is None (not copied from subgroup 1)
+    clone_res = await client.post(
+        f"/api/v1/schedule/{lesson1_id}/clone",
+        headers=auth_headers,
+    )
+    assert clone_res.status_code == 201
+    cloned_data = clone_res.json()
+    assert cloned_data["id"] != lesson1_id
+    assert cloned_data["subgroup"] == 2
+    assert cloned_data["lesson_number"] == 1
+    assert cloned_data["day_of_week"] == 4
+    assert cloned_data["start_time"] == "08:00"
+    assert cloned_data["end_time"] == "08:45"
+    assert cloned_data["room"] is None
+    assert cloned_data["note"] == "Подгруппа А"
+
+    # 4. Cloning again fails because subgroup 2 already exists
+    clone_again = await client.post(
+        f"/api/v1/schedule/{lesson1_id}/clone",
+        headers=auth_headers,
+    )
+    assert clone_again.status_code == 422
+    assert "уже существует" in clone_again.json()["detail"]
+
+    # 5. Clone whole-class lesson (subgroup=None) with attached homework:
+    # splits into sub 1 and sub 2, and duplicates homework
+    whole_res = await client.post(
+        "/api/v1/schedule",
+        headers=auth_headers,
+        json={
+            "subject_id": subj_id,
+            "day_of_week": 4,
+            "lesson_number": 2,
+            "start_time": "08:50",
+            "end_time": "09:35",
+            "subgroup": None,
+        },
+    )
+    assert whole_res.status_code == 201
+    whole_id = whole_res.json()["id"]
+
+    # Add homework attached to this whole-class lesson
+    from datetime import date, timedelta
+    due = (date.today() + timedelta(days=2)).isoformat()
+    hw_res = await client.post(
+        "/api/v1/homework",
+        headers=auth_headers,
+        json={
+            "subject_id": subj_id,
+            "lesson_id": whole_id,
+            "title": "Упражнение 42",
+            "due_date": due,
+        },
+    )
+    assert hw_res.status_code == 201
+    orig_hw_id = hw_res.json()["id"]
+
+    clone_whole = await client.post(
+        f"/api/v1/schedule/{whole_id}/clone",
+        headers=auth_headers,
+    )
+    assert clone_whole.status_code == 201
+    cloned_lesson_id = clone_whole.json()["id"]
+    assert clone_whole.json()["subgroup"] == 2
+
+    # Verify original whole-class lesson was converted to subgroup 1
+    get_orig = await client.get("/api/v1/schedule", headers=auth_headers)
+    thursday_lessons = [l for l in get_orig.json() if l["day_of_week"] == 4 and l["lesson_number"] == 2]
+    assert len(thursday_lessons) == 2
+    subgroups = {l["subgroup"] for l in thursday_lessons}
+    assert subgroups == {1, 2}
+
+    # Verify homework was duplicated for the cloned lesson
+    all_hw = (await client.get("/api/v1/homework", headers=auth_headers)).json()
+    hw_for_slot = [h for h in all_hw if h["title"] == "Упражнение 42"]
+    assert len(hw_for_slot) == 2
+    hw_subs = {h["subgroup"] for h in hw_for_slot}
+    assert hw_subs == {1, 2}
+    hw_lesson_ids = {h["lesson_id"] for h in hw_for_slot}
+    assert hw_lesson_ids == {whole_id, cloned_lesson_id}

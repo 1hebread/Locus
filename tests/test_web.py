@@ -1,6 +1,9 @@
 import pytest
 from httpx import AsyncClient
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
+from locus.models.lesson import Lesson
 from locus.models.subject import Subject
 from locus.models.user import User
 from tests.helpers import add_homework
@@ -1424,3 +1427,65 @@ async def test_desktop_multi_day_panes_rendering(
     res_sub = await client.get("/?date=2026-10-19&subgroup=1")
     assert res_sub.status_code == 200
     assert 'data-current-subgroup="1"' in res_sub.text
+
+
+@pytest.mark.asyncio
+async def test_clone_lesson_web(
+    client: AsyncClient,
+    auth_cookies: dict,
+    test_subject: Subject,
+    db_session: AsyncSession,
+):
+    """Test web endpoint for cloning lesson with opposite subgroup."""
+    for k, v in auth_cookies.items():
+        client.cookies.set(k, v)
+
+    subj_id = test_subject.id
+
+    # 1. Create a lesson for subgroup 2 on Friday
+    lesson = Lesson(
+        subject_id=subj_id,
+        day_of_week=5,
+        lesson_number=3,
+        start_time="09:40",
+        end_time="10:25",
+        subgroup=2,
+        room="305",
+    )
+    db_session.add(lesson)
+    await db_session.commit()
+    await db_session.refresh(lesson)
+
+    # 2. Clone it via web POST
+    res_clone = await client.post(
+        f"/schedule/{lesson.id}/clone",
+        headers={"Accept": "application/json"},
+    )
+    assert res_clone.status_code == 200
+    data = res_clone.json()
+    assert data["ok"] is True
+    assert "5" in data["days"]
+    assert data["days"]["5"]["count"] == 2
+
+    # Verify both lessons in DB
+    lessons_res = await db_session.execute(
+        select(Lesson).where(Lesson.day_of_week == 5, Lesson.lesson_number == 3)
+    )
+    all_lessons = list(lessons_res.scalars().all())
+    assert len(all_lessons) == 2
+    subgroups = {l.subgroup for l in all_lessons}
+    assert subgroups == {1, 2}
+
+    # Verify target room was set from subject.room ("304")
+    sub1_lesson = next(l for l in all_lessons if l.subgroup == 1)
+    assert sub1_lesson.room == "304"
+
+    # With both subgroups present, clone buttons must be hidden in the rendered HTML
+    day_html = data["days"]["5"]["html"]
+    for l in all_lessons:
+        assert f"btn-clone-lesson-{l.id}" not in day_html
+
+    # Verify clone button is removed from edit modal
+    res_page = await client.get("/schedule")
+    assert res_page.status_code == 200
+    assert 'id="edit-lesson-clone-btn"' not in res_page.text

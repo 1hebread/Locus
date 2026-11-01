@@ -18,6 +18,7 @@ from locus.models.lesson import Lesson
 from locus.models.subject import Subject
 from locus.models.user import User
 from locus.models.vacation import Vacation
+from locus.schedule_service import LessonNotFoundError, clone_lesson_record
 from locus.schedule_validation import LessonConflictError, validate_lesson_conflict
 from locus.templates_config import templates
 
@@ -341,6 +342,36 @@ async def delete_lesson_web(
         })
 
     return Response(content="", status_code=status.HTTP_200_OK)
+
+
+@router.post("/{lesson_id}/clone")
+async def clone_lesson_web(
+    request: Request,
+    lesson_id: int,
+    current_user: User = Depends(get_current_admin_web),
+    db: AsyncSession = Depends(get_db),
+):
+    try:
+        cloned_lesson = await clone_lesson_record(db, lesson_id)
+    except LessonNotFoundError:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Урок не найден")
+    except LessonConflictError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc))
+
+    if "application/json" in request.headers.get("accept", ""):
+        d_lessons = await _get_day_lessons(db, cloned_lesson.day_of_week)
+        return JSONResponse({
+            "ok": True,
+            "redirect": "/schedule",
+            "days": {
+                str(cloned_lesson.day_of_week): {
+                    "html": _render_day_lessons_html(request, cloned_lesson.day_of_week, d_lessons, current_user),
+                    "count": len(d_lessons),
+                    "schedule_data": _serialize_lessons_data(d_lessons),
+                }
+            },
+        })
+    return RedirectResponse(url="/schedule", status_code=status.HTTP_303_SEE_OTHER)
 
 
 @router.post("/vacations")

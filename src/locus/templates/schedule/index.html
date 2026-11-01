@@ -135,7 +135,10 @@
 </div>
 
 <script>
+  var currentMobileActiveDay = {{ active_day or 1 }};
+
   function switchMobileDay(dayNum) {
+    currentMobileActiveDay = parseInt(dayNum, 10);
     document.querySelectorAll('.day-column').forEach(col => {
       col.classList.add('hidden');
       col.classList.remove('flex');
@@ -154,6 +157,10 @@
       activeTab.classList.remove('bg-[#18181b]', 'border-zinc-800', 'text-zinc-400');
       activeTab.classList.add('bg-emerald-500', 'border-emerald-400', 'text-white', 'shadow-md', 'font-bold');
     }
+    const daySelect = document.getElementById('day_of_week');
+    if (daySelect) {
+      daySelect.value = dayNum;
+    }
   }
 
   // var so the script can be safely re-executed by client-side navigation
@@ -162,15 +169,91 @@
   var bellSchedule = {{ (default_bell_schedule or {})|tojson|safe }};
   var isCustomTime = false;
 
+  function getTimeDifferenceMinutes(startStr, endStr) {
+    if (!startStr || !endStr) return null;
+    const p1 = startStr.trim().split(':');
+    const p2 = endStr.trim().split(':');
+    if (p1.length < 2 || p2.length < 2) return null;
+    const m1 = parseInt(p1[0], 10) * 60 + parseInt(p1[1], 10);
+    const m2 = parseInt(p2[0], 10) * 60 + parseInt(p2[1], 10);
+    if (isNaN(m1) || isNaN(m2)) return null;
+    let diff = m2 - m1;
+    if (diff < 0) diff += 1440;
+    return diff;
+  }
+
+  function addMinutesToTime(timeStr, minutesToAdd) {
+    if (!timeStr || typeof timeStr !== 'string') return null;
+    const parts = timeStr.trim().split(':');
+    if (parts.length < 2) return null;
+    const h = parseInt(parts[0], 10);
+    const m = parseInt(parts[1], 10);
+    if (isNaN(h) || isNaN(m)) return null;
+    let totalM = h * 60 + m + minutesToAdd;
+    totalM = ((totalM % 1440) + 1440) % 1440;
+    const newH = Math.floor(totalM / 60);
+    const newM = totalM % 60;
+    return String(newH).padStart(2, '0') + ':' + String(newM).padStart(2, '0');
+  }
+
+  function getSmartLessonTimes(dayNum, lessonNum, subgroup, excludeLessonId = null) {
+    const num = parseInt(lessonNum, 10);
+    const day = parseInt(dayNum, 10);
+    const lessons = (scheduleDataByDay[day] || [])
+      .filter(function(l) { return excludeLessonId === null || l.id !== excludeLessonId; })
+      .filter(function(l) { return checkSubgroupConflict(subgroup, l.subgroup); });
+
+    // Find the closest preceding lesson (largest lesson_number < num, or latest end_time if same lesson_number)
+    let prevLesson = null;
+    for (let i = 0; i < lessons.length; i++) {
+      const l = lessons[i];
+      if (l.lesson_number < num) {
+        if (!prevLesson || l.lesson_number > prevLesson.lesson_number ||
+            (l.lesson_number === prevLesson.lesson_number && l.end_time > prevLesson.end_time)) {
+          prevLesson = l;
+        }
+      }
+    }
+
+    if (prevLesson && prevLesson.end_time) {
+      let duration = 45;
+      if (prevLesson.start_time) {
+        const prevDuration = getTimeDifferenceMinutes(prevLesson.start_time, prevLesson.end_time);
+        if (prevDuration && prevDuration >= 15 && prevDuration <= 180) {
+          duration = prevDuration;
+        }
+      }
+      const gap = num - prevLesson.lesson_number;
+      // 5 min break, + (duration + 5 min break) for each skipped lesson in-between
+      const minutesOffset = 5 + (gap - 1) * (duration + 5);
+      const smartStart = addMinutesToTime(prevLesson.end_time, minutesOffset);
+      if (smartStart) {
+        const smartEnd = addMinutesToTime(smartStart, duration);
+        if (smartEnd) {
+          return [smartStart, smartEnd];
+        }
+      }
+    }
+
+    const slot = bellSchedule[num];
+    if (slot) {
+      return [slot[0], slot[1]];
+    }
+    return ['08:00', '08:45'];
+  }
+
   function updateLessonTimes(lessonNum, force = false) {
     if (isCustomTime && !force) return;
-    const slot = bellSchedule[lessonNum];
-    if (slot) {
-      const startInput = document.getElementById('start_time');
-      const endInput = document.getElementById('end_time');
-      if (startInput) startInput.value = slot[0];
-      if (endInput) endInput.value = slot[1];
-    }
+    const daySelect = document.getElementById('day_of_week');
+    const subgroupSelect = document.getElementById('subgroup');
+    const dayNum = daySelect ? parseInt(daySelect.value, 10) : 1;
+    const curSubgroup = (subgroupSelect && subgroupSelect.value) ? parseInt(subgroupSelect.value, 10) : null;
+
+    const times = getSmartLessonTimes(dayNum, lessonNum, curSubgroup);
+    const startInput = document.getElementById('start_time');
+    const endInput = document.getElementById('end_time');
+    if (startInput) startInput.value = times[0];
+    if (endInput) endInput.value = times[1];
   }
 
   function checkSubgroupConflict(sub1, sub2) {
@@ -295,7 +378,7 @@
   function onSubgroupChange(subgroupVal) {
     const daySelect = document.getElementById('day_of_week');
     if (daySelect) {
-      refreshLessonFormForDay(daySelect.value, false);
+      refreshLessonFormForDay(daySelect.value, !isCustomTime);
     }
   }
 
@@ -331,8 +414,10 @@
     const lessonNum = parseInt(btn.dataset.lessonNumber, 10);
     const startTime = btn.dataset.startTime || '08:00';
     const endTime = btn.dataset.endTime || '08:45';
-    const defaultSlot = bellSchedule[lessonNum];
-    isEditCustomTime = !defaultSlot || defaultSlot[0] !== startTime || defaultSlot[1] !== endTime;
+    const dayNum = parseInt(btn.dataset.dayOfWeek || '1', 10);
+    const curSubgroup = btn.dataset.subgroup ? parseInt(btn.dataset.subgroup, 10) : null;
+    const smartTimes = getSmartLessonTimes(dayNum, lessonNum, curSubgroup, currentEditingLessonId);
+    isEditCustomTime = smartTimes[0] !== startTime || smartTimes[1] !== endTime;
 
     const form = document.getElementById('edit-lesson-form');
     if (form) form.action = '/schedule/' + currentEditingLessonId + '/edit';
@@ -434,22 +519,35 @@
 
   function onEditLessonNumberChange(num, force = false) {
     if (isEditCustomTime && !force) return;
-    const slot = bellSchedule[num];
-    if (slot) {
-      const startInput = document.getElementById('edit_start_time');
-      const endInput = document.getElementById('edit_end_time');
-      if (startInput) startInput.value = slot[0];
-      if (endInput) endInput.value = slot[1];
-      isEditCustomTime = false;
-    }
+    const daySelect = document.getElementById('edit_day_of_week');
+    const subgroupSelect = document.getElementById('edit_subgroup');
+    const dayNum = daySelect ? parseInt(daySelect.value, 10) : 1;
+    const curSubgroup = (subgroupSelect && subgroupSelect.value) ? parseInt(subgroupSelect.value, 10) : null;
+
+    const times = getSmartLessonTimes(dayNum, parseInt(num, 10), curSubgroup, currentEditingLessonId);
+    const startInput = document.getElementById('edit_start_time');
+    const endInput = document.getElementById('edit_end_time');
+    if (startInput) startInput.value = times[0];
+    if (endInput) endInput.value = times[1];
+    isEditCustomTime = false;
     validateEditTimesLive();
   }
 
   function onEditDayOfWeekChange(dayNum) {
+    if (!isEditCustomTime) {
+      const lessonSelect = document.getElementById('edit_lesson_number');
+      const num = lessonSelect ? parseInt(lessonSelect.value, 10) : 1;
+      onEditLessonNumberChange(num, true);
+    }
     validateEditTimesLive();
   }
 
   function onEditSubgroupChange(val) {
+    if (!isEditCustomTime) {
+      const lessonSelect = document.getElementById('edit_lesson_number');
+      const num = lessonSelect ? parseInt(lessonSelect.value, 10) : 1;
+      onEditLessonNumberChange(num, true);
+    }
     validateEditTimesLive();
   }
 
@@ -532,11 +630,51 @@
     }
   }
 
+  var isCloningLesson = false;
+
+  async function cloneLessonWithOtherSubgroup(lessonId) {
+    if (!lessonId || isCloningLesson) return;
+    isCloningLesson = true;
+
+    const cloneBtn = document.getElementById('btn-clone-lesson-' + lessonId);
+    if (cloneBtn) cloneBtn.classList.add('opacity-50', 'pointer-events-none');
+
+    try {
+      const resp = await fetch('/schedule/' + lessonId + '/clone', {
+        method: 'POST',
+        headers: { 'Accept': 'application/json' }
+      });
+      const data = await resp.json().catch(function() { return {}; });
+      if (resp.ok) {
+        if (data.days && Object.keys(data.days).length > 0) {
+          for (const d in data.days) {
+            applyDayUpdate(parseInt(d, 10), data.days[d].html, data.days[d].count, data.days[d].schedule_data);
+          }
+        }
+        const daySelect = document.getElementById('day_of_week');
+        if (daySelect) {
+          refreshLessonFormForDay(daySelect.value);
+        }
+      } else {
+        const msg = (data && data.detail) || 'Не удалось клонировать урок';
+        alert(typeof msg === 'string' ? msg : JSON.stringify(msg));
+      }
+    } catch (e) {
+      alert('Ошибка сети при клонировании урока');
+    } finally {
+      isCloningLesson = false;
+      if (cloneBtn) cloneBtn.classList.remove('opacity-50', 'pointer-events-none');
+    }
+  }
+
   function openAddLessonModal() {
     isCustomTime = false;
     openModal('add-lesson-modal');
     const daySelect = document.getElementById('day_of_week');
     if (daySelect) {
+      if (window.innerWidth < 768 && currentMobileActiveDay) {
+        daySelect.value = currentMobileActiveDay;
+      }
       refreshLessonFormForDay(daySelect.value, true);
     }
   }
@@ -684,10 +822,21 @@
               }
             }
             closeModal('add-lesson-modal');
-            form.reset();
             const daySelect = document.getElementById('day_of_week');
+            const submittedDay = formData.get('day_of_week');
+            form.reset();
+            if (submittedDay) {
+              const dayInt = parseInt(submittedDay, 10);
+              currentMobileActiveDay = dayInt;
+              if (window.innerWidth < 768) {
+                switchMobileDay(dayInt);
+              }
+              if (daySelect) {
+                daySelect.value = submittedDay;
+              }
+            }
             if (daySelect) {
-              refreshLessonFormForDay(daySelect.value);
+              refreshLessonFormForDay(daySelect.value, true);
             }
           } else {
             const data = await resp.json().catch(function() { return {}; });
@@ -876,7 +1025,7 @@
 
         <div>
           <label for="edit_lesson_number" class="block text-xs font-medium text-zinc-300 mb-1">Номер урока *</label>
-          <select id="edit_lesson_number" name="lesson_number" required onchange="onEditLessonNumberChange(this.value)"
+          <select id="edit_lesson_number" name="lesson_number" required onchange="onEditLessonNumberChange(this.value, true)"
                   class="w-full bg-[#121214] border border-zinc-700/80 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:ring-1 focus:ring-emerald-500">
             {% for num in range(1, 9) %}
             <option value="{{ num }}">{{ num }}-й урок</option>
@@ -926,13 +1075,15 @@
       </div>
 
       <div class="flex items-center justify-between pt-3 border-t border-zinc-800">
-        <button type="button" id="edit-lesson-delete-btn" onclick="deleteCurrentEditingLesson()"
-                class="inline-flex items-center gap-1.5 text-xs font-medium text-rose-400 hover:text-rose-300 transition py-1 px-2 rounded-lg hover:bg-rose-500/10">
-          <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-          </svg>
-          <span>Удалить урок</span>
-        </button>
+        <div class="flex items-center space-x-2">
+          <button type="button" id="edit-lesson-delete-btn" onclick="deleteCurrentEditingLesson()"
+                  class="inline-flex items-center gap-1.5 text-xs font-medium text-rose-400 hover:text-rose-300 transition py-1 px-2 rounded-lg hover:bg-rose-500/10">
+            <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+            </svg>
+            <span>Удалить урок</span>
+          </button>
+        </div>
 
         <div class="flex items-center space-x-2.5">
           <button type="button" onclick="closeModal('edit-lesson-modal')"

@@ -18,16 +18,16 @@ class HomeworkStatus(str, Enum):
     DONE = "DONE"
 
 
-# Standard school bell schedule: 45 min lessons with breaks, starting at 08:00
+# Standard school bell schedule: 45 min lessons with 5 min breaks, starting at 08:00
 DEFAULT_BELL_SCHEDULE: Dict[int, Tuple[str, str]] = {
     1: ("08:00", "08:45"),
-    2: ("08:55", "09:40"),
-    3: ("09:55", "10:40"),
-    4: ("10:55", "11:40"),
-    5: ("11:55", "12:40"),
-    6: ("12:50", "13:35"),
-    7: ("13:45", "14:30"),
-    8: ("14:40", "15:25"),
+    2: ("08:50", "09:35"),
+    3: ("09:40", "10:25"),
+    4: ("10:30", "11:15"),
+    5: ("11:20", "12:05"),
+    6: ("12:10", "12:55"),
+    7: ("13:00", "13:45"),
+    8: ("13:50", "14:35"),
 }
 
 DAY_NAMES: Dict[int, str] = {

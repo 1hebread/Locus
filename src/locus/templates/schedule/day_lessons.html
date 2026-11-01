@@ -38,6 +38,44 @@
 
       {% if current_user.is_admin %}
       <div class="flex items-center space-x-1 shrink-0" onclick="event.stopPropagation()">
+        <!-- Clone with other subgroup button -->
+        {% set ns = namespace(can_clone=true) %}
+        {% if lesson.subgroup == 1 %}
+          {% set target_sub = 2 %}
+          {% for other in schedule_by_day[d_num] %}
+            {% if other.id != lesson.id and other.lesson_number == lesson.lesson_number and (other.week_type == 'all' or lesson.week_type == 'all' or other.week_type == lesson.week_type) and (other.subgroup == 2 or other.subgroup is none) %}
+              {% set ns.can_clone = false %}
+            {% endif %}
+          {% endfor %}
+        {% elif lesson.subgroup == 2 %}
+          {% set target_sub = 1 %}
+          {% for other in schedule_by_day[d_num] %}
+            {% if other.id != lesson.id and other.lesson_number == lesson.lesson_number and (other.week_type == 'all' or lesson.week_type == 'all' or other.week_type == lesson.week_type) and (other.subgroup == 1 or other.subgroup is none) %}
+              {% set ns.can_clone = false %}
+            {% endif %}
+          {% endfor %}
+        {% else %}
+          {# Whole-class lesson: converts to 1, clones to 2 #}
+          {% set target_sub = 2 %}
+          {% for other in schedule_by_day[d_num] %}
+            {% if other.id != lesson.id and other.lesson_number == lesson.lesson_number and (other.week_type == 'all' or lesson.week_type == 'all' or other.week_type == lesson.week_type) %}
+              {% set ns.can_clone = false %}
+            {% endif %}
+          {% endfor %}
+        {% endif %}
+
+        {% if ns.can_clone %}
+        <button type="button"
+                id="btn-clone-lesson-{{ lesson.id }}"
+                onclick="cloneLessonWithOtherSubgroup({{ lesson.id }})"
+                class="text-zinc-500 hover:text-emerald-400 p-1 transition"
+                title="Клонировать для {{ target_sub }}-й подгруппы">
+          <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+          </svg>
+        </button>
+        {% endif %}
+
         <!-- Settings / Edit button -->
         <button type="button"
                 id="btn-edit-lesson-{{ lesson.id }}"
