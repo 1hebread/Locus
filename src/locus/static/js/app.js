@@ -10,15 +10,272 @@ if ('serviceWorker' in navigator) {
     window.location.reload();
   });
 
-  window.addEventListener('load', () => {
-    navigator.serviceWorker.register('/static/sw.js', { updateViaCache: 'none' })
-      .then((reg) => {
-        reg.update();
-        console.log('Locus SW registered:', reg.scope);
-      })
-      .catch((err) => console.log('Locus SW registration failed:', err));
+  navigator.serviceWorker.register('/static/sw.js', { updateViaCache: 'none' })
+    .then((reg) => {
+      reg.update();
+      console.log('Locus SW registered:', reg.scope);
+    })
+    .catch((err) => console.log('Locus SW registration failed:', err));
+}
+
+// Web Push opt-in (homework change notifications)
+function urlBase64ToUint8Array(base64String) {
+  const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
+  const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+  const raw = atob(base64);
+  return Uint8Array.from([...raw].map((char) => char.charCodeAt(0)));
+}
+
+function setPushState(enabled) {
+  document.querySelectorAll('[data-push-toggle]').forEach((button) => {
+    button.classList.toggle('text-emerald-400', enabled);
+    button.classList.toggle('text-zinc-400', !enabled);
+    button.setAttribute('aria-pressed', enabled ? 'true' : 'false');
+    const title = enabled ? 'Уведомления включены' : 'Включить уведомления';
+    button.title = title;
+    button.setAttribute('aria-label', title);
+  });
+  document.querySelectorAll('[data-push-label]').forEach((label) => {
+    label.textContent = enabled ? 'Уведомления вкл.' : 'Уведомления';
   });
 }
+
+let isTogglingPush = false;
+
+async function togglePushNotifications() {
+  if (isTogglingPush) return;
+  isTogglingPush = true;
+
+  const hideButtons = () => {
+    document.querySelectorAll('[data-push-toggle]').forEach((btn) => btn.classList.add('hidden'));
+  };
+
+  try {
+    // Ask first: keep synchronous to prevent iOS from dropping user activation gesture
+    if (Notification.permission !== 'granted') {
+      if (Notification.permission === 'denied') {
+        alert('Уведомления заблокированы в настройках браузера. Разрешите их для Locus и попробуйте снова.');
+        hideButtons();
+        return;
+      }
+      const perm = await Notification.requestPermission();
+      if (perm === 'denied') {
+        hideButtons();
+        return;
+      }
+      if (perm !== 'granted') return;
+    }
+
+    // Permission is granted: hide button immediately
+    hideButtons();
+
+    const config = await loadPushConfig();
+    if (!config || !config.enabled) return;
+
+    const registration = await Promise.race([
+      navigator.serviceWorker.ready,
+      new Promise((_, reject) => setTimeout(() => reject(new Error('SW timeout')), 4000)),
+    ]);
+
+    let subscription = await registration.pushManager.getSubscription();
+    if (!subscription && config.public_key) {
+      subscription = await registration.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: urlBase64ToUint8Array(config.public_key),
+      });
+    }
+
+    if (subscription) {
+      const keys = subscription.toJSON().keys;
+      const response = await fetch('/push/subscribe', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ endpoint: subscription.endpoint, keys }),
+      });
+      if (response.ok) {
+        pushSubscribed = true;
+        pushSyncedThisSession = true;
+      }
+    }
+  } catch (error) {
+    console.warn('Push subscription failed:', error);
+  } finally {
+    isTogglingPush = false;
+  }
+}
+
+let pushConfigPromise = null;
+let pushSubscribed = false;
+let pushSyncedThisSession = false;
+let isRefreshingPushUI = false;
+
+function loadPushConfig() {
+  if (!pushConfigPromise) {
+    pushConfigPromise = fetch('/push/config')
+      .then((response) => (response.ok ? response.json() : null))
+      .catch(() => null)
+      .then((data) => {
+        if (!data) pushConfigPromise = null;
+        return data;
+      });
+  }
+  return pushConfigPromise;
+}
+
+// Runs on load and after client-side navigation, when the dock/sidebar markup is re-rendered
+async function refreshPushUI() {
+  if (isRefreshingPushUI) return;
+  isRefreshingPushUI = true;
+
+  try {
+    const buttons = document.querySelectorAll('[data-push-toggle]');
+    if (!buttons.length) return;
+
+    const hide = () => buttons.forEach((button) => button.classList.add('hidden'));
+    const show = () => buttons.forEach((button) => button.classList.remove('hidden'));
+
+    if (!('serviceWorker' in navigator)) return hide();
+
+    const config = await loadPushConfig();
+    const supported = 'PushManager' in window && 'Notification' in window;
+    const ios = /iphone|ipad|ipod/i.test(navigator.userAgent);
+    if (!config || !config.enabled || (!supported && !ios)) return hide();
+
+    // 1. Explicitly blocked in browser settings: hide per user request
+    if (supported && Notification.permission === 'denied') {
+      return hide();
+    }
+
+    // 2. Default ("Спрашивать"): user has not granted or denied notifications yet.
+    // The opt-in bell MUST be shown!
+    if (supported && Notification.permission === 'default') {
+      show();
+      return setPushState(false);
+    }
+
+    // 3. Granted ("Разрешено"):
+    if (supported && Notification.permission === 'granted') {
+      if (!ios) {
+        // Desktop / Android: notifications are permitted, hide the bell immediately
+        hide();
+        if (!pushSyncedThisSession) {
+          try {
+            const registration = await Promise.race([
+              navigator.serviceWorker.ready,
+              new Promise((_, reject) => setTimeout(() => reject(new Error('SW timeout')), 2500)),
+            ]);
+            let subscription = await registration.pushManager.getSubscription();
+            if (!subscription && config.public_key) {
+              subscription = await registration.pushManager.subscribe({
+                userVisibleOnly: true,
+                applicationServerKey: urlBase64ToUint8Array(config.public_key),
+              });
+            }
+            if (subscription) {
+              const keys = subscription.toJSON().keys;
+              const response = await fetch('/push/subscribe', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ endpoint: subscription.endpoint, keys }),
+              });
+              if (response.ok) {
+                pushSubscribed = true;
+                pushSyncedThisSession = true;
+              }
+            }
+          } catch (error) {
+            // Background sync error: keep bell hidden
+          }
+        }
+        return;
+      }
+
+      // iOS WebKit: subscribe() requires a user click.
+      // If a subscription already exists, hide the bell; otherwise show it so user can click.
+      try {
+        const registration = await Promise.race([
+          navigator.serviceWorker.ready,
+          new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 1500)),
+        ]);
+        const subscription = await registration.pushManager.getSubscription();
+        if (subscription) {
+          pushSubscribed = true;
+          hide();
+          if (!pushSyncedThisSession) {
+            const keys = subscription.toJSON().keys;
+            const response = await fetch('/push/subscribe', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ endpoint: subscription.endpoint, keys }),
+            });
+            if (response.ok) {
+              pushSyncedThisSession = true;
+            }
+          }
+          return;
+        }
+      } catch (error) {
+        // Timeout or error on iOS
+      }
+      show();
+      return setPushState(false);
+    }
+
+    // Fallback for iOS outside PWA
+    show();
+    setPushState(false);
+  } finally {
+    isRefreshingPushUI = false;
+  }
+}
+
+// Delegated: survives sidebar/dock re-rendering during client-side navigation
+document.addEventListener('click', (event) => {
+  const button = event.target.closest('[data-push-toggle]');
+  if (!button) return;
+  if ('PushManager' in window && 'Notification' in window) {
+    togglePushNotifications().catch(() => alert('Не удалось включить уведомления.'));
+  } else if (/iphone|ipad|ipod/i.test(navigator.userAgent)) {
+    alert('В iOS уведомления работают только в приложении: «Поделиться» → «На экран Домой», затем откройте Locus с иконки.');
+  }
+});
+
+// Drop this browser's push subscription before logging out (shared devices).
+// Delegated: the sidebar/menu forms are re-rendered during client-side navigation.
+document.addEventListener('submit', (event) => {
+  const form = event.target;
+  if (!(form instanceof HTMLFormElement) || form.getAttribute('action') !== '/auth/logout') return;
+  if (form.dataset.pushCleaned === '1' || !('serviceWorker' in navigator)) return;
+  event.preventDefault();
+
+  const finish = () => {
+    form.dataset.pushCleaned = '1';
+    form.submit();
+  };
+  const cleanup = navigator.serviceWorker.ready
+    .then((registration) => registration.pushManager.getSubscription())
+    .then(async (subscription) => {
+      if (!subscription) return;
+      const input = document.createElement('input');
+      input.type = 'hidden';
+      input.name = 'push_endpoint';
+      input.value = subscription.endpoint;
+      form.appendChild(input);
+      await subscription.unsubscribe();
+    });
+
+  // Never let a broken service worker block logout
+  Promise.race([cleanup, new Promise((resolve) => setTimeout(resolve, 3000))])
+    .catch(() => {})
+    .finally(finish);
+});
+
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', refreshPushUI);
+} else {
+  refreshPushUI();
+}
+window.addEventListener('load', refreshPushUI);
 
 // Modal helpers with smooth fade transitions
 const modalCloseTimeouts = new Map();
@@ -618,6 +875,8 @@ function syncNavigationState(doc) {
   if (newMobileMenu && curMobileMenu && !curMobileMenu.dataset.closing) {
     curMobileMenu.innerHTML = newMobileMenu.innerHTML;
   }
+
+  refreshPushUI();
 }
 
 // Remember the selected dashboard date across section switches

@@ -33,6 +33,37 @@ self.addEventListener('activate', (event) => {
   self.clients.claim();
 });
 
+self.addEventListener('push', (event) => {
+  let data = {};
+  try {
+    data = event.data ? event.data.json() : {};
+  } catch (e) {
+    // malformed payload: show a generic notification instead of dropping it
+  }
+  event.waitUntil(
+    self.registration.showNotification(data.title || 'Locus', {
+      body: data.body || '',
+      icon: '/static/icons/icon-192.png',
+      badge: '/static/icons/icon-192.png',
+      tag: data.tag || 'locus-homework',
+      data: { url: data.url || '/homework' }
+    })
+  );
+});
+
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+  const target = new URL((event.notification.data && event.notification.data.url) || '/homework', self.location.origin).href;
+  event.waitUntil(
+    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clients) => {
+      for (const client of clients) {
+        if (client.url === target) return client.focus();
+      }
+      return self.clients.openWindow(target);
+    })
+  );
+});
+
 self.addEventListener('fetch', (event) => {
   // Network-first for static assets with cache fallback.
   // no-store bypasses the browser HTTP cache so a PWA never sticks to stale JS/CSS.

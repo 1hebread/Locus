@@ -1,6 +1,6 @@
 from datetime import date, timedelta
 from typing import Optional
-from fastapi import APIRouter, Depends, Form, HTTPException, Query, Request
+from fastapi import APIRouter, BackgroundTasks, Depends, Form, HTTPException, Query, Request
 from fastapi.responses import HTMLResponse
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -39,6 +39,7 @@ from locus.models.lesson import Lesson
 from locus.models.subject import Subject
 from locus.models.user import User
 from locus.models.vacation import Vacation
+from locus.push import notify_homework_change
 from locus.templates_config import templates
 
 router = APIRouter(tags=["Dashboard"])
@@ -460,6 +461,7 @@ async def get_lesson_modal(
 async def save_lesson_homework(
     lesson_id: int,
     request: Request,
+    background: BackgroundTasks,
     date_str: Optional[str] = Query(default=None, alias="date"),
     date_form: Optional[str] = Form(default=None, alias="date"),
     hw_id: Optional[int] = Form(default=None),
@@ -521,6 +523,9 @@ async def save_lesson_homework(
     if action == "delete":
         if hw:
             deleted_hw_id = hw.id
+            notify_homework_change(
+                background, current_user, ACTION_DELETED, hw.id, hw.title, lesson.subject.name, hw.subgroup, hw.due_date
+            )
             log_homework_event(
                 db, current_user, ACTION_DELETED, None, snapshot_changes(hw, deleted=True)
             )
@@ -530,6 +535,9 @@ async def save_lesson_homework(
         # If title is cleared -> delete ("пустое, значит ничего не задано")
         if not clean_title:
             deleted_hw_id = hw.id
+            notify_homework_change(
+                background, current_user, ACTION_DELETED, hw.id, hw.title, lesson.subject.name, hw.subgroup, hw.due_date
+            )
             log_homework_event(
                 db, current_user, ACTION_DELETED, None, snapshot_changes(hw, deleted=True)
             )
@@ -550,6 +558,10 @@ async def save_lesson_homework(
             if was_unassigned:
                 unassigned_removed_id = hw.id
             await db.commit()
+            if changes:
+                notify_homework_change(
+                    background, current_user, ACTION_UPDATED, hw.id, hw.title, lesson.subject.name, hw.subgroup, hw.due_date
+                )
     elif clean_title:
         if target_date.isoweekday() == 7:
             raise HTTPException(status_code=400, detail="Нельзя записать домашнее задание на воскресенье")
@@ -567,6 +579,9 @@ async def save_lesson_homework(
             db, current_user, ACTION_CREATED, new_hw.id, snapshot_changes(new_hw)
         )
         await db.commit()
+        notify_homework_change(
+            background, current_user, ACTION_CREATED, new_hw.id, new_hw.title, lesson.subject.name, new_hw.subgroup, new_hw.due_date
+        )
 
     # Re-fetch single homework for this lesson
     hw_stmt = (

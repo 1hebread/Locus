@@ -155,6 +155,17 @@
 
     <!-- Sidebar Footer -->
     <div class="pt-4 border-t border-zinc-800/60 text-xs text-zinc-400">
+      <button type="button"
+              data-push-toggle
+              class="hidden w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-zinc-400 hover:text-white hover:bg-zinc-800/60 transition"
+              title="Включить уведомления"
+              aria-label="Включить уведомления"
+              aria-pressed="false">
+        <span data-push-label>Уведомления</span>
+        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+        </svg>
+      </button>
       <form action="/auth/logout" method="post">
         <button type="submit" class="w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl hover:text-rose-400 hover:bg-rose-500/10 transition" title="Выйти">
           <span>Выйти</span>
@@ -178,7 +189,7 @@
   </div>
 
   {% if current_user %}
-  <!-- Mobile Floating Bottom Navigation Dock (3 buttons: Расписание, ДЗ, Меню) -->
+  <!-- Mobile Floating Bottom Navigation Dock (4 buttons: Расписание, ДЗ, Уведомления, Меню) -->
   <nav id="mobile-bottom-nav" class="md:hidden fixed bottom-5 left-0 right-0 z-40 px-4 pointer-events-none select-none flex justify-center pb-[env(safe-area-inset-bottom,0px)]">
     <div class="pointer-events-auto w-full max-w-[240px] bg-black/90 backdrop-blur-xl border border-zinc-800 rounded-full shadow-2xl shadow-black p-1.5 flex items-center justify-between gap-1">
       <!-- 1. Расписание -->
@@ -208,7 +219,19 @@
         </svg>
       </a>
 
-      <!-- 3. Меню -->
+      <!-- 3. Уведомления -->
+      <button type="button"
+              data-push-toggle
+              class="hidden dock-btn flex-1 h-11 rounded-full flex items-center justify-center transition-all duration-300 ease-in-out text-zinc-400 hover:text-white bg-transparent"
+              title="Включить уведомления"
+              aria-label="Включить уведомления"
+              aria-pressed="false">
+        <svg class="w-6 h-6 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+        </svg>
+      </button>
+
+      <!-- 4. Меню -->
       <button onclick="openModal('mobile-menu-modal')"
               type="button"
               class="dock-btn flex-1 h-11 rounded-full flex items-center justify-center transition-all duration-300 ease-in-out text-zinc-400 hover:text-white bg-transparent"

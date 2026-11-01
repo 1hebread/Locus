@@ -2,12 +2,13 @@ import logging
 
 from fastapi import APIRouter, Depends, Form, Request, Response, status
 from fastapi.responses import HTMLResponse, RedirectResponse
-from sqlalchemy import func, select
+from sqlalchemy import delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from locus.api.deps import get_current_user_optional
 from locus.config import get_settings
 from locus.database import get_db
+from locus.models.push_subscription import PushSubscription
 from locus.models.user import User
 from locus.rate_limiter import (
     check_login_rate_limit,
@@ -126,12 +127,21 @@ async def handle_login(
 
 @router.post("/auth/logout")
 async def handle_logout(
+    push_endpoint: str | None = Form(default=None),
     current_user: User | None = Depends(get_current_user_optional),
     db: AsyncSession = Depends(get_db),
 ):
     # Bump the version so the cookie's token cannot be replayed after logout
     if current_user and not getattr(current_user, "api_key_name", None):
         current_user.token_version = (current_user.token_version or 0) + 1
+        # Browser sends its own endpoint so other devices stay subscribed
+        if push_endpoint:
+            await db.execute(
+                delete(PushSubscription).where(
+                    PushSubscription.user_id == current_user.id,
+                    PushSubscription.endpoint == push_endpoint,
+                )
+            )
         await db.commit()
     response = RedirectResponse(url="/login", status_code=status.HTTP_303_SEE_OTHER)
     response.delete_cookie(settings.COOKIE_NAME)

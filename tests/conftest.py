@@ -1,13 +1,25 @@
+import os
+
+# Ensure tests run hermetically isolated from developer's local .env
+os.environ["DATABASE_URL"] = "sqlite+aiosqlite:///:memory:"
+os.environ["VAPID_PUBLIC_KEY"] = ""
+os.environ["VAPID_PRIVATE_KEY"] = ""
+
 import pytest
 import pytest_asyncio
 from httpx import ASGITransport, AsyncClient
+from sqlalchemy import event
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
+import locus.database as db_module
+import locus.homework_cleanup as cleanup_module
+import locus.main as main_module
+import locus.push as push_module
 from locus.config import get_settings
 from locus.database import Base, get_db
 from locus.main import app
-from locus.models.user import User
 from locus.models.subject import Subject
+from locus.models.user import User
 from locus.security import create_access_token, get_password_fingerprint, hash_password
 
 # Test database using in-memory SQLite
@@ -17,8 +29,6 @@ test_engine = create_async_engine(
     TEST_DATABASE_URL,
     connect_args={"check_same_thread": False},
 )
-
-from sqlalchemy import event
 
 @event.listens_for(test_engine.sync_engine, "connect")
 def _set_sqlite_pragma(dbapi_connection, connection_record):
@@ -33,6 +43,13 @@ TestAsyncSession = async_sessionmaker(
     autocommit=False,
     autoflush=False,
 )
+
+# Bind all module-level database engines and session factories to the test engine
+db_module.engine = test_engine
+db_module.async_session_maker = TestAsyncSession
+push_module.async_session_maker = TestAsyncSession
+main_module.async_session_maker = TestAsyncSession
+cleanup_module.async_session_maker = TestAsyncSession
 
 
 @pytest_asyncio.fixture(scope="function")

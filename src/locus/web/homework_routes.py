@@ -1,6 +1,6 @@
 from datetime import date, timedelta
 from typing import Optional
-from fastapi import APIRouter, Depends, Form, HTTPException, Query, Request, Response, status
+from fastapi import APIRouter, BackgroundTasks, Depends, Form, HTTPException, Query, Request, Response, status
 from fastapi.responses import HTMLResponse, RedirectResponse
 from sqlalchemy import and_, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -23,6 +23,7 @@ from locus.models.lesson import Lesson
 from locus.models.subject import Subject
 from locus.models.user import User
 from locus.models.vacation import Vacation
+from locus.push import notify_homework_change
 from locus.templates_config import templates
 
 router = APIRouter(prefix="/homework", tags=["Web Homework"])
@@ -142,6 +143,7 @@ async def homework_page(
 
 @router.post("")
 async def create_homework_web(
+    background: BackgroundTasks,
     subject_id: int = Form(...),
     title: str = Form(...),
     due_date: str = Form(...),
@@ -222,6 +224,9 @@ async def create_homework_web(
     await set_status(db, hw.id, current_user.id, HomeworkStatus.TODO.value)
     log_homework_event(db, current_user, ACTION_CREATED, hw.id, snapshot_changes(hw))
     await db.commit()
+    notify_homework_change(
+        background, current_user, ACTION_CREATED, hw.id, hw.title, subject.name, hw.subgroup, hw.due_date
+    )
 
     target_url = return_url if return_url and return_url.startswith("/") else "/homework"
     return RedirectResponse(url=target_url, status_code=status.HTTP_303_SEE_OTHER)
@@ -284,6 +289,7 @@ async def toggle_homework_status(
 @router.delete("/{hw_id}")
 async def delete_homework_web(
     hw_id: int,
+    background: BackgroundTasks,
     current_user: User = Depends(get_current_user_web),
     db: AsyncSession = Depends(get_db),
 ):
@@ -292,6 +298,10 @@ async def delete_homework_web(
         if not current_user.is_admin and current_user.subgroup is not None:
             if hw.subgroup is not None and hw.subgroup != current_user.subgroup:
                 raise HTTPException(status_code=403, detail="Нельзя удалить задание чужой подгруппы")
+        subject = await db.get(Subject, hw.subject_id)
+        notify_homework_change(
+            background, current_user, ACTION_DELETED, hw.id, hw.title, subject.name if subject else "", hw.subgroup, hw.due_date
+        )
         log_homework_event(
             db, current_user, ACTION_DELETED, None, snapshot_changes(hw, deleted=True)
         )

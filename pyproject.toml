@@ -17,10 +17,12 @@ dependencies = [
     "bcrypt>=4.2.0",
     "greenlet>=3.0.0",
     "cryptography>=50.0.2",
+    "pywebpush>=2.5.0",
 ]
 
 [project.scripts]
 locus = "locus.main:run"
+locus-vapid = "locus.vapid:main"
 
 [project.optional-dependencies]
 dev = [

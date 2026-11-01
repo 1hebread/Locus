@@ -1,6 +1,6 @@
 from datetime import date
 from typing import List, Optional
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, status
 from sqlalchemy import and_, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -23,6 +23,7 @@ from locus.models.homework_completion import HomeworkCompletion
 from locus.models.lesson import Lesson
 from locus.models.subject import Subject
 from locus.models.user import User
+from locus.push import notify_homework_change
 from locus.schemas.homework import (
     HomeworkCreate,
     HomeworkOut,
@@ -103,6 +104,7 @@ async def list_homework(
 @router.post("", response_model=HomeworkOut, status_code=status.HTTP_201_CREATED)
 async def create_homework(
     data: HomeworkCreate,
+    background: BackgroundTasks,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
@@ -165,6 +167,9 @@ async def create_homework(
     await set_status(db, hw.id, current_user.id, data.status.value)
     log_homework_event(db, current_user, ACTION_CREATED, hw.id, snapshot_changes(hw))
     await db.commit()
+    notify_homework_change(
+        background, current_user, ACTION_CREATED, hw.id, hw.title, subject.name, hw.subgroup, hw.due_date
+    )
 
     stmt = (
         select(Homework)
@@ -206,6 +211,7 @@ async def get_homework(
 async def update_homework(
     hw_id: int,
     data: HomeworkUpdate,
+    background: BackgroundTasks,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
@@ -306,7 +312,12 @@ async def update_homework(
     await db.commit()
 
     res = await db.execute(stmt)
-    return await attach_status(db, res.scalar_one(), current_user.id)
+    hw = res.scalar_one()
+    if changes:
+        notify_homework_change(
+            background, current_user, ACTION_UPDATED, hw.id, hw.title, hw.subject.name, hw.subgroup, hw.due_date
+        )
+    return await attach_status(db, hw, current_user.id)
 
 
 @router.patch("/{hw_id}/status", response_model=HomeworkOut)
@@ -346,6 +357,7 @@ async def update_homework_status(
 @router.delete("/{hw_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_homework(
     hw_id: int,
+    background: BackgroundTasks,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
@@ -363,6 +375,10 @@ async def delete_homework(
             detail="Нельзя удалить задание чужой подгруппы",
         )
 
+    subject = await db.get(Subject, hw.subject_id)
+    notify_homework_change(
+        background, current_user, ACTION_DELETED, hw.id, hw.title, subject.name if subject else "", hw.subgroup, hw.due_date
+    )
     log_homework_event(
         db, current_user, ACTION_DELETED, None, snapshot_changes(hw, deleted=True)
     )

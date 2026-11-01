@@ -17,6 +17,10 @@ class Settings(BaseSettings):
     PORT: int = 8010
     TIMEZONE: str = "Asia/Almaty"
     HOMEWORK_RETENTION_DAYS: int = Field(default=30, ge=1)
+    # Web Push is disabled while either key is empty; generate both with `uv run locus-vapid`
+    VAPID_PUBLIC_KEY: str = ""
+    VAPID_PRIVATE_KEY: str = ""
+    VAPID_SUBJECT: str = "mailto:admin@example.com"
     CORS_ORIGINS: str = ""
     # Enable only if the reverse proxy connects from a public address
     TRUST_PROXY_HEADERS: bool = False
@@ -31,6 +35,10 @@ class Settings(BaseSettings):
     def validate_production_settings(self) -> "Settings":
         if self.SECRET_KEY:
             self.SECRET_KEY = self.SECRET_KEY.strip()
+        # Empty env vars would otherwise override these defaults with ""
+        self.VAPID_PUBLIC_KEY = self.VAPID_PUBLIC_KEY.strip()
+        self.VAPID_PRIVATE_KEY = self.VAPID_PRIVATE_KEY.strip()
+        self.VAPID_SUBJECT = self.VAPID_SUBJECT.strip() or "mailto:admin@example.com"
         if self.is_production:
             if (
                 not self.SECRET_KEY

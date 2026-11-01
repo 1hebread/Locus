@@ -12,6 +12,7 @@
 - **Единый дневник и расписание**: просмотр уроков по дням недели, время звонков, кабинеты, имена учителей, учет перемен. Расписание и предметы общие для всех пользователей школы/класса и управляются администратором (`is_admin`).
 - **Общий пул ДЗ и персональный трекинг**: задания общие для всех пользователей (любой может добавлять, редактировать или удалять их), а статусы выполнения (`TODO` / `DONE`) хранятся персонально для каждого пользователя в таблице `homework_completions`.
 - **Журнал изменений ДЗ**: создание, правка и удаление заданий пишутся в `homework_events` (кто, когда, какие поля изменились). В модалке урока показывается последний изменивший, полная история доступна админу на `/admin/history`.
+- **Push-уведомления (Web Push)**: создание, правка и удаление ДЗ отправляются подписанным браузерам/PWA (всем активным пользователям, кроме автора, с учётом подгрупп). Подписки хранятся в `push_subscriptions`, ключи VAPID задаются через `VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY` (генерация — `uv run locus-vapid`). Без ключей push отключён.
 - **Публичный API**: REST `/api/v1` с JWT или API-ключом (`Authorization: Bearer lk_…`), документация — `docs/api.md` (Swagger `/docs` доступен только в development). Ключи создаются админом на `/admin/api-keys` и действуют от имени выбранного пользователя; сводка на день — `GET /api/v1/summary?date=YYYY-MM-DD`.
 - **PWA и мобильный фокус**: адаптивный интерфейс с чистым AMOLED-дизайном (`#000000`), плавными микроанимациями, динамической плавающей навигацией (Dock) и PWA-манифестом.
 - **Гибридный рендеринг**: Server-Side Rendering (SSR) через Jinja2 + реактивные частичные обновления через HTMX без необходимости в тяжелых SPA-фреймворках.
@@ -58,6 +59,8 @@
 │       ├── homework_audit.py     # Журнал изменений ДЗ (создание/правка/удаление)
 │       ├── homework_cleanup.py   # Автоочистка старых ДЗ (HOMEWORK_RETENTION_DAYS)
 │       ├── lesson_suggestion.py  # Автоподстановка следующего урока
+│       ├── push.py               # Отправка Web Push о изменениях ДЗ (фоновые задачи)
+│       ├── vapid.py              # Генерация ключей VAPID (`uv run locus-vapid`)
 │       ├── security.py           # Хеширование паролей (bcrypt), JWT, генерация/хеш API-ключей
 │       ├── templates_config.py   # Конфигурация Jinja2Templates и кастомных фильтров
 │       ├── api/                  # REST API эндпоинты (/api/v1)
@@ -75,6 +78,7 @@
 │       │   ├── homework.py       # Модель Homework (id, subject_id, lesson_id, title, due_date)
 │       │   ├── homework_completion.py # Модель HomeworkCompletion (id, homework_id, user_id, status)
 │       │   ├── homework_event.py # Модель HomeworkEvent (журнал изменений ДЗ)
+│       │   ├── push_subscription.py # Модель PushSubscription (подписка браузера/PWA)
 │       │   └── api_key.py        # Модель ApiKey (хеш ключа, привязка к пользователю)
 │       ├── schemas/              # Pydantic-схемы запросов и ответов
 │       │   ├── auth.py
@@ -101,6 +105,7 @@
 │           ├── admin_routes.py
 │           ├── dashboard_routes.py
 │           ├── homework_routes.py
+│           ├── push_routes.py    # Подписка/отписка Web Push и выдача VAPID-ключа
 │           ├── schedule_routes.py
 │           └── subjects_routes.py
 └── tests/                        # Тесты pytest
@@ -111,6 +116,7 @@
     ├── test_homework.py
     ├── test_homework_audit.py
     ├── test_homework_cleanup.py
+    ├── test_push.py
     ├── test_schedule.py
     └── test_web.py
 ```
