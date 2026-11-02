@@ -72,17 +72,6 @@ async def dashboard_index(
     )
     weekend_days = set(weekend_res.scalars().all())
 
-    # Check if today falls into any vacation period
-    today_vac_res = await db.execute(
-        select(Vacation)
-        .where(
-            Vacation.start_date <= today,
-            Vacation.end_date >= today,
-        )
-        .limit(1)
-    )
-    today_vacation = today_vac_res.scalars().first()
-
     if date_str:
         try:
             selected_date = date.fromisoformat(date_str)
@@ -93,18 +82,14 @@ async def dashboard_index(
 
     if selected_date is None:
         # Default date when not explicitly requested:
-        # If today is in a vacation, stay on today to display the vacation banner.
-        # Otherwise if today is weekend without lessons, advance to Sunday (if it has lessons) or next Monday.
-        if today_vacation:
-            selected_date = today
+        # If today is weekend without lessons, advance to Sunday (if it has lessons) or next Monday.
+        dow = today.isoweekday()
+        if dow == 6 and 6 not in weekend_days:
+            selected_date = today + timedelta(days=1) if 7 in weekend_days else today + timedelta(days=2)
+        elif dow == 7 and 7 not in weekend_days:
+            selected_date = today + timedelta(days=1)
         else:
-            dow = today.isoweekday()
-            if dow == 6 and 6 not in weekend_days:
-                selected_date = today + timedelta(days=1) if 7 in weekend_days else today + timedelta(days=2)
-            elif dow == 7 and 7 not in weekend_days:
-                selected_date = today + timedelta(days=1)
-            else:
-                selected_date = today
+            selected_date = today
 
     day_weekday = selected_date.isoweekday()  # 1 = Mon .. 7 = Sun
 
@@ -284,7 +269,6 @@ async def dashboard_index(
         if d["day_num"] <= 5
         or d["day_num"] in weekend_days
         or d["is_selected"]
-        or d["vacation"] is not None
         or bool(hw_by_date.get(d["date"]))
     ]
 

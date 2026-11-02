@@ -965,7 +965,7 @@ async def test_vacation_web_crud(
 
 
 @pytest.mark.asyncio
-async def test_dashboard_vacation_banner_and_weekend_stay(
+async def test_dashboard_vacation_banner_and_weekend_advances_to_monday(
     client: AsyncClient,
     test_user: User,
     auth_token: str,
@@ -993,13 +993,13 @@ async def test_dashboard_vacation_banner_and_weekend_stay(
     monkeypatch.setattr("locus.web.dashboard_routes.get_current_date", lambda: saturday)
     monkeypatch.setattr("locus.constants.get_current_date", lambda: saturday)
 
-    # 1. Visiting / during vacation does NOT skip to Monday, stays on Saturday
+    # 1. Visiting / during vacation on weekend advances to Monday (2026-10-26)
     res = await client.get("/")
     assert res.status_code == 200
-    assert "Суббота" in res.text
-    assert "24 октября" in res.text
+    assert "Понедельник" in res.text
+    assert "26 октября" in res.text
 
-    # 2. Compact vacation notice is rendered
+    # 2. Compact vacation notice is rendered on Monday
     assert "Осенние каникулы" in res.text
     assert "24.10.2026 — 01.11.2026" in res.text
     assert "уроков нет" in res.text.lower()
@@ -1007,7 +1007,7 @@ async def test_dashboard_vacation_banner_and_weekend_stay(
     # 3. Quick action for next lesson is not offered
     assert "Записать ДЗ для текущего урока" not in res.text
 
-    # 4. Homework assigned on a vacation day is visible under "Задания на каникулы"
+    # 4. Explicitly visiting Saturday shows homework under "Задания на каникулы"
     from locus.models.subject import Subject
     subj = Subject(name="Литература")
     db_session.add(subj)
@@ -1020,8 +1020,10 @@ async def test_dashboard_vacation_banner_and_weekend_stay(
         due_date=saturday,
     )
 
-    res_hw = await client.get("/")
+    res_hw = await client.get("/?date=2026-10-24")
     assert res_hw.status_code == 200
+    assert "Суббота" in res_hw.text
+    assert "24 октября" in res_hw.text
     assert "Задания на каникулы" in res_hw.text
     assert "Прочитать повесть на каникулах" in res_hw.text
 
@@ -1620,3 +1622,75 @@ async def test_clone_lesson_web(
     res_page = await client.get("/schedule")
     assert res_page.status_code == 200
     assert 'id="edit-lesson-clone-btn"' not in res_page.text
+
+
+@pytest.mark.asyncio
+async def test_vacation_spanning_weekend_does_not_show_weekend_tabs(
+    client: AsyncClient,
+    test_user: User,
+    auth_token: str,
+    test_subject: Subject,
+    db_session,
+    monkeypatch,
+):
+    """Vacations covering Saturday and Sunday should not force weekend tabs/panes on desktop."""
+    from datetime import date
+    from locus.config import get_settings
+    from locus.models.lesson import Lesson
+    from locus.models.vacation import Vacation
+
+    settings = get_settings()
+    client.cookies.set(settings.COOKIE_NAME, auth_token)
+
+    # Vacation covering Monday 2026-10-26 through Sunday 2026-11-01
+    vac = Vacation(
+        name="Осенние каникулы",
+        start_date=date(2026, 10, 26),
+        end_date=date(2026, 11, 1),
+    )
+    db_session.add(vac)
+    await db_session.commit()
+
+    monday = date(2026, 10, 26)
+    monkeypatch.setattr("locus.web.dashboard_routes.get_current_date", lambda: monday)
+    monkeypatch.setattr("locus.constants.get_current_date", lambda: monday)
+
+    res = await client.get("/?date=2026-10-26")
+    assert res.status_code == 200
+
+    # Weekday panes exist
+    assert 'data-day-tab="2026-10-26"' in res.text
+    assert 'data-day-tab="2026-10-30"' in res.text
+    assert 'id="desktop-day-pane-2026-10-26"' in res.text
+    assert 'id="desktop-day-pane-2026-10-30"' in res.text
+
+    # Weekend panes/tabs must NOT appear simply due to vacation
+    assert 'data-day-tab="2026-10-31"' not in res.text
+    assert 'data-day-tab="2026-11-01"' not in res.text
+    assert 'id="desktop-day-pane-2026-10-31"' not in res.text
+    assert 'id="desktop-day-pane-2026-11-01"' not in res.text
+
+    # But if explicitly selected (?date=2026-10-31), Saturday appears
+    res_sat = await client.get("/?date=2026-10-31")
+    assert res_sat.status_code == 200
+    assert 'data-day-tab="2026-10-31"' in res_sat.text
+    assert 'id="desktop-day-pane-2026-10-31"' in res_sat.text
+    # Sunday is still not selected and must not appear
+    assert 'data-day-tab="2026-11-01"' not in res_sat.text
+    assert 'id="desktop-day-pane-2026-11-01"' not in res_sat.text
+
+    # If Sunday has a scheduled lesson, it should appear
+    sunday_lesson = Lesson(
+        subject_id=test_subject.id,
+        day_of_week=7,
+        lesson_number=1,
+        start_time="10:00",
+        end_time="10:45",
+    )
+    db_session.add(sunday_lesson)
+    await db_session.commit()
+
+    res_with_lesson = await client.get("/?date=2026-10-26")
+    assert res_with_lesson.status_code == 200
+    assert 'data-day-tab="2026-11-01"' in res_with_lesson.text
+    assert 'id="desktop-day-pane-2026-11-01"' in res_with_lesson.text
