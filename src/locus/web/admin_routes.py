@@ -1,3 +1,4 @@
+from datetime import date, datetime
 import re
 from fastapi import APIRouter, Depends, Form, Request, status
 from fastapi.responses import HTMLResponse, RedirectResponse
@@ -11,6 +12,7 @@ from locus.constants import DAY_SHORT_NAMES
 from locus.database import get_db
 from locus.homework_audit import local_datetime
 from locus.models.api_key import ApiKey
+from locus.models.homework import Homework
 from locus.models.homework_completion import HomeworkCompletion
 from locus.models.homework_event import HomeworkEvent
 from locus.models.lesson import Lesson
@@ -368,10 +370,11 @@ ACTION_LABELS = {
 FIELD_LABELS = {
     "subject_id": "Предмет",
     "lesson_id": "Урок",
-    "title": "Текст",
-    "due_date": "Срок",
+    "due_date": "Дата",
     "subgroup": "Подгруппа",
+    "title": "Текст",
 }
+FIELD_ORDER = ("subject_id", "due_date", "lesson_id", "subgroup", "title")
 
 
 def _display_value(
@@ -386,6 +389,17 @@ def _display_value(
         return subject_names.get(value, f"#{value}")
     if field == "lesson_id":
         return lesson_names.get(value, f"урок #{value}")
+    if field == "due_date":
+        if isinstance(value, str):
+            try:
+                d = date.fromisoformat(value)
+                return d.strftime("%d.%m.%Y")
+            except ValueError:
+                return str(value)
+        elif isinstance(value, date):
+            return value.strftime("%d.%m.%Y")
+    if field == "subgroup":
+        return f"{value} подгруппа"
     return str(value)
 
 
@@ -403,14 +417,55 @@ async def history_page(
     events = list(result.scalars().all())
     subject_names = dict((await db.execute(select(Subject.id, Subject.name))).all())
 
+    # 1. Fetch live homeworks as fallback for legacy events that didn't persist subject/date
+    hw_ids = {event.homework_id for event in events if event.homework_id is not None}
+    homeworks_by_id: dict[int, Homework] = {}
+    if hw_ids:
+        hw_rows = (
+            await db.execute(
+                select(Homework).where(Homework.id.in_(hw_ids))
+            )
+        ).scalars().all()
+        homeworks_by_id = {hw.id: hw for hw in hw_rows}
+
+    # 2. Build fallback context map per homework_id for legacy update events
+    hw_context: dict[int, dict[str, Any]] = {}
+    for event in events:
+        if not event.homework_id:
+            continue
+        ctx = hw_context.setdefault(event.homework_id, {})
+        ch = event.changes or {}
+        if "subject_id" in ch and "subject_id" not in ctx:
+            vals = ch["subject_id"]
+            if isinstance(vals, (list, tuple)) and len(vals) >= 1:
+                val = vals[1] if len(vals) >= 2 and vals[1] is not None else vals[0]
+                if val is not None:
+                    ctx["subject_id"] = val
+        if "due_date" in ch and "due_date" not in ctx:
+            vals = ch["due_date"]
+            if isinstance(vals, (list, tuple)) and len(vals) >= 1:
+                val = vals[1] if len(vals) >= 2 and vals[1] is not None else vals[0]
+                if val is not None:
+                    ctx["due_date"] = val
+
+    for hw_id, hw in homeworks_by_id.items():
+        ctx = hw_context.setdefault(hw_id, {})
+        ctx.setdefault("subject_id", hw.subject_id)
+        ctx.setdefault(
+            "due_date",
+            hw.due_date.isoformat() if isinstance(hw.due_date, (date, datetime)) else str(hw.due_date),
+        )
+
+    # 3. Lesson names
     lesson_ids = {
         value
         for event in events
         for field, values in (event.changes or {}).items()
-        if field == "lesson_id"
+        if field == "lesson_id" and isinstance(values, (list, tuple))
         for value in values
         if isinstance(value, int)
     }
+
     lesson_names: dict[int, str] = {}
     if lesson_ids:
         lessons = (
@@ -431,20 +486,42 @@ async def history_page(
 
     rows = []
     for event in events:
+        event_changes = dict(event.changes or {})
+
+        # If subject_id or due_date is missing from legacy event changes,
+        # fill in from homework context so the admin always sees what subject and date were affected
+        if event.homework_id and event.homework_id in hw_context:
+            ctx = hw_context[event.homework_id]
+            if "subject_id" not in event_changes and "subject_id" in ctx:
+                event_changes["subject_id"] = [ctx["subject_id"], ctx["subject_id"]]
+            if "due_date" not in event_changes and "due_date" in ctx:
+                event_changes["due_date"] = [ctx["due_date"], ctx["due_date"]]
+
+        # Display fields in clean logical order (subject -> due_date -> lesson -> subgroup -> title)
+        ordered_fields = [f for f in FIELD_ORDER if f in event_changes] + [
+            f for f in event_changes if f not in FIELD_ORDER
+        ]
+
+        changes_list = []
+        for field in ordered_fields:
+            vals = event_changes.get(field)
+            if not isinstance(vals, (list, tuple)) or len(vals) < 2:
+                continue
+            changes_list.append(
+                {
+                    "label": FIELD_LABELS.get(field, field),
+                    "old": _display_value(field, vals[0], subject_names, lesson_names),
+                    "new": _display_value(field, vals[1], subject_names, lesson_names),
+                }
+            )
+
         rows.append(
             {
                 "when": local_datetime(event.created_at).strftime("%d.%m.%Y %H:%M"),
                 "actor": event.actor_username,
                 "key": event.actor_key_name,
                 "action": ACTION_LABELS.get(event.action, event.action),
-                "changes": [
-                    {
-                        "label": FIELD_LABELS.get(field, field),
-                        "old": _display_value(field, values[0], subject_names, lesson_names),
-                        "new": _display_value(field, values[1], subject_names, lesson_names),
-                    }
-                    for field, values in (event.changes or {}).items()
-                ],
+                "changes": changes_list,
             }
         )
 

@@ -67,7 +67,9 @@ async def test_api_content_changes_are_logged(
 
     events = await _events(db_session)
     assert events[-1].action == "updated"
-    assert events[-1].changes == {"title": ["Старое ДЗ", "Новое ДЗ"]}
+    assert events[-1].changes["title"] == ["Старое ДЗ", "Новое ДЗ"]
+    assert events[-1].changes["subject_id"] == [test_subject.id, test_subject.id]
+    assert events[-1].changes["due_date"] == ["2026-11-02", "2026-11-02"]
 
     deleted = await client.delete(f"/api/v1/homework/{hw_id}", headers=auth_headers)
     assert deleted.status_code == 204
@@ -207,8 +209,75 @@ async def test_admin_history_page(
     await db_session.commit()
 
     updated_page = await client.get("/admin/history", headers=auth_headers)
+    assert "Изменил" in updated_page.text
     assert "Тихое ДЗ" in updated_page.text
     assert "→" in updated_page.text
+    # Subject and date must be present in the update entry
+    assert "Предмет:" in updated_page.text
+    assert "Алгебра" in updated_page.text
+    assert "Дата:" in updated_page.text
+    assert "02.11.2026" in updated_page.text
+
+    # When the homework is later deleted, update log entry still displays subject and date via context
+    log_homework_event(
+        db_session,
+        test_user,
+        "deleted",
+        None,
+        snapshot_changes(hw, deleted=True),
+    )
+    await db_session.delete(hw)
+    await db_session.commit()
+
+    after_delete_page = await client.get("/admin/history", headers=auth_headers)
+    assert after_delete_page.status_code == 200
+    assert "Удалил" in after_delete_page.text
+    assert "Изменил" in after_delete_page.text
+    assert "Алгебра" in after_delete_page.text
+    assert "02.11.2026" in after_delete_page.text
 
     forbidden = await client.get("/admin/history", headers=regular_auth_headers)
     assert forbidden.status_code == 403
+
+
+@pytest.mark.asyncio
+async def test_admin_history_update_retains_subject_and_date_after_deletion(
+    client: AsyncClient,
+    db_session: AsyncSession,
+    test_subject: Subject,
+    auth_headers: dict,
+):
+    """Update events must retain subject and date in admin logs even if homework is deleted later."""
+    # 1. Create homework
+    created = await client.post(
+        "/api/v1/homework",
+        json={
+            "subject_id": test_subject.id,
+            "title": "Первая версия",
+            "due_date": "2026-11-09",
+        },
+        headers=auth_headers,
+    )
+    assert created.status_code == 201
+    hw_id = created.json()["id"]
+
+    # 2. Update homework text
+    updated = await client.put(
+        f"/api/v1/homework/{hw_id}",
+        json={"title": "Вторая версия"},
+        headers=auth_headers,
+    )
+    assert updated.status_code == 200
+
+    # 3. Delete homework (foreign key sets homework_id = NULL on event records)
+    deleted = await client.delete(f"/api/v1/homework/{hw_id}", headers=auth_headers)
+    assert deleted.status_code == 204
+
+    # 4. History page must still display subject and date for the update entry
+    page = await client.get("/admin/history", headers=auth_headers)
+    assert page.status_code == 200
+    assert "Изменил" in page.text
+    assert "Первая версия" in page.text
+    assert "Вторая версия" in page.text
+    assert "Алгебра" in page.text
+    assert "09.11.2026" in page.text

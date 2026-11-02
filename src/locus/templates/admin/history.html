@@ -28,9 +28,11 @@
         {% for change in row.changes %}
         <p class="text-xs text-zinc-300 break-words">
           <span class="text-zinc-500">{{ change.label }}:</span>
-          {% if change.old != '—' and change.new != '—' %}
+          {% if change.old != '—' and change.new != '—' and change.old != change.new %}
           <span class="text-zinc-500 line-through">{{ change.old }}</span>
           <span class="mx-0.5 text-emerald-400 font-bold">→</span>
+          <span class="text-zinc-100">{{ change.new }}</span>
+          {% elif change.old != '—' and change.new != '—' and change.old == change.new %}
           <span class="text-zinc-100">{{ change.new }}</span>
           {% elif change.old != '—' %}
           <span class="text-rose-300/80 line-through">{{ change.old }}</span>

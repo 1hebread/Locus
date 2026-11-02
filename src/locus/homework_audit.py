@@ -27,11 +27,21 @@ def snapshot(hw: Homework) -> dict[str, Any]:
 
 
 def diff(before: dict[str, Any], after: dict[str, Any]) -> dict[str, list]:
-    return {
+    has_changes = any(before.get(field) != after.get(field) for field in FIELDS)
+    if not has_changes:
+        return {}
+    res = {
         field: [before[field], after[field]]
         for field in FIELDS
         if before[field] != after[field]
     }
+    # Always persist subject_id and due_date context so audit logs remain self-contained
+    # and immutable even if the homework record is rescheduled or deleted later
+    if "subject_id" in before and "subject_id" in after:
+        res["subject_id"] = [before["subject_id"], after["subject_id"]]
+    if "due_date" in before and "due_date" in after:
+        res["due_date"] = [before["due_date"], after["due_date"]]
+    return res
 
 
 def snapshot_changes(hw: Homework, deleted: bool = False) -> dict[str, list]:
