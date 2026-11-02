@@ -214,6 +214,12 @@ async def test_homework_page_offers_next_lesson_quick_action(
     assert 'data-auto-apply="true"' in res.text
     assert "29 октября в 08:30" in res.text
 
+    # The quick-action button must be visible (must not have the 'hidden' utility class)
+    import re
+    btn_match = re.search(r'<button[^>]*data-next-lesson-btn[^>]*class="([^"]*)"', res.text)
+    assert btn_match is not None
+    assert "hidden" not in btn_match.group(1).split()
+
 
 @pytest.mark.asyncio
 async def test_login_page(client: AsyncClient):

@@ -137,6 +137,7 @@ async def homework_page(
             "subgroup_subject_ids": subgroup_subject_ids,
             "default_due_date": default_due_date,
             "next_lesson": next_lesson,
+            "is_today": True,
         },
     )
 
