@@ -7,7 +7,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 import locus.push as push_module
 import locus.web.push_routes as push_routes
+from locus.models.homework import Homework
+from locus.models.lesson import Lesson
 from locus.models.push_subscription import PushSubscription
+from locus.models.subject import Subject
 from locus.models.user import User
 from locus.security import hash_password
 
@@ -150,6 +153,76 @@ async def test_send_push_filters_recipients(
     await push_module._send_push(test_user.id, subgroup=1, payload={"title": "x"})
 
     assert sorted(sent) == sorted([f"{ENDPOINT}-1", f"{ENDPOINT}-3"])
+
+
+@pytest.mark.asyncio
+async def test_both_groups_homework_sends_push_per_subgroup(
+    client: AsyncClient,
+    db_session: AsyncSession,
+    auth_headers: dict,
+    monkeypatch,
+):
+    from datetime import date
+
+    subject = Subject(name="Английский 4")
+    db_session.add(subject)
+    await db_session.commit()
+    await db_session.refresh(subject)
+
+    next_sub1 = Lesson(
+        subject_id=subject.id,
+        day_of_week=4,
+        lesson_number=1,
+        start_time="08:30",
+        end_time="09:15",
+        week_type="ALL",
+        subgroup="1",
+    )
+    next_sub2 = Lesson(
+        subject_id=subject.id,
+        day_of_week=4,
+        lesson_number=1,
+        start_time="08:30",
+        end_time="09:15",
+        week_type="ALL",
+        subgroup="2",
+    )
+    db_session.add_all([next_sub1, next_sub2])
+    await db_session.commit()
+    await db_session.refresh(next_sub1)
+    await db_session.refresh(next_sub2)
+
+    sent = []
+
+    async def fake_send(actor_id, subgroup, payload):
+        sent.append((subgroup, payload))
+
+    monkeypatch.setattr(push_module, "push_enabled", lambda: True)
+    monkeypatch.setattr(push_module, "_send_push", fake_send)
+
+    response = await client.post(
+        f"/dashboard/lesson/{next_sub1.id}/homework?date=2026-10-22&forward=true&both_groups=true",
+        data={"title": "Общее задание"},
+        headers=auth_headers,
+    )
+    assert response.status_code == 200
+
+    # One notification per subgroup copy, each filtered to its own subgroup.
+    assert [subgroup for subgroup, _ in sent] == ["1", "2"]
+    assert all(payload["title"] == "Новое ДЗ · Английский 4" for _, payload in sent)
+    assert all(payload["body"] == "Общее задание · до 22.10" for _, payload in sent)
+    tags = {payload["tag"] for _, payload in sent}
+    assert len(tags) == 2
+
+    rows = (
+        await db_session.execute(
+            select(Homework).where(
+                Homework.subject_id == subject.id,
+                Homework.due_date == date(2026, 10, 22),
+            )
+        )
+    ).scalars().all()
+    assert {payload["tag"] for _, payload in sent} == {f"hw-{row.id}" for row in rows}
 
 
 def test_is_allowed_endpoint():

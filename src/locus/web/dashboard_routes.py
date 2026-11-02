@@ -34,7 +34,7 @@ from locus.homework_audit import (
     snapshot_changes,
 )
 from locus.homework_status import attach_status, attach_statuses, set_status
-from locus.lesson_suggestion import find_next_subject_lesson, get_next_lesson_suggestion
+from locus.lesson_suggestion import find_next_subject_lesson, find_parallel_lesson, get_next_lesson_suggestion
 from locus.models.homework import Homework
 from locus.models.lesson import Lesson
 from locus.models.subject import Subject
@@ -493,6 +493,7 @@ async def get_lesson_modal(
                 "date_iso": next_date.isoformat(),
                 "short_label": f"{next_short_dow}, {next_date.day} {next_month_short}".strip(),
                 "label": f"{next_short_dow}, {next_date.day} {next_month_gen}".strip(),
+                "both_groups": find_parallel_lesson(all_lessons, target_next_lesson) is not None,
             }
 
     return templates.TemplateResponse(
@@ -530,6 +531,7 @@ async def save_lesson_homework(
     is_done: Optional[bool] = Form(default=False),
     action: Optional[str] = Query(default=None),
     forward: Optional[bool] = Query(default=False),
+    both_groups: Optional[bool] = Query(default=False),
     current_user: User = Depends(get_current_user_web),
     db: AsyncSession = Depends(get_db),
 ):
@@ -579,7 +581,87 @@ async def save_lesson_homework(
     if hw and not user_matches_subgroup(current_user, hw.subgroup):
         raise HTTPException(status_code=403, detail="Нельзя изменять домашнее задание чужой подгруппы")
 
-    if action == "delete":
+    both_groups_lessons = None
+    if both_groups and clean_title:
+        slot_lessons = list(
+            (
+                await db.execute(
+                    select(Lesson).where(
+                        Lesson.subject_id == lesson.subject_id,
+                        Lesson.day_of_week == lesson.day_of_week,
+                    )
+                )
+            ).scalars().all()
+        )
+        parallel_lesson = find_parallel_lesson(slot_lessons, lesson)
+        if parallel_lesson is not None:
+            both_groups_lessons = [lesson, parallel_lesson]
+
+    if both_groups_lessons:
+        if target_date.isoweekday() == 7:
+            raise HTTPException(status_code=400, detail="Нельзя записать домашнее задание на воскресенье")
+
+        existing = {}
+        for target in both_groups_lessons:
+            existing[target.id] = (
+                await db.execute(
+                    select(Homework)
+                    .where(
+                        Homework.lesson_id == target.id,
+                        Homework.due_date == target_date,
+                    )
+                    .order_by(Homework.id.desc())
+                )
+            ).scalars().first()
+
+        # Reuse a leftover class-wide record for the first subgroup instead of orphaning it.
+        if not any(existing.values()):
+            existing[lesson.id] = (
+                await db.execute(
+                    select(Homework)
+                    .where(
+                        Homework.subject_id == lesson.subject_id,
+                        Homework.due_date == target_date,
+                        Homework.lesson_id.is_(None),
+                        Homework.subgroup.is_(None),
+                    )
+                    .order_by(Homework.id.desc())
+                )
+            ).scalars().first()
+
+        notifications = []
+        for target in both_groups_lessons:
+            target_hw = existing[target.id]
+            if target_hw is None:
+                target_hw = Homework(
+                    subject_id=lesson.subject_id,
+                    lesson_id=target.id,
+                    title=clean_title,
+                    due_date=target_date,
+                    subgroup=target.subgroup,
+                )
+                db.add(target_hw)
+                await db.flush()
+                await set_status(db, target_hw.id, current_user.id, HomeworkStatus.TODO.value)
+                log_homework_event(
+                    db, current_user, ACTION_CREATED, target_hw.id, snapshot_changes(target_hw)
+                )
+                notifications.append((ACTION_CREATED, target_hw))
+            else:
+                before = snapshot(target_hw)
+                target_hw.title = clean_title
+                target_hw.lesson_id = target.id
+                target_hw.subgroup = target.subgroup
+                changes = diff(before, snapshot(target_hw))
+                if changes:
+                    log_homework_event(db, current_user, ACTION_UPDATED, target_hw.id, changes)
+                    notifications.append((ACTION_UPDATED, target_hw))
+        await db.commit()
+        for act, target_hw in notifications:
+            notify_homework_change(
+                background, current_user, act, target_hw.id, target_hw.title, lesson.subject.name, target_hw.subgroup, target_hw.due_date
+            )
+    elif action == "delete":
         if hw:
             deleted_hw_id = hw.id
             notify_homework_change(
@@ -657,6 +739,21 @@ async def save_lesson_homework(
     )
     hw_res = await db.execute(hw_stmt)
     saved_hw = hw_res.scalars().first()
+    if saved_hw is None:
+        # Whole-class homework is not bound to a lesson; still show it
+        # on the subgroup lesson card right after saving.
+        common_res = await db.execute(
+            select(Homework)
+            .options(selectinload(Homework.subject))
+            .where(
+                Homework.due_date == target_date,
+                Homework.lesson_id.is_(None),
+                Homework.subject_id == lesson.subject_id,
+                Homework.subgroup.is_(None),
+            )
+            .order_by(Homework.id.desc())
+        )
+        saved_hw = common_res.scalars().first()
     if saved_hw:
         await attach_status(db, saved_hw, current_user.id)
     updated_homeworks = [saved_hw] if saved_hw else []

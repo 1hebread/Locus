@@ -947,6 +947,55 @@ document.addEventListener('click', (e) => {
   }, 450);
 });
 
+// Split "Save" button in the lesson modal: the arrow opens the extra
+// destinations (next lesson / both groups).
+function hideSplitPanel(panel, toggle) {
+  if (toggle) toggle.setAttribute('aria-expanded', 'false');
+  if (panel.classList.contains('hidden') || panel.classList.contains('split-menu-closing')) return;
+  panel.classList.add('split-menu-closing');
+  panel.addEventListener('animationend', (e) => {
+    if (e.target !== panel) return;
+    panel.classList.remove('split-menu-closing');
+    panel.classList.add('hidden');
+  }, { once: true });
+}
+
+function closeSplitMenus(except) {
+  document.querySelectorAll('[data-split-menu-panel]:not(.hidden)').forEach((panel) => {
+    if (panel === except) return;
+    const toggle = panel.closest('[data-split-menu]')?.querySelector('[data-split-toggle]');
+    hideSplitPanel(panel, toggle);
+  });
+}
+
+document.addEventListener('click', (e) => {
+  const toggle = e.target.closest ? e.target.closest('[data-split-toggle]') : null;
+  if (toggle) {
+    const menu = toggle.closest('[data-split-menu]');
+    const panel = menu ? menu.querySelector('[data-split-menu-panel]') : null;
+    if (!panel) return;
+    // A tap during the close animation simply reopens the menu.
+    if (panel.classList.contains('split-menu-closing')) {
+      panel.classList.remove('split-menu-closing');
+      panel.classList.remove('hidden');
+      toggle.setAttribute('aria-expanded', 'true');
+      return;
+    }
+    closeSplitMenus(panel);
+    if (panel.classList.contains('hidden')) {
+      panel.classList.remove('hidden');
+      toggle.setAttribute('aria-expanded', 'true');
+    } else {
+      hideSplitPanel(panel, toggle);
+    }
+    return;
+  }
+
+  if (e.target.closest && e.target.closest('[data-split-menu-panel]')) return;
+  if (e.target.closest && e.target.closest('[data-split-menu]')) return;
+  closeSplitMenus();
+});
+
 // Changing the subject or date manually breaks the link to a lesson that was
 // preselected from a specific lesson card.
 document.addEventListener('change', (e) => {

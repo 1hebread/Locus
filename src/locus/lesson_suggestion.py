@@ -1,7 +1,7 @@
 from datetime import date, datetime, timedelta
 from typing import Any, List, Optional
 
-from locus.constants import MONTH_NAMES_GENITIVE
+from locus.constants import MONTH_NAMES_GENITIVE, OPPOSITE_SUBGROUPS
 
 
 def _format_next_date(next_date: date, start_time: str, today: date) -> str:
@@ -85,6 +85,24 @@ def _find_next_subject_lesson(
 
 
 find_next_subject_lesson = _find_next_subject_lesson
+
+
+def find_parallel_lesson(lessons: List[Any], lesson: Any) -> Optional[Any]:
+    """Return the lesson for the opposite subgroup at the same slot, if any."""
+    subgroup = getattr(lesson, "subgroup", None)
+    opposite = OPPOSITE_SUBGROUPS.get(str(subgroup).strip()) if subgroup is not None else None
+    if not opposite:
+        return None
+    for other in lessons:
+        if (
+            other.id != lesson.id
+            and other.subject_id == lesson.subject_id
+            and other.day_of_week == lesson.day_of_week
+            and other.lesson_number == lesson.lesson_number
+            and str(getattr(other, "subgroup", "")).strip() == opposite
+        ):
+            return other
+    return None
 
 
 def get_next_lesson_suggestion(

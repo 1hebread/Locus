@@ -851,6 +851,206 @@ async def test_next_lesson_suggestion_includes_subgroup(
 
 
 @pytest.mark.asyncio
+async def test_next_lesson_homework_for_both_subgroups(
+    client: AsyncClient,
+    db_session: AsyncSession,
+    auth_headers: dict,
+):
+    subj = Subject(name="Английский 2", teacher_name="Иванова", teacher2_name="Петрова")
+    db_session.add(subj)
+    await db_session.commit()
+    await db_session.refresh(subj)
+
+    current = Lesson(
+        subject_id=subj.id,
+        day_of_week=1,
+        lesson_number=1,
+        start_time="08:30",
+        end_time="09:15",
+        week_type="ALL",
+        subgroup="1",
+    )
+    # Both subgroups have the same subject at the same slot next Thursday.
+    next_sub1 = Lesson(
+        subject_id=subj.id,
+        day_of_week=4,
+        lesson_number=1,
+        start_time="08:30",
+        end_time="09:15",
+        week_type="ALL",
+        subgroup="1",
+    )
+    next_sub2 = Lesson(
+        subject_id=subj.id,
+        day_of_week=4,
+        lesson_number=1,
+        start_time="08:30",
+        end_time="09:15",
+        week_type="ALL",
+        subgroup="2",
+    )
+    db_session.add_all([current, next_sub1, next_sub2])
+    await db_session.commit()
+    await db_session.refresh(current)
+    await db_session.refresh(next_sub1)
+    await db_session.refresh(next_sub2)
+
+    mon_date = "2026-10-19"
+    thu_date = "2026-10-22"
+
+    modal = await client.get(
+        f"/dashboard/lesson/{current.id}/modal?date={mon_date}", headers=auth_headers
+    )
+    assert modal.status_code == 200
+    assert "Обеим группам" in modal.text
+    assert (
+        f'hx-post="/dashboard/lesson/{next_sub1.id}/homework?date={thu_date}'
+        f'&forward=true&both_groups=true"'
+    ) in modal.text
+
+    save = await client.post(
+        f"/dashboard/lesson/{next_sub1.id}/homework?date={thu_date}&forward=true&both_groups=true",
+        data={"title": "Общее задание"},
+        headers=auth_headers,
+    )
+    assert save.status_code == 200
+    assert "Общее задание" in save.text
+
+    rows = (
+        await db_session.execute(
+            select(Homework)
+            .where(
+                Homework.subject_id == subj.id,
+                Homework.due_date == date.fromisoformat(thu_date),
+            )
+            .order_by(Homework.id)
+        )
+    ).scalars().all()
+    assert len(rows) == 2
+    by_lesson = {row.lesson_id: row for row in rows}
+    assert set(by_lesson) == {next_sub1.id, next_sub2.id}
+    assert str(by_lesson[next_sub1.id].subgroup) == "1"
+    assert str(by_lesson[next_sub2.id].subgroup) == "2"
+    assert all(row.title == "Общее задание" for row in rows)
+
+    # The assignment is visible in both subgroups' lesson modals.
+    for lesson in (next_sub1, next_sub2):
+        res = await client.get(
+            f"/dashboard/lesson/{lesson.id}/modal?date={thu_date}", headers=auth_headers
+        )
+        assert res.status_code == 200
+        assert "Общее задание" in res.text
+
+    # Saving again updates both records instead of duplicating them.
+    save_again = await client.post(
+        f"/dashboard/lesson/{next_sub1.id}/homework?date={thu_date}&forward=true&both_groups=true",
+        data={"title": "Общее задание (уточнено)"},
+        headers=auth_headers,
+    )
+    assert save_again.status_code == 200
+    rows = (
+        await db_session.execute(
+            select(Homework)
+            .where(
+                Homework.subject_id == subj.id,
+                Homework.due_date == date.fromisoformat(thu_date),
+            )
+            .order_by(Homework.id)
+        )
+    ).scalars().all()
+    assert len(rows) == 2
+    assert all(row.title == "Общее задание (уточнено)" for row in rows)
+
+    # Editing one subgroup's copy must not touch the other one.
+    edit = await client.post(
+        f"/dashboard/lesson/{next_sub1.id}/homework?date={thu_date}",
+        data={
+            "hw_id": str(by_lesson[next_sub1.id].id),
+            "title": "Только для первой",
+            "is_done": False,
+        },
+        headers=auth_headers,
+    )
+    assert edit.status_code == 200
+    await db_session.refresh(by_lesson[next_sub1.id])
+    await db_session.refresh(by_lesson[next_sub2.id])
+    assert by_lesson[next_sub1.id].title == "Только для первой"
+    assert by_lesson[next_sub2.id].title == "Общее задание (уточнено)"
+
+    res2 = await client.get(
+        f"/dashboard/lesson/{next_sub2.id}/modal?date={thu_date}", headers=auth_headers
+    )
+    assert res2.status_code == 200
+    assert "Только для первой" not in res2.text
+    assert "Общее задание (уточнено)" in res2.text
+
+
+@pytest.mark.asyncio
+async def test_next_lesson_homework_for_both_subgroups_reuses_classwide_record(
+    client: AsyncClient,
+    db_session: AsyncSession,
+    auth_headers: dict,
+):
+    subj = Subject(name="Английский 3")
+    db_session.add(subj)
+    await db_session.commit()
+    await db_session.refresh(subj)
+
+    next_sub1 = Lesson(
+        subject_id=subj.id,
+        day_of_week=4,
+        lesson_number=2,
+        start_time="09:25",
+        end_time="10:10",
+        week_type="ALL",
+        subgroup="1",
+    )
+    next_sub2 = Lesson(
+        subject_id=subj.id,
+        day_of_week=4,
+        lesson_number=2,
+        start_time="09:25",
+        end_time="10:10",
+        week_type="ALL",
+        subgroup="2",
+    )
+    legacy = Homework(
+        subject_id=subj.id,
+        title="Старое общее",
+        due_date=date(2026, 10, 22),
+        subgroup=None,
+    )
+    db_session.add_all([next_sub1, next_sub2, legacy])
+    await db_session.commit()
+    await db_session.refresh(next_sub1)
+    await db_session.refresh(next_sub2)
+    await db_session.refresh(legacy)
+
+    save = await client.post(
+        f"/dashboard/lesson/{next_sub1.id}/homework?date=2026-10-22&forward=true&both_groups=true",
+        data={"title": "Новое общее"},
+        headers=auth_headers,
+    )
+    assert save.status_code == 200
+
+    rows = (
+        await db_session.execute(
+            select(Homework)
+            .where(
+                Homework.subject_id == subj.id,
+                Homework.due_date == date(2026, 10, 22),
+            )
+            .order_by(Homework.id)
+        )
+    ).scalars().all()
+    assert len(rows) == 2
+    assert {row.lesson_id for row in rows} == {next_sub1.id, next_sub2.id}
+    assert all(row.title == "Новое общее" for row in rows)
+    # The legacy class-wide record was reused, not orphaned.
+    assert legacy.id in {row.id for row in rows}
+
+
+@pytest.mark.asyncio
 async def test_subject_card_subgroup_badges_and_empty_divider(
     client: AsyncClient,
     db_session: AsyncSession,
