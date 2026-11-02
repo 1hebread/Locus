@@ -65,6 +65,21 @@ MONTH_NAMES_GENITIVE: Dict[int, str] = {
     12: "декабря",
 }
 
+MONTH_NAMES_SHORT: Dict[int, str] = {
+    1: "янв",
+    2: "фев",
+    3: "мар",
+    4: "апр",
+    5: "мая",
+    6: "июн",
+    7: "июл",
+    8: "авг",
+    9: "сен",
+    10: "окт",
+    11: "ноя",
+    12: "дек",
+}
+
 MONTH_NAMES_PREPOSITIONAL: Dict[int, str] = {
     1: "январь",
     2: "февраль",

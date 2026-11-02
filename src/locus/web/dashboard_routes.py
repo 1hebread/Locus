@@ -1,4 +1,4 @@
-from datetime import date, timedelta
+from datetime import date, datetime, time, timedelta
 from typing import Optional
 from fastapi import APIRouter, BackgroundTasks, Depends, Form, HTTPException, Query, Request
 from fastapi.responses import HTMLResponse
@@ -13,6 +13,7 @@ from locus.constants import (
     HomeworkStatus,
     MONTH_NAMES_GENITIVE,
     MONTH_NAMES_PREPOSITIONAL,
+    MONTH_NAMES_SHORT,
     calculate_break_minutes,
     format_russian_break,
     get_current_date,
@@ -33,7 +34,7 @@ from locus.homework_audit import (
     snapshot_changes,
 )
 from locus.homework_status import attach_status, attach_statuses, set_status
-from locus.lesson_suggestion import get_next_lesson_suggestion
+from locus.lesson_suggestion import find_next_subject_lesson, get_next_lesson_suggestion
 from locus.models.homework import Homework
 from locus.models.lesson import Lesson
 from locus.models.subject import Subject
@@ -437,6 +438,53 @@ async def get_lesson_modal(
     month_gen = MONTH_NAMES_GENITIVE.get(target_date.month, "")
     date_formatted = f"{short_dow}, {target_date.day} {month_gen}"
 
+    next_lesson_info = None
+    if lesson.subject_id:
+        all_lessons_stmt = (
+            select(Lesson)
+            .options(selectinload(Lesson.subject))
+            .order_by(Lesson.day_of_week, Lesson.lesson_number)
+        )
+        all_lessons_res = await db.execute(all_lessons_stmt)
+        all_lessons = list(all_lessons_res.scalars().all())
+
+        vac_stmt = (
+            select(Vacation)
+            .where(Vacation.end_date >= target_date)
+            .order_by(Vacation.start_date.asc())
+        )
+        vac_res = await db.execute(vac_stmt)
+        vacations = list(vac_res.scalars().all())
+
+        try:
+            end_h, end_m = [int(p) for p in (lesson.end_time or "00:00").split(":")[:2]]
+            ref_dt = datetime.combine(target_date, time(end_h, end_m))
+        except (ValueError, AttributeError):
+            ref_dt = datetime.combine(target_date, time(0, 0))
+
+        target_subgroup = lesson.subgroup if lesson.subgroup is not None else (
+            current_user.subgroup if not current_user.is_admin else None
+        )
+
+        found = find_next_subject_lesson(
+            all_lessons,
+            lesson,
+            ref_dt,
+            vacations=vacations,
+            subgroup=target_subgroup,
+        )
+        if found:
+            next_date, target_next_lesson = found
+            next_short_dow = DAY_SHORT_NAMES.get(next_date.isoweekday(), "")
+            next_month_short = MONTH_NAMES_SHORT.get(next_date.month, "")
+            next_month_gen = MONTH_NAMES_GENITIVE.get(next_date.month, "")
+            next_lesson_info = {
+                "lesson_id": target_next_lesson.id,
+                "date_iso": next_date.isoformat(),
+                "short_label": f"{next_short_dow}, {next_date.day} {next_month_short}".strip(),
+                "label": f"{next_short_dow}, {next_date.day} {next_month_gen}".strip(),
+            }
+
     return templates.TemplateResponse(
         request=request,
         name="dashboard/lesson_modal.html",
@@ -445,6 +493,7 @@ async def get_lesson_modal(
             "subject": lesson.subject,
             "homeworks": homeworks,
             "hw": hw,
+            "next_lesson_info": next_lesson_info,
             "last_edit": last_edit,
             "last_edit_time": (
                 local_datetime(last_edit.created_at).strftime("%d.%m %H:%M")
@@ -470,6 +519,7 @@ async def save_lesson_homework(
     title: Optional[str] = Form(default=None),
     is_done: Optional[bool] = Form(default=False),
     action: Optional[str] = Query(default=None),
+    forward: Optional[bool] = Query(default=False),
     current_user: User = Depends(get_current_user_web),
     db: AsyncSession = Depends(get_db),
 ):
@@ -507,7 +557,9 @@ async def save_lesson_homework(
     if effective_hw_id:
         hw_stmt = select(Homework).where(Homework.id == effective_hw_id)
         hw = (await db.execute(hw_stmt)).scalar_one_or_none()
-    else:
+        if hw and (hw.due_date != target_date or (hw.lesson_id is not None and hw.lesson_id != lesson.id)):
+            hw = None
+    if not hw:
         hw_stmt = (
             select(Homework)
             .where(
@@ -535,15 +587,16 @@ async def save_lesson_homework(
     elif hw:
         # If title is cleared -> delete ("пустое, значит ничего не задано")
         if not clean_title:
-            deleted_hw_id = hw.id
-            notify_homework_change(
-                background, current_user, ACTION_DELETED, hw.id, hw.title, lesson.subject.name, hw.subgroup, hw.due_date
-            )
-            log_homework_event(
-                db, current_user, ACTION_DELETED, None, snapshot_changes(hw, deleted=True)
-            )
-            await db.delete(hw)
-            await db.commit()
+            if effective_hw_id is not None or action == "delete":
+                deleted_hw_id = hw.id
+                notify_homework_change(
+                    background, current_user, ACTION_DELETED, hw.id, hw.title, lesson.subject.name, hw.subgroup, hw.due_date
+                )
+                log_homework_event(
+                    db, current_user, ACTION_DELETED, None, snapshot_changes(hw, deleted=True)
+                )
+                await db.delete(hw)
+                await db.commit()
         else:
             if target_date.isoweekday() == 7:
                 raise HTTPException(status_code=400, detail="Нельзя записать домашнее задание на воскресенье")
@@ -555,7 +608,8 @@ async def save_lesson_homework(
             changes = diff(before, snapshot(hw))
             if changes:
                 log_homework_event(db, current_user, ACTION_UPDATED, hw.id, changes)
-            await set_status(db, hw.id, current_user.id, status_val)
+            if not forward:
+                await set_status(db, hw.id, current_user.id, status_val)
             if was_unassigned:
                 unassigned_removed_id = hw.id
             await db.commit()
@@ -575,7 +629,8 @@ async def save_lesson_homework(
         )
         db.add(new_hw)
         await db.flush()
-        await set_status(db, new_hw.id, current_user.id, status_val)
+        new_status = HomeworkStatus.TODO.value if forward else status_val
+        await set_status(db, new_hw.id, current_user.id, new_status)
         log_homework_event(
             db, current_user, ACTION_CREATED, new_hw.id, snapshot_changes(new_hw)
         )

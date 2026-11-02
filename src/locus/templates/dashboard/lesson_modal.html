@@ -113,7 +113,7 @@
         <form method="post"
               hx-post="/dashboard/lesson/{{ lesson.id }}/homework?date={{ date_iso }}"
               hx-swap="none"
-              hx-disabled-elt="find button[type='submit']"
+              hx-disabled-elt="find button"
               class="flex-1 flex flex-col gap-3">
           {% if hw %}
           <input type="hidden" name="hw_id" value="{{ hw.id }}">
@@ -129,8 +129,8 @@
                       class="w-full flex-1 bg-[#202023] border border-zinc-800/80 focus:border-emerald-500 rounded-2xl p-4 text-base text-white focus:outline-none resize-none transition">{{ hw.title if hw else '' }}</textarea>
           </div>
 
-          <div class="flex items-center justify-between">
-            <label class="flex items-center space-x-2.5 cursor-pointer select-none">
+          <div class="flex items-center justify-between gap-2 pt-1">
+            <label class="flex items-center space-x-2.5 cursor-pointer select-none shrink-0">
               <input type="checkbox"
                      id="modal-hw-is-done"
                      name="is_done"
@@ -141,10 +141,27 @@
               <span class="text-xs sm:text-sm text-zinc-300 font-medium leading-none">Сделано</span>
             </label>
 
-            <button type="submit"
-                    class="px-5 py-2.5 rounded-xl text-xs sm:text-sm font-bold bg-emerald-500 hover:bg-emerald-600 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed text-white shadow-md shadow-emerald-500/20 transition">
-              Сохранить
-            </button>
+            <div class="flex items-center gap-1.5 shrink-0">
+              {% if next_lesson_info %}
+              <button type="button"
+                      hx-post="/dashboard/lesson/{{ next_lesson_info.lesson_id }}/homework?date={{ next_lesson_info.date_iso }}&forward=true"
+                      hx-params="title"
+                      hx-swap="none"
+                      hx-disabled-elt="closest form find button"
+                      class="inline-flex items-center gap-1 px-2.5 py-1.5 sm:px-3 sm:py-2 rounded-lg text-[11px] sm:text-xs font-medium bg-[#202023] hover:bg-[#27272a] hover:border-emerald-500/50 border border-zinc-700/80 text-emerald-400 active:scale-95 transition"
+                      title="Записать на следующий урок: {{ next_lesson_info.label }}">
+                <svg class="w-3 h-3 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.2" d="M13 7l5 5m0 0l-5 5m5-5H6" />
+                </svg>
+                <span>След. урок ({{ next_lesson_info.short_label }})</span>
+              </button>
+              {% endif %}
+
+              <button type="submit"
+                      class="px-3.5 py-1.5 sm:px-4 sm:py-2 rounded-lg text-xs sm:text-sm font-bold bg-emerald-500 hover:bg-emerald-600 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed text-white shadow-md shadow-emerald-500/20 transition">
+                Сохранить
+              </button>
+            </div>
           </div>
         </form>
         {% endif %}

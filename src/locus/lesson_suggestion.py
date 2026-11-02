@@ -65,6 +65,9 @@ def _find_next_subject_lesson(
     return None
 
 
+find_next_subject_lesson = _find_next_subject_lesson
+
+
 def get_next_lesson_suggestion(
     lessons: List[Any],
     now: datetime,

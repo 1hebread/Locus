@@ -386,6 +386,131 @@ async def test_paired_lessons_no_homework_cross_contamination(
 
 
 @pytest.mark.asyncio
+async def test_lesson_modal_next_lesson_button_and_saving(
+    client: AsyncClient,
+    test_user: User,
+    auth_token: str,
+    test_subject: Subject,
+    db_session,
+):
+    """Option B: lesson modal displays 'На след. урок' button targeting next subject date."""
+    from datetime import date
+    from sqlalchemy import select
+    from locus.config import get_settings
+    from locus.models.homework import Homework
+    from locus.models.lesson import Lesson
+
+    settings = get_settings()
+    client.cookies.set(settings.COOKIE_NAME, auth_token)
+
+    # Lesson 1 on Monday (day 1), Lesson 2 on Thursday (day 4)
+    lesson1 = Lesson(
+        subject_id=test_subject.id,
+        day_of_week=1,
+        lesson_number=1,
+        start_time="08:30",
+        end_time="09:15",
+    )
+    lesson2 = Lesson(
+        subject_id=test_subject.id,
+        day_of_week=4,
+        lesson_number=2,
+        start_time="09:25",
+        end_time="10:10",
+    )
+    db_session.add_all([lesson1, lesson2])
+    await db_session.commit()
+    await db_session.refresh(lesson1)
+    await db_session.refresh(lesson2)
+
+    mon_date = "2026-10-19"  # Monday
+    thu_date = "2026-10-22"  # Thursday
+
+    # Open modal for Monday lesson
+    res_modal = await client.get(f"/dashboard/lesson/{lesson1.id}/modal?date={mon_date}")
+    assert res_modal.status_code == 200
+    assert "След. урок (Чт, 22 окт)" in res_modal.text
+    assert f'hx-post="/dashboard/lesson/{lesson2.id}/homework?date={thu_date}&forward=true"' in res_modal.text
+    assert 'hx-params="title"' in res_modal.text
+    assert 'type="button"' in res_modal.text
+    assert 'hx-disabled-elt="closest form find button"' in res_modal.text
+
+    # Save homework directly to the next lesson via that endpoint
+    res_save = await client.post(
+        f"/dashboard/lesson/{lesson2.id}/homework?date={thu_date}&forward=true",
+        data={
+            "title": "Упр. 42 на четверг",
+        },
+    )
+    assert res_save.status_code == 200
+    assert f'id="m-lesson-card-{lesson2.id}-4"' in res_save.text
+    assert "closeModal('lesson-detail-modal')" in res_save.text
+
+    # Verify homework in DB and that its status is TODO
+    from locus.constants import HomeworkStatus
+    from locus.homework_status import get_completion, set_status
+
+    thu_hw_res = await db_session.execute(
+        select(Homework).where(
+            Homework.lesson_id == lesson2.id,
+            Homework.due_date == date.fromisoformat(thu_date),
+        )
+    )
+    thu_hw = thu_hw_res.scalar_one_or_none()
+    assert thu_hw is not None
+    assert thu_hw.title == "Упр. 42 на четверг"
+    completion = await get_completion(db_session, thu_hw.id, test_user.id)
+    assert completion is not None
+    assert completion.status == HomeworkStatus.TODO.value
+
+    # Mark Thursday homework as DONE
+    await set_status(db_session, thu_hw.id, test_user.id, HomeworkStatus.DONE.value)
+
+    # Verify Monday has no homework created
+    mon_hw_res = await db_session.execute(
+        select(Homework).where(
+            Homework.lesson_id == lesson1.id,
+            Homework.due_date == date.fromisoformat(mon_date),
+        )
+    )
+    assert mon_hw_res.scalar_one_or_none() is None
+
+    # Cross-date safety test: create homework on Monday
+    mon_hw = Homework(
+        subject_id=test_subject.id,
+        lesson_id=lesson1.id,
+        title="Упр. 10 для понедельника",
+        due_date=date.fromisoformat(mon_date),
+    )
+    db_session.add(mon_hw)
+    await db_session.commit()
+    await db_session.refresh(mon_hw)
+
+    # Submitting with mon_hw.id and forward=true to Thursday must NOT modify or reassign Monday's homework
+    # and must preserve Thursday's existing DONE status
+    res_save_again = await client.post(
+        f"/dashboard/lesson/{lesson2.id}/homework?date={thu_date}&forward=true",
+        data={
+            "hw_id": mon_hw.id,
+            "title": "Упр. 42 (обновлено) на четверг",
+        },
+    )
+    assert res_save_again.status_code == 200
+
+    # Reload Monday homework: must be completely untouched
+    await db_session.refresh(mon_hw)
+    assert mon_hw.title == "Упр. 10 для понедельника"
+    assert mon_hw.lesson_id == lesson1.id
+    assert mon_hw.due_date == date.fromisoformat(mon_date)
+
+    # Thursday homework updated, but completion status is preserved as DONE
+    await db_session.refresh(thu_hw)
+    assert thu_hw.title == "Упр. 42 (обновлено) на четверг"
+    thu_completion = await get_completion(db_session, thu_hw.id, test_user.id)
+    assert thu_completion.status == HomeworkStatus.DONE.value
+
+
+@pytest.mark.asyncio
 async def test_unassigned_homework_deletion_from_modal(
     client: AsyncClient,
     test_user: User,
