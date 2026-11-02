@@ -41,6 +41,7 @@ from locus.models.subject import Subject
 from locus.models.user import User
 from locus.models.vacation import Vacation
 from locus.push import notify_homework_change
+from locus.subgroup_helpers import build_user_subgroup_filter, user_matches_subgroup
 from locus.templates_config import templates
 
 router = APIRouter(tags=["Dashboard"])
@@ -59,10 +60,12 @@ async def dashboard_index(
     # Admins with a subgroup default to it; "all" is an explicit opt-out.
     if subgroup_param == "all":
         active_subgroup = None
-    elif subgroup_param in ("1", "2") and (current_user.is_admin or current_user.subgroup is None):
-        active_subgroup = int(subgroup_param)
+    elif subgroup_param in ("1", "2", "boys", "girls") and (current_user.is_admin or (current_user.subgroup is None and current_user.gender_subgroup is None)):
+        active_subgroup = subgroup_param
+    elif current_user.is_admin:
+        active_subgroup = str(current_user.subgroup) if current_user.subgroup is not None else current_user.gender_subgroup
     else:
-        active_subgroup = current_user.subgroup
+        active_subgroup = str(current_user.subgroup) if current_user.subgroup is not None else current_user.gender_subgroup
 
     # Check for weekend lessons to decide desktop tabs and default date
     weekend_res = await db.execute(
@@ -134,10 +137,22 @@ async def dashboard_index(
             Homework.due_date <= end_sunday,
         )
     )
-    if active_subgroup is not None:
-        hw_stmt = hw_stmt.where(
-            (Homework.subgroup.is_(None)) | (Homework.subgroup == active_subgroup)
-        )
+    if current_user.is_admin or (current_user.subgroup is None and current_user.gender_subgroup is None):
+        if active_subgroup is not None:
+            if active_subgroup in ("1", "2") and getattr(current_user, "gender_subgroup", None):
+                hw_stmt = hw_stmt.where(
+                    (Homework.subgroup.is_(None))
+                    | (Homework.subgroup == active_subgroup)
+                    | (Homework.subgroup == current_user.gender_subgroup)
+                )
+            else:
+                hw_stmt = hw_stmt.where(
+                    (Homework.subgroup.is_(None)) | (Homework.subgroup == active_subgroup)
+                )
+    else:
+        user_hw_filter = build_user_subgroup_filter(current_user, Homework.subgroup)
+        if user_hw_filter is not None:
+            hw_stmt = hw_stmt.where(user_hw_filter)
     hw_stmt = hw_stmt.order_by(Homework.id.asc())
     hw_res = await db.execute(hw_stmt)
     all_hw = await attach_statuses(db, list(hw_res.scalars().all()), current_user.id)
@@ -173,10 +188,17 @@ async def dashboard_index(
         d_vacation = get_vacation_for_date(d_date)
         d_lessons = lessons_by_dow.get(d_num, [])
 
-        if active_subgroup is not None:
-            main_lessons = [l for l in d_lessons if l.subgroup is None or l.subgroup == active_subgroup]
+        if current_user.is_admin or (current_user.subgroup is None and current_user.gender_subgroup is None):
+            if active_subgroup is not None:
+                if active_subgroup in ("1", "2") and getattr(current_user, "gender_subgroup", None):
+                    allowed_subs = {None, str(active_subgroup), current_user.gender_subgroup}
+                    main_lessons = [l for l in d_lessons if l.subgroup is None or str(l.subgroup) in allowed_subs]
+                else:
+                    main_lessons = [l for l in d_lessons if l.subgroup is None or str(l.subgroup) == str(active_subgroup)]
+            else:
+                main_lessons = d_lessons
         else:
-            main_lessons = d_lessons
+            main_lessons = [l for l in d_lessons if user_matches_subgroup(current_user, l.subgroup)]
 
         d_hw = hw_by_date.get(d_date, [])
 
@@ -287,6 +309,11 @@ async def dashboard_index(
     subgroup_subject_ids = set(subgroup_subjects_res.scalars().all())
     subgroup_subject_ids.update(s.id for s in subjects if s.teacher2_name and s.teacher2_name.strip())
 
+    gender_subjects_res = await db.execute(
+        select(Lesson.subject_id).where(Lesson.subgroup.in_(("boys", "girls"))).distinct()
+    )
+    gender_subject_ids = set(gender_subjects_res.scalars().all())
+
     # Query all upcoming vacations for next lesson skipping
     all_upcoming_vac_res = await db.execute(
         select(Vacation)
@@ -303,6 +330,7 @@ async def dashboard_index(
             get_current_datetime(),
             vacations=upcoming_vacations,
             subgroup=active_subgroup or current_user.subgroup,
+            gender_subgroup=None if active_subgroup else current_user.gender_subgroup,
         )
         if is_current_week
         else None
@@ -335,6 +363,7 @@ async def dashboard_index(
             "days_data": days_data,
             "subjects": subjects,
             "subgroup_subject_ids": subgroup_subject_ids,
+            "gender_subject_ids": gender_subject_ids,
             "next_lesson": next_lesson,
             "active_vacation": active_vacation,
         },
@@ -359,9 +388,8 @@ async def get_lesson_modal(
     if not lesson:
         raise HTTPException(status_code=404, detail="Урок не найден")
 
-    if not current_user.is_admin and current_user.subgroup is not None:
-        if lesson.subgroup is not None and lesson.subgroup != current_user.subgroup:
-            raise HTTPException(status_code=403, detail="Доступ к уроку чужой подгруппы запрещен")
+    if not user_matches_subgroup(current_user, lesson.subgroup):
+        raise HTTPException(status_code=403, detail="Доступ к уроку чужой подгруппы запрещен")
 
     today = get_current_date()
     if date_str:
@@ -385,7 +413,7 @@ async def get_lesson_modal(
     hw_res = await db.execute(hw_stmt)
     hw = hw_res.scalars().first()
 
-    if hw and hw.subgroup is not None and not current_user.is_admin and current_user.subgroup is not None and hw.subgroup != current_user.subgroup:
+    if hw and not user_matches_subgroup(current_user, hw.subgroup):
         hw = None
 
     if not hw:
@@ -398,9 +426,7 @@ async def get_lesson_modal(
                 Homework.subject_id == lesson.subject_id,
             )
         )
-        allowed_subgroup = lesson.subgroup if lesson.subgroup is not None else (
-            current_user.subgroup if not current_user.is_admin else None
-        )
+        allowed_subgroup = lesson.subgroup if lesson.subgroup is not None else None
         if allowed_subgroup is not None:
             unassigned_stmt = unassigned_stmt.where(
                 (Homework.subgroup.is_(None)) | (Homework.subgroup == allowed_subgroup)
@@ -409,7 +435,7 @@ async def get_lesson_modal(
         unassigned_res = await db.execute(unassigned_stmt)
         hw = unassigned_res.scalars().first()
 
-        if hw and hw.subgroup is not None and not current_user.is_admin and current_user.subgroup is not None and hw.subgroup != current_user.subgroup:
+        if hw and not user_matches_subgroup(current_user, hw.subgroup):
             hw = None
 
     if hw:
@@ -520,9 +546,8 @@ async def save_lesson_homework(
     if not lesson:
         raise HTTPException(status_code=404, detail="Урок не найден")
 
-    if not current_user.is_admin and current_user.subgroup is not None:
-        if lesson.subgroup is not None and lesson.subgroup != current_user.subgroup:
-            raise HTTPException(status_code=403, detail="Доступ к уроку чужой подгруппы запрещен")
+    if not user_matches_subgroup(current_user, lesson.subgroup):
+        raise HTTPException(status_code=403, detail="Доступ к уроку чужой подгруппы запрещен")
 
     try:
         target_date = date.fromisoformat(raw_date) if raw_date else get_current_date()
@@ -533,9 +558,6 @@ async def save_lesson_homework(
     unassigned_removed_id: Optional[int] = None
     status_val = HomeworkStatus.DONE.value if is_done else HomeworkStatus.TODO.value
     clean_title = title.strip() if title else ""
-
-    if lesson.subgroup is not None and not current_user.is_admin and current_user.subgroup is not None and lesson.subgroup != current_user.subgroup:
-        raise HTTPException(status_code=403, detail="Нельзя изменять домашнее задание для чужой подгруппы")
 
     hw = None
     if effective_hw_id:
@@ -554,7 +576,7 @@ async def save_lesson_homework(
         )
         hw = (await db.execute(hw_stmt)).scalars().first()
 
-    if hw and hw.subgroup is not None and not current_user.is_admin and current_user.subgroup is not None and hw.subgroup != current_user.subgroup:
+    if hw and not user_matches_subgroup(current_user, hw.subgroup):
         raise HTTPException(status_code=403, detail="Нельзя изменять домашнее задание чужой подгруппы")
 
     if action == "delete":

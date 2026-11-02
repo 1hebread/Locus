@@ -18,6 +18,40 @@ class HomeworkStatus(str, Enum):
     DONE = "DONE"
 
 
+VALID_SUBGROUPS = ("1", "2", "boys", "girls")
+ACADEMIC_SUBGROUPS = ("1", "2")
+GENDER_SUBGROUPS = ("boys", "girls")
+
+SUBGROUP_LABELS = {
+    "1": "1-я подгруппа",
+    "2": "2-я подгруппа",
+    "boys": "Мальчики",
+    "girls": "Девочки",
+}
+
+SUBGROUP_BADGES = {
+    "1": "1 подгруппа",
+    "2": "2 подгруппа",
+    "boys": "Мальчики",
+    "girls": "Девочки",
+}
+
+SUBGROUP_SHORT_LABELS = {
+    "all": "Все",
+    "1": "1",
+    "2": "2",
+    "boys": "М",
+    "girls": "Д",
+}
+
+OPPOSITE_SUBGROUPS = {
+    "1": "2",
+    "2": "1",
+    "boys": "girls",
+    "girls": "boys",
+}
+
+
 # Standard school bell schedule: 45 min lessons with 5 min breaks, starting at 08:00
 DEFAULT_BELL_SCHEDULE: Dict[int, Tuple[str, str]] = {
     1: ("08:00", "08:45"),

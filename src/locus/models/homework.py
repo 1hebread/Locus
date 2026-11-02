@@ -32,7 +32,7 @@ class Homework(Base):
     )
     title: Mapped[str] = mapped_column(String(200), nullable=False)
     due_date: Mapped[date] = mapped_column(Date, index=True, nullable=False)
-    subgroup: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    subgroup: Mapped[Optional[str]] = mapped_column(String(20), nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         default=get_utc_now,

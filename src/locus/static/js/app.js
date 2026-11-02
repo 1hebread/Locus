@@ -857,10 +857,20 @@ function updateHwModalSubgroupVisibility(modal) {
   } else {
     subgroupContainer.classList.remove('hidden');
     subgroupSelect.disabled = false;
-    if (!subgroupSelect.value) {
-      const userSubgroup = subgroupSelect.getAttribute('data-user-subgroup');
-      if (userSubgroup) {
+    const isGender = selectedOpt && selectedOpt.getAttribute('data-is-gender') === 'true';
+    const userSubgroup = subgroupSelect.getAttribute('data-user-subgroup');
+    const userGender = subgroupSelect.getAttribute('data-user-gender');
+    if (isGender) {
+      if (userGender && subgroupSelect.querySelector('option[value="' + userGender + '"]')) {
+        subgroupSelect.value = userGender;
+      } else {
+        subgroupSelect.value = '';
+      }
+    } else {
+      if (userSubgroup && subgroupSelect.querySelector('option[value="' + userSubgroup + '"]')) {
         subgroupSelect.value = userSubgroup;
+      } else {
+        subgroupSelect.value = '';
       }
     }
   }

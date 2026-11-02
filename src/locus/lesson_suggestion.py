@@ -19,12 +19,36 @@ def _format_next_date(next_date: date, start_time: str, today: date) -> str:
     return f"{day_label} в {start_time}"
 
 
+def _matches_lesson_subgroup(
+    lesson_subgroup: Optional[object],
+    academic_subgroup: Optional[object],
+    gender_subgroup: Optional[str] = None,
+) -> bool:
+    if lesson_subgroup is None or str(lesson_subgroup).strip() in ("", "0", "all", "none"):
+        return True
+    sub_str = str(lesson_subgroup).strip()
+    if academic_subgroup is not None and str(academic_subgroup).strip() in ("boys", "girls") and gender_subgroup is None:
+        gender_subgroup = str(academic_subgroup).strip()
+        academic_subgroup = None
+
+    if sub_str in ("1", "2"):
+        if academic_subgroup is None or str(academic_subgroup).strip() in ("", "0", "all", "none"):
+            return True
+        return str(academic_subgroup).strip() == sub_str
+    if sub_str in ("boys", "girls"):
+        if gender_subgroup is None or str(gender_subgroup).strip() in ("", "0", "all", "none"):
+            return True
+        return str(gender_subgroup).strip() == sub_str
+    return False
+
+
 def _find_next_subject_lesson(
     lessons: List[Any],
     source: Any,
     now: datetime,
     vacations: Optional[List[Any]] = None,
-    subgroup: Optional[int] = None,
+    subgroup: Optional[object] = None,
+    gender_subgroup: Optional[str] = None,
 ):
     """Find the next occurrence of the source lesson's subject after it, skipping vacations."""
     today = now.date()
@@ -40,18 +64,13 @@ def _find_next_subject_lesson(
             continue
 
         weekday = candidate_date.isoweekday()
-        target_subgroup = subgroup if subgroup is not None else getattr(source, "subgroup", None)
         same_day = sorted(
             (
                 lesson
                 for lesson in lessons
                 if lesson.subject_id == source.subject_id
                 and lesson.day_of_week == weekday
-                and (
-                    target_subgroup is None
-                    or getattr(lesson, "subgroup", None) is None
-                    or getattr(lesson, "subgroup", None) == target_subgroup
-                )
+                and _matches_lesson_subgroup(getattr(lesson, "subgroup", None), subgroup, gender_subgroup)
             ),
             key=lambda lesson: lesson.start_time,
         )
@@ -72,7 +91,8 @@ def get_next_lesson_suggestion(
     lessons: List[Any],
     now: datetime,
     vacations: Optional[List[Any]] = None,
-    subgroup: Optional[int] = None,
+    subgroup: Optional[object] = None,
+    gender_subgroup: Optional[str] = None,
 ) -> Optional[dict]:
     """Build a quick-add suggestion for the next lesson of the current subject.
 
@@ -91,11 +111,7 @@ def get_next_lesson_suggestion(
             lesson
             for lesson in lessons
             if lesson.day_of_week == today.isoweekday()
-            and (
-                subgroup is None
-                or getattr(lesson, "subgroup", None) is None
-                or getattr(lesson, "subgroup", None) == subgroup
-            )
+            and _matches_lesson_subgroup(getattr(lesson, "subgroup", None), subgroup, gender_subgroup)
         ),
         key=lambda lesson: lesson.start_time,
     )
@@ -136,6 +152,7 @@ def get_next_lesson_suggestion(
         now,
         vacations=vacations,
         subgroup=subgroup,
+        gender_subgroup=gender_subgroup,
     )
     if not next_occurrence:
         return None

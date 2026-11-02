@@ -74,7 +74,7 @@
             <select id="subject_id" name="subject_id" required onchange="updateHwModalSubgroupVisibility()"
                     class="w-full bg-[#121214] border border-zinc-800 rounded-xl px-3 py-2.5 text-sm text-white focus:outline-none focus:border-emerald-500 transition">
               {% for sub in subjects %}
-              <option value="{{ sub.id }}" data-has-subgroups="{{ 'true' if (subgroup_subject_ids is defined and sub.id in subgroup_subject_ids) else 'false' }}">{{ sub.name }}</option>
+              <option value="{{ sub.id }}" data-has-subgroups="{{ 'true' if (subgroup_subject_ids is defined and sub.id in subgroup_subject_ids) else 'false' }}" data-is-gender="{{ 'true' if (gender_subject_ids is defined and sub.id in gender_subject_ids) else 'false' }}">{{ sub.name }}</option>
               {% endfor %}
             </select>
             {% if not subjects %}
@@ -102,16 +102,26 @@
             <label for="hw_subgroup" class="block text-xs text-zinc-400 font-medium mb-1.5">Подгруппа</label>
             <select id="hw_subgroup" name="subgroup"
                     data-user-subgroup="{{ current_user.subgroup or '' }}"
+                    data-user-gender="{{ current_user.gender_subgroup or '' }}"
                     {% if not subjects or (subgroup_subject_ids is defined and subjects[0].id not in subgroup_subject_ids) %}disabled{% endif %}
                     class="w-full bg-[#121214] border border-zinc-800 rounded-xl px-3 py-2.5 text-sm text-white focus:outline-none focus:border-emerald-500 transition">
               <option value="">Весь класс (общая)</option>
-              {% if current_user.is_admin or not current_user.subgroup %}
+              {% if current_user.is_admin or (not current_user.subgroup and not current_user.gender_subgroup) %}
               <option value="1">1-я подгруппа</option>
               <option value="2">2-я подгруппа</option>
-              {% elif current_user.subgroup == 1 %}
-              <option value="1" selected>1-я подгруппа</option>
-              {% elif current_user.subgroup == 2 %}
-              <option value="2" selected>2-я подгруппа</option>
+              <option value="boys">Мальчики</option>
+              <option value="girls">Девочки</option>
+              {% else %}
+                {% if current_user.subgroup == 1 %}
+                <option value="1">1-я подгруппа</option>
+                {% elif current_user.subgroup == 2 %}
+                <option value="2">2-я подгруппа</option>
+                {% endif %}
+                {% if current_user.gender_subgroup == 'boys' %}
+                <option value="boys">Мальчики</option>
+                {% elif current_user.gender_subgroup == 'girls' %}
+                <option value="girls">Девочки</option>
+                {% endif %}
               {% endif %}
             </select>
           </div>

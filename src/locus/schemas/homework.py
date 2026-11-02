@@ -1,5 +1,5 @@
 from datetime import date, datetime
-from typing import Optional
+from typing import Any, Optional
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from locus.constants import HomeworkStatus
@@ -11,8 +11,20 @@ class HomeworkBase(BaseModel):
     lesson_id: Optional[int] = None
     title: str = Field(min_length=1, max_length=200)
     due_date: date
-    subgroup: Optional[int] = Field(default=None, ge=1, le=2)
+    subgroup: Optional[str] = None
     status: HomeworkStatus = HomeworkStatus.TODO
+
+    @field_validator("subgroup", mode="before")
+    @classmethod
+    def normalize_subgroup(cls, v: Any) -> Optional[str]:
+        if v is None:
+            return None
+        v_str = str(v).strip()
+        if not v_str or v_str in ("0", "all", "none", "None"):
+            return None
+        if v_str not in ("1", "2", "boys", "girls"):
+            raise ValueError("Подгруппа должна быть 1, 2, 'boys' или 'girls'")
+        return v_str
 
     @field_validator("due_date")
     @classmethod
@@ -31,8 +43,20 @@ class HomeworkUpdate(BaseModel):
     lesson_id: Optional[int] = None
     title: Optional[str] = Field(default=None, min_length=1, max_length=200)
     due_date: Optional[date] = None
-    subgroup: Optional[int] = Field(default=None, ge=1, le=2)
+    subgroup: Optional[str] = None
     status: Optional[HomeworkStatus] = None
+
+    @field_validator("subgroup", mode="before")
+    @classmethod
+    def normalize_subgroup(cls, v: Any) -> Optional[str]:
+        if v is None:
+            return None
+        v_str = str(v).strip()
+        if not v_str or v_str in ("0", "all", "none", "None"):
+            return None
+        if v_str not in ("1", "2", "boys", "girls"):
+            raise ValueError("Подгруппа должна быть 1, 2, 'boys' или 'girls'")
+        return v_str
 
     @field_validator("due_date")
     @classmethod

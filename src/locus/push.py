@@ -78,7 +78,7 @@ def notify_homework_change(
     hw_id: int,
     title: str,
     subject_name: str,
-    subgroup: Optional[int],
+    subgroup: Optional[object],
     due_date: Optional[date],
 ) -> None:
     if not push_enabled():
@@ -106,7 +106,7 @@ def notify_homework_change(
     background.add_task(_send_push, actor.id, subgroup, payload)
 
 
-async def _send_push(actor_id: int, subgroup: Optional[int], payload: dict) -> None:
+async def _send_push(actor_id: int, subgroup: Optional[object], payload: dict) -> None:
     settings = get_settings()
     try:
         # Step 1: Query subscriptions and close DB session immediately so
@@ -117,9 +117,12 @@ async def _send_push(actor_id: int, subgroup: Optional[int], payload: dict) -> N
                 .join(User, PushSubscription.user_id == User.id)
                 .where(User.is_active.is_(True), User.id != actor_id)
             )
-            if subgroup is not None:
-                # Users without a subgroup (admin/teacher view) see every subgroup
-                stmt = stmt.where(or_(User.subgroup.is_(None), User.subgroup == subgroup))
+            if subgroup is not None and str(subgroup).strip():
+                sub_str = str(subgroup).strip()
+                if sub_str in ("1", "2"):
+                    stmt = stmt.where(or_(User.subgroup.is_(None), User.subgroup == int(sub_str)))
+                elif sub_str in ("boys", "girls"):
+                    stmt = stmt.where(or_(User.gender_subgroup.is_(None), User.gender_subgroup == sub_str))
             raw_subs = list((await db.execute(stmt)).scalars().all())
 
         if not raw_subs:

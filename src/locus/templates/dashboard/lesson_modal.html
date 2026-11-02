@@ -44,7 +44,7 @@
         <span>• Каб. {{ lesson.effective_room }}</span>
         {% endif %}
         {% if lesson.subgroup %}
-        <span>• {{ lesson.subgroup }} подгруппа</span>
+        <span>• {{ lesson.subgroup|subgroup_badge }}</span>
         {% endif %}
       </div>
     </div>

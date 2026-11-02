@@ -143,7 +143,7 @@ async def create_lesson_web(
     lesson_number: int = Form(...),
     start_time: str = Form(...),
     end_time: str = Form(...),
-    subgroup: Optional[int] = Form(default=None),
+    subgroup: Optional[str] = Form(default=None),
     room: Optional[str] = Form(default=None),
     note: Optional[str] = Form(default=None),
     current_user: User = Depends(get_current_admin_web),
@@ -153,8 +153,14 @@ async def create_lesson_web(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="День недели должен быть от 1 до 6")
     if lesson_number < 1 or lesson_number > 8:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Номер урока должен быть от 1 до 8")
-    if subgroup is not None and subgroup not in (1, 2):
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Номер подгруппы должен быть 1 или 2")
+
+    clean_subgroup: Optional[str] = None
+    if subgroup and subgroup.strip():
+        s = subgroup.strip()
+        if s not in ("", "0", "all", "none"):
+            if s not in ("1", "2", "boys", "girls"):
+                raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Номер подгруппы должен быть 1, 2, 'boys' или 'girls'")
+            clean_subgroup = s
 
     subject = await db.get(Subject, subject_id)
     if not subject:
@@ -171,7 +177,7 @@ async def create_lesson_web(
             start_time=clean_start,
             end_time=clean_end,
             week_type="ALL",
-            subgroup=subgroup,
+            subgroup=clean_subgroup,
         )
     except LessonConflictError as exc:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc))
@@ -186,7 +192,7 @@ async def create_lesson_web(
         start_time=clean_start,
         end_time=clean_end,
         week_type="ALL",
-        subgroup=subgroup,
+        subgroup=clean_subgroup,
         room=clean_room,
         note=clean_note,
     )
@@ -227,7 +233,7 @@ async def edit_lesson_web(
     lesson_number: int = Form(...),
     start_time: str = Form(...),
     end_time: str = Form(...),
-    subgroup: Optional[int] = Form(default=None),
+    subgroup: Optional[str] = Form(default=None),
     room: Optional[str] = Form(default=None),
     note: Optional[str] = Form(default=None),
     current_user: User = Depends(get_current_admin_web),
@@ -241,8 +247,14 @@ async def edit_lesson_web(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="День недели должен быть от 1 до 6")
     if lesson_number < 1 or lesson_number > 8:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Номер урока должен быть от 1 до 8")
-    if subgroup is not None and subgroup not in (1, 2):
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Номер подгруппы должен быть 1 или 2")
+
+    clean_subgroup: Optional[str] = None
+    if subgroup and subgroup.strip():
+        s = subgroup.strip()
+        if s not in ("", "0", "all", "none"):
+            if s not in ("1", "2", "boys", "girls"):
+                raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Номер подгруппы должен быть 1, 2, 'boys' или 'girls'")
+            clean_subgroup = s
 
     subject = await db.get(Subject, subject_id)
     if not subject:
@@ -259,7 +271,7 @@ async def edit_lesson_web(
             start_time=clean_start,
             end_time=clean_end,
             week_type=lesson.week_type,
-            subgroup=subgroup,
+            subgroup=clean_subgroup,
             exclude_lesson_id=lesson.id,
         )
     except LessonConflictError as exc:
@@ -277,7 +289,7 @@ async def edit_lesson_web(
     lesson.lesson_number = lesson_number
     lesson.start_time = clean_start
     lesson.end_time = clean_end
-    lesson.subgroup = subgroup
+    lesson.subgroup = clean_subgroup
     lesson.room = clean_room
     lesson.note = clean_note
 
@@ -288,7 +300,7 @@ async def edit_lesson_web(
         if subject_changed or day_changed:
             hw.lesson_id = None
         else:
-            hw.subgroup = subgroup
+            hw.subgroup = clean_subgroup
 
     await db.commit()
 

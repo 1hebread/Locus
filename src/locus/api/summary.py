@@ -15,6 +15,7 @@ from locus.models.lesson import Lesson
 from locus.models.user import User
 from locus.models.vacation import Vacation
 from locus.schemas.summary import DaySummary, SummaryLesson
+from locus.subgroup_helpers import build_user_subgroup_filter
 
 router = APIRouter(prefix="/summary", tags=["Summary"])
 
@@ -28,7 +29,6 @@ async def day_summary(
     """Lessons and homework for a single day (today by default)."""
     target = target_date or get_current_date()
     day_of_week = target.isoweekday()
-    subgroup = None if current_user.is_admin else current_user.subgroup
 
     vacation = (
         await db.execute(
@@ -45,10 +45,9 @@ async def day_summary(
         .where(Lesson.day_of_week == day_of_week)
         .order_by(Lesson.lesson_number, Lesson.subgroup.nulls_first())
     )
-    if subgroup is not None:
-        lesson_stmt = lesson_stmt.where(
-            or_(Lesson.subgroup.is_(None), Lesson.subgroup == subgroup)
-        )
+    user_lesson_filter = build_user_subgroup_filter(current_user, Lesson.subgroup)
+    if user_lesson_filter is not None:
+        lesson_stmt = lesson_stmt.where(user_lesson_filter)
     lessons = list((await db.execute(lesson_stmt)).scalars().all())
 
     hw_stmt = (
@@ -57,10 +56,9 @@ async def day_summary(
         .where(Homework.due_date == target)
         .order_by(Homework.id)
     )
-    if subgroup is not None:
-        hw_stmt = hw_stmt.where(
-            or_(Homework.subgroup.is_(None), Homework.subgroup == subgroup)
-        )
+    user_hw_filter = build_user_subgroup_filter(current_user, Homework.subgroup)
+    if user_hw_filter is not None:
+        hw_stmt = hw_stmt.where(user_hw_filter)
     homeworks = await attach_statuses(
         db, list((await db.execute(hw_stmt)).scalars().all()), current_user.id
     )

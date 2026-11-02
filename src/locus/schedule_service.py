@@ -34,13 +34,18 @@ async def clone_lesson_record(db: AsyncSession, lesson_id: int) -> Lesson:
     if not lesson:
         raise LessonNotFoundError("Урок не найден")
 
-    is_whole_class = lesson.subgroup is None
-    if lesson.subgroup == 1:
-        target_subgroup = 2
-    elif lesson.subgroup == 2:
-        target_subgroup = 1
+    is_whole_class = lesson.subgroup is None or str(lesson.subgroup).strip() == ""
+    source_sub = str(lesson.subgroup).strip() if not is_whole_class else None
+    if source_sub == "1":
+        target_subgroup = "2"
+    elif source_sub == "2":
+        target_subgroup = "1"
+    elif source_sub == "boys":
+        target_subgroup = "girls"
+    elif source_sub == "girls":
+        target_subgroup = "boys"
     else:
-        target_subgroup = 2
+        target_subgroup = "2"
 
     # Validate conflicts before making any modifications
     if is_whole_class:
@@ -52,7 +57,7 @@ async def clone_lesson_record(db: AsyncSession, lesson_id: int) -> Lesson:
             start_time=lesson.start_time,
             end_time=lesson.end_time,
             week_type=lesson.week_type,
-            subgroup=1,
+            subgroup="1",
             exclude_lesson_id=lesson.id,
         )
         # Validate clone as subgroup 2 (excluding the source lesson which becomes subgroup 1)
@@ -63,7 +68,7 @@ async def clone_lesson_record(db: AsyncSession, lesson_id: int) -> Lesson:
             start_time=lesson.start_time,
             end_time=lesson.end_time,
             week_type=lesson.week_type,
-            subgroup=2,
+            subgroup="2",
             exclude_lesson_id=lesson.id,
         )
     else:
@@ -78,8 +83,8 @@ async def clone_lesson_record(db: AsyncSession, lesson_id: int) -> Lesson:
         )
 
     # Room is taken from subject settings:
-    # If target is subgroup 2: subject.room2 (None if not set)
-    # If target is subgroup 1: subject.room (None if not set)
+    # If target is subgroup 2 or girls: subject.room2 (None if not set)
+    # If target is subgroup 1 or boys: subject.room (None if not set)
     target_room = lesson.subject.get_room(target_subgroup) if lesson.subject else None
 
     cloned_lesson = Lesson(
@@ -97,7 +102,7 @@ async def clone_lesson_record(db: AsyncSession, lesson_id: int) -> Lesson:
     await db.flush()
 
     if is_whole_class:
-        lesson.subgroup = 1
+        lesson.subgroup = "1"
         # Duplicate homeworks and their personal completions
         hw_stmt = (
             select(Homework)
@@ -106,13 +111,13 @@ async def clone_lesson_record(db: AsyncSession, lesson_id: int) -> Lesson:
         )
         hw_res = await db.execute(hw_stmt)
         for hw in hw_res.scalars().all():
-            hw.subgroup = 1
+            hw.subgroup = "1"
             cloned_hw = Homework(
                 subject_id=hw.subject_id,
                 lesson_id=cloned_lesson.id,
                 title=hw.title,
                 due_date=hw.due_date,
-                subgroup=2,
+                subgroup="2",
             )
             db.add(cloned_hw)
             await db.flush()

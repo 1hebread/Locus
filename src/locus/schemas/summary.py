@@ -14,7 +14,7 @@ class SummaryLesson(BaseModel):
     end_time: str
     room: Optional[str] = None
     teacher_name: Optional[str] = None
-    subgroup: Optional[int] = None
+    subgroup: Optional[str] = None
     subject: Optional[SubjectOut] = None
     homework: List[HomeworkOut] = []
 

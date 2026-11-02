@@ -44,6 +44,7 @@ async def _render_users(
     password_changed: bool = False,
     username_changed: bool = False,
     subgroup_changed: bool = False,
+    gender_subgroup_changed: bool = False,
     status_code: int = status.HTTP_200_OK,
 ):
     result = await db.execute(select(User).order_by(User.id))
@@ -62,6 +63,7 @@ async def _render_users(
             "password_changed": password_changed,
             "username_changed": username_changed,
             "subgroup_changed": subgroup_changed,
+            "gender_subgroup_changed": gender_subgroup_changed,
         },
         status_code=status_code,
     )
@@ -83,6 +85,7 @@ async def users_page(
         password_changed=request.query_params.get("password_changed") == "1",
         username_changed=request.query_params.get("username_changed") == "1",
         subgroup_changed=request.query_params.get("subgroup_changed") == "1",
+        gender_subgroup_changed=request.query_params.get("gender_subgroup_changed") == "1",
     )
 
 
@@ -92,6 +95,7 @@ async def create_user(
     username: str = Form(...),
     password: str = Form(...),
     subgroup: str | None = Form(default=None),
+    gender_subgroup: str | None = Form(default=None),
     current_user: User = Depends(get_current_admin_web),
     db: AsyncSession = Depends(get_db),
 ):
@@ -107,6 +111,20 @@ async def create_user(
                 db,
                 current_user,
                 error="Номер подгруппы должен быть 1 или 2",
+                form_username=username,
+                status_code=status.HTTP_400_BAD_REQUEST,
+            )
+
+    clean_gender: str | None = None
+    if gender_subgroup and gender_subgroup.strip():
+        if gender_subgroup.strip() in ("boys", "girls"):
+            clean_gender = gender_subgroup.strip()
+        else:
+            return await _render_users(
+                request,
+                db,
+                current_user,
+                error="Неверное значение гендерной подгруппы",
                 form_username=username,
                 status_code=status.HTTP_400_BAD_REQUEST,
             )
@@ -137,6 +155,7 @@ async def create_user(
                     is_active=True,
                     is_admin=False,
                     subgroup=clean_subgroup,
+                    gender_subgroup=clean_gender,
                 )
             )
             await db.commit()
@@ -255,6 +274,51 @@ async def change_subgroup(
     await db.commit()
     return RedirectResponse(
         url="/admin/users?subgroup_changed=1",
+        status_code=status.HTTP_303_SEE_OTHER,
+    )
+
+
+@router.get("/users/{user_id}/gender-subgroup")
+async def get_change_gender_subgroup_redirect(user_id: int):
+    return RedirectResponse(url="/admin/users", status_code=status.HTTP_303_SEE_OTHER)
+
+
+@router.post("/users/{user_id}/gender-subgroup")
+async def change_gender_subgroup(
+    request: Request,
+    user_id: int,
+    gender_subgroup: str | None = Form(default=None),
+    current_user: User = Depends(get_current_admin_web),
+    db: AsyncSession = Depends(get_db),
+):
+    user = await db.get(User, user_id)
+    if not user:
+        return await _render_users(
+            request,
+            db,
+            current_user,
+            error="Пользователь не найден",
+            status_code=status.HTTP_404_NOT_FOUND,
+        )
+
+    clean_gender: str | None = None
+    if gender_subgroup and gender_subgroup.strip():
+        if gender_subgroup.strip() in ("boys", "girls"):
+            clean_gender = gender_subgroup.strip()
+        else:
+            return await _render_users(
+                request,
+                db,
+                current_user,
+                error="Неверное значение гендерной подгруппы",
+                form_username=user.username,
+                status_code=status.HTTP_400_BAD_REQUEST,
+            )
+
+    user.gender_subgroup = clean_gender
+    await db.commit()
+    return RedirectResponse(
+        url="/admin/users?gender_subgroup_changed=1",
         status_code=status.HTTP_303_SEE_OTHER,
     )
 
@@ -399,7 +463,9 @@ def _display_value(
         elif isinstance(value, date):
             return value.strftime("%d.%m.%Y")
     if field == "subgroup":
-        return f"{value} подгруппа"
+        from locus.constants import SUBGROUP_LABELS
+        val_str = str(value)
+        return SUBGROUP_LABELS.get(val_str, f"{value} подгруппа")
     return str(value)
 
 

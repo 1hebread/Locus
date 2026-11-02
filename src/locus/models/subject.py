@@ -45,22 +45,22 @@ class Subject(Base):
     def whatsapp2_url(self) -> Optional[str]:
         return format_whatsapp_url(self.teacher2_phone)
 
-    def get_teacher_name(self, subgroup: Optional[int] = None) -> Optional[str]:
-        if subgroup == 2:
+    def get_teacher_name(self, subgroup: Optional[object] = None) -> Optional[str]:
+        if str(subgroup) in ("2", "girls"):
             return self.teacher2_name
         return self.teacher_name
 
-    def get_teacher_phone(self, subgroup: Optional[int] = None) -> Optional[str]:
-        if subgroup == 2:
+    def get_teacher_phone(self, subgroup: Optional[object] = None) -> Optional[str]:
+        if str(subgroup) in ("2", "girls"):
             return self.teacher2_phone
         return self.teacher_phone
 
-    def get_whatsapp_url(self, subgroup: Optional[int] = None) -> Optional[str]:
-        if subgroup == 2:
+    def get_whatsapp_url(self, subgroup: Optional[object] = None) -> Optional[str]:
+        if str(subgroup) in ("2", "girls"):
             return self.whatsapp2_url
         return self.whatsapp_url
 
-    def get_room(self, subgroup: Optional[int] = None) -> Optional[str]:
-        if subgroup == 2:
+    def get_room(self, subgroup: Optional[object] = None) -> Optional[str]:
+        if str(subgroup) in ("2", "girls"):
             return self.room2
         return self.room

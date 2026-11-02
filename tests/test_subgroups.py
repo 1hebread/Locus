@@ -595,7 +595,7 @@ async def test_unassigned_hw_assigned_to_subgroup_lesson_updates_subgroup(
 
     await db_session.refresh(hw)
     assert hw.lesson_id == lesson_sub2.id
-    assert hw.subgroup == 2  # Automatically synced with lesson's subgroup!
+    assert str(hw.subgroup) == "2"  # Automatically synced with lesson's subgroup!
 
 
 @pytest.mark.asyncio
@@ -700,8 +700,8 @@ async def test_different_teachers_per_subgroup_lesson(
     lessons = res.scalars().all()
     assert len(lessons) == 3
 
-    l1 = next(l for l in lessons if l.lesson_number == 1 and l.subgroup == 1)
-    l2 = next(l for l in lessons if l.lesson_number == 1 and l.subgroup == 2)
+    l1 = next(l for l in lessons if l.lesson_number == 1 and str(l.subgroup) == "1")
+    l2 = next(l for l in lessons if l.lesson_number == 1 and str(l.subgroup) == "2")
     l3 = next(l for l in lessons if l.lesson_number == 2)
 
     assert l1.effective_teacher_name == "Иванова А.А. (Подгр. 1)"
@@ -898,8 +898,8 @@ async def test_subject_card_subgroup_badges_and_empty_divider(
     assert "2 подгруппа" in html1
 
     # In user 1's view, Subgroup 1 badge has emerald border, Subgroup 2 badge has transparent border
-    assert 'border-emerald-500/25 text-[10px] font-semibold">1 подгруппа</span>' in html1
-    assert 'border-transparent text-[10px] font-semibold">2 подгруппа</span>' in html1
+    assert 'border-emerald-500/25 text-[10px] font-semibold">1 подгруппа / Мальчики</span>' in html1
+    assert 'border-transparent text-[10px] font-semibold">2 подгруппа / Девочки</span>' in html1
 
     # Fetch page as user in subgroup 2
     res2 = await client.get("/subjects", headers={"Authorization": f"Bearer {t2}"})
@@ -907,8 +907,8 @@ async def test_subject_card_subgroup_badges_and_empty_divider(
     html2 = res2.text
 
     # In user 2's view, Subgroup 2 badge has emerald border, Subgroup 1 badge has transparent border
-    assert 'border-transparent text-[10px] font-semibold">1 подгруппа</span>' in html2
-    assert 'border-emerald-500/25 text-[10px] font-semibold">2 подгруппа</span>' in html2
+    assert 'border-transparent text-[10px] font-semibold">1 подгруппа / Мальчики</span>' in html2
+    assert 'border-emerald-500/25 text-[10px] font-semibold">2 подгруппа / Девочки</span>' in html2
 
     # Verify empty subject "Мяу" has no divider border-t border-zinc-800/70 inside its card
     # Find card content around "Мяу"
@@ -1073,6 +1073,500 @@ async def test_unassigned_general_homework_in_both_parallel_cards(
 
     # The title "Общая лабораторная" should appear in both parallel cards (count >= 2)
     assert html.count("Общая лабораторная") >= 2
+
+
+@pytest.mark.asyncio
+async def test_subgroup_lesson_conflict_rules_boys_girls(
+    db_session: AsyncSession,
+    test_subject: Subject,
+):
+    # Lesson for boys
+    l_boys = Lesson(
+        subject_id=test_subject.id,
+        day_of_week=1,
+        lesson_number=1,
+        start_time="08:00",
+        end_time="08:45",
+        week_type="ALL",
+        subgroup="boys",
+    )
+    db_session.add(l_boys)
+    await db_session.commit()
+
+    # Parallel lesson for girls at the same slot - ALLOWED
+    await validate_lesson_conflict(
+        db=db_session,
+        day_of_week=1,
+        lesson_number=1,
+        start_time="08:00",
+        end_time="08:45",
+        week_type="ALL",
+        subgroup="girls",
+    )
+
+    # Adding second lesson for boys at the same slot - CONFLICT
+    with pytest.raises(LessonConflictError) as exc:
+        await validate_lesson_conflict(
+            db=db_session,
+            day_of_week=1,
+            lesson_number=1,
+            start_time="08:00",
+            end_time="08:45",
+            week_type="ALL",
+            subgroup="boys",
+        )
+    assert "Мальчики" in str(exc.value)
+
+    # Adding academic subgroup '1' overlapping with 'boys' - CONFLICT
+    with pytest.raises(LessonConflictError) as exc:
+        await validate_lesson_conflict(
+            db=db_session,
+            day_of_week=1,
+            lesson_number=1,
+            start_time="08:00",
+            end_time="08:45",
+            week_type="ALL",
+            subgroup="1",
+        )
+    assert "уже существует" in str(exc.value) or "пересекается" in str(exc.value)
+
+    # Adding whole-class (None) overlapping with 'boys' - CONFLICT
+    with pytest.raises(LessonConflictError) as exc:
+        await validate_lesson_conflict(
+            db=db_session,
+            day_of_week=1,
+            lesson_number=1,
+            start_time="08:00",
+            end_time="08:45",
+            week_type="ALL",
+            subgroup=None,
+        )
+    assert "уже существует" in str(exc.value) or "пересекается" in str(exc.value)
+
+
+@pytest.mark.asyncio
+async def test_admin_creates_and_updates_user_gender_subgroup(
+    client: AsyncClient,
+    auth_headers: dict,
+    db_session: AsyncSession,
+):
+    # Admin creates user with gender_subgroup="boys"
+    res = await client.post(
+        "/admin/users",
+        data={
+            "username": "boy_student",
+            "password": "Password123",
+            "subgroup": "1",
+            "gender_subgroup": "boys",
+        },
+        headers=auth_headers,
+        follow_redirects=True,
+    )
+    assert res.status_code == 200
+    assert "boy_student" in res.text
+
+    # Verify user in DB
+    user_stmt = select(User).where(User.username == "boy_student")
+    u = (await db_session.execute(user_stmt)).scalar_one()
+    assert u.subgroup == 1
+    assert u.gender_subgroup == "boys"
+
+    # Admin updates gender_subgroup to "girls" via POST /admin/users/{user_id}/gender-subgroup
+    res_update = await client.post(
+        f"/admin/users/{u.id}/gender-subgroup",
+        data={"gender_subgroup": "girls"},
+        headers=auth_headers,
+        follow_redirects=True,
+    )
+    assert res_update.status_code == 200
+    await db_session.refresh(u)
+    assert u.gender_subgroup == "girls"
+
+    # Admin resets gender_subgroup to None
+    res_reset = await client.post(
+        f"/admin/users/{u.id}/gender-subgroup",
+        data={"gender_subgroup": ""},
+        headers=auth_headers,
+        follow_redirects=True,
+    )
+    assert res_reset.status_code == 200
+    await db_session.refresh(u)
+    assert u.gender_subgroup is None
+
+    # Invalid gender_subgroup rejected
+    res_invalid = await client.post(
+        "/admin/users",
+        data={
+            "username": "invalid_gender_user",
+            "password": "Password123",
+            "gender_subgroup": "alien",
+        },
+        headers=auth_headers,
+        follow_redirects=True,
+    )
+    assert res_invalid.status_code == 400
+    assert "Неверное значение гендерной подгруппы" in res_invalid.text
+
+
+@pytest.mark.asyncio
+async def test_homework_and_lesson_gender_isolation(
+    client: AsyncClient,
+    db_session: AsyncSession,
+    auth_headers: dict,
+):
+    # Create subject with teachers/rooms for both subgroups (boys/girls)
+    sub = Subject(
+        name="Труд",
+        room="Мастерская",
+        teacher_name="Иванов И.И.",
+        room2="Кулинария",
+        teacher2_name="Петрова П.П.",
+    )
+    # Ivan (subgroup=1, gender_subgroup="boys")
+    ivan = User(
+        username="ivan_boy",
+        hashed_password=hash_password("pass123"),
+        subgroup=1,
+        gender_subgroup="boys",
+        is_active=True,
+    )
+    # Anna (subgroup=2, gender_subgroup="girls")
+    anna = User(
+        username="anna_girl",
+        hashed_password=hash_password("pass123"),
+        subgroup=2,
+        gender_subgroup="girls",
+        is_active=True,
+    )
+    db_session.add_all([sub, ivan, anna])
+    await db_session.commit()
+    await db_session.refresh(sub)
+    await db_session.refresh(ivan)
+    await db_session.refresh(anna)
+
+    token_ivan = create_access_token({"sub": str(ivan.id), "pwd": get_password_fingerprint(ivan.hashed_password)})
+    token_anna = create_access_token({"sub": str(anna.id), "pwd": get_password_fingerprint(anna.hashed_password)})
+    headers_ivan = {"Authorization": f"Bearer {token_ivan}"}
+    headers_anna = {"Authorization": f"Bearer {token_anna}"}
+
+    # Parallel lessons: Monday lesson 1 for boys (Мастерская) and girls (Кулинария)
+    l_boys = Lesson(
+        subject_id=sub.id,
+        day_of_week=1,
+        lesson_number=1,
+        start_time="08:00",
+        end_time="08:45",
+        week_type="ALL",
+        subgroup="boys",
+    )
+    l_girls = Lesson(
+        subject_id=sub.id,
+        day_of_week=1,
+        lesson_number=1,
+        start_time="08:00",
+        end_time="08:45",
+        week_type="ALL",
+        subgroup="girls",
+    )
+    db_session.add_all([l_boys, l_girls])
+    await db_session.commit()
+    await db_session.refresh(l_boys)
+    await db_session.refresh(l_girls)
+
+    assert l_boys.effective_room == "Мастерская"
+    assert l_boys.effective_teacher_name == "Иванов И.И."
+    assert l_girls.effective_room == "Кулинария"
+    assert l_girls.effective_teacher_name == "Петрова П.П."
+
+    # Homework for boys
+    hw_boys = Homework(
+        subject_id=sub.id,
+        lesson_id=l_boys.id,
+        title="Выточить деталь",
+        due_date=date(2026, 11, 2),
+        subgroup="boys",
+    )
+    # Homework for girls
+    hw_girls = Homework(
+        subject_id=sub.id,
+        lesson_id=l_girls.id,
+        title="Сшить фартук",
+        due_date=date(2026, 11, 2),
+        subgroup="girls",
+    )
+    db_session.add_all([hw_boys, hw_girls])
+    await db_session.commit()
+    await db_session.refresh(hw_boys)
+    await db_session.refresh(hw_girls)
+
+    # API: Ivan queries homework
+    res_ivan = await client.get("/api/v1/homework", headers=headers_ivan)
+    assert res_ivan.status_code == 200
+    ivan_hw_titles = [h["title"] for h in res_ivan.json()]
+    assert "Выточить деталь" in ivan_hw_titles
+    assert "Сшить фартук" not in ivan_hw_titles
+
+    # GET single homework endpoint for own subgroup (str vs int bug check)
+    res_single_ivan = await client.get(f"/api/v1/homework/{hw_boys.id}", headers=headers_ivan)
+    assert res_single_ivan.status_code == 200
+    assert res_single_ivan.json()["title"] == "Выточить деталь"
+
+    # GET single homework endpoint for foreign subgroup
+    res_single_anna_forbidden = await client.get(f"/api/v1/homework/{hw_boys.id}", headers=headers_anna)
+    assert res_single_anna_forbidden.status_code == 404
+
+    # Option Б verification: student with academic subgroup 1 and NO gender subgroup specified
+    # sees whole class, subgroup 1, and ALL gendered lessons/homework (boys and girls)
+    # but does NOT see subgroup 2
+    student_ungendered = User(
+        username="ungendered_sub1",
+        hashed_password=hash_password("pass123"),
+        subgroup=1,
+        gender_subgroup=None,
+        is_active=True,
+    )
+    db_session.add(student_ungendered)
+    await db_session.commit()
+    await db_session.refresh(student_ungendered)
+    token_ungendered = create_access_token(
+        {"sub": str(student_ungendered.id), "pwd": get_password_fingerprint(student_ungendered.hashed_password)}
+    )
+    headers_ungendered = {"Authorization": f"Bearer {token_ungendered}"}
+
+    res_ungendered_list = await client.get("/api/v1/homework", headers=headers_ungendered)
+    assert res_ungendered_list.status_code == 200
+    ungendered_titles = [h["title"] for h in res_ungendered_list.json()]
+    assert "Выточить деталь" in ungendered_titles
+    assert "Сшить фартук" in ungendered_titles
+
+    # API: Anna queries homework
+    res_anna = await client.get("/api/v1/homework", headers=headers_anna)
+    assert res_anna.status_code == 200
+    anna_hw_titles = [h["title"] for h in res_anna.json()]
+    assert "Сшить фартук" in anna_hw_titles
+    assert "Выточить деталь" not in anna_hw_titles
+
+    # Security: Ivan attempts to toggle Anna's homework (subgroup="girls") -> 404 (hidden/isolated from other subgroups)
+    res_toggle_forbidden = await client.patch(
+        f"/api/v1/homework/{hw_girls.id}/status",
+        headers=headers_ivan,
+        json={"status": "DONE"},
+    )
+    assert res_toggle_forbidden.status_code == 404
+
+    # Security: Anna attempts to toggle Ivan's homework (subgroup="boys") via Web -> 403 Forbidden
+    res_web_toggle_forbidden = await client.post(
+        f"/homework/{hw_boys.id}/toggle",
+        headers=headers_anna,
+    )
+    assert res_web_toggle_forbidden.status_code == 403
+
+    # Security: Ivan attempts to edit Anna's homework -> 403
+    res_edit_forbidden = await client.put(
+        f"/api/v1/homework/{hw_girls.id}",
+        headers=headers_ivan,
+        json={"title": "Взлом ДЗ", "due_date": "2026-11-02", "subgroup": "girls"},
+    )
+    assert res_edit_forbidden.status_code == 403
+
+
+@pytest.mark.asyncio
+async def test_clone_lesson_boys_girls(
+    client: AsyncClient,
+    auth_headers: dict,
+    db_session: AsyncSession,
+):
+    sub = Subject(
+        name="Технология 2",
+        room="101",
+        room2="202",
+    )
+    db_session.add(sub)
+    await db_session.commit()
+    await db_session.refresh(sub)
+
+    # 1. Create a lesson for boys on Wednesday
+    res_create = await client.post(
+        "/api/v1/schedule",
+        headers=auth_headers,
+        json={
+            "subject_id": sub.id,
+            "day_of_week": 3,
+            "lesson_number": 2,
+            "start_time": "08:55",
+            "end_time": "09:40",
+            "subgroup": "boys",
+            "room": "101",
+        },
+    )
+    assert res_create.status_code == 201
+    boys_lesson_id = res_create.json()["id"]
+
+    # 2. Admin clones boys lesson -> creates counterpart for girls
+    res_clone = await client.post(
+        f"/api/v1/schedule/{boys_lesson_id}/clone",
+        headers=auth_headers,
+    )
+    assert res_clone.status_code == 201
+    cloned_data = res_clone.json()
+    assert cloned_data["subgroup"] == "girls"
+    assert cloned_data["room"] == "202"  # Set from subject.room2
+
+    # 3. Cloning again fails because girls counterpart already exists
+    res_clone_fail = await client.post(
+        f"/api/v1/schedule/{boys_lesson_id}/clone",
+        headers=auth_headers,
+    )
+    assert res_clone_fail.status_code == 422
+
+    # 4. Web clone for girls -> creates counterpart for boys
+    sub_pe = Subject(name="Физкультура", room="Спортзал 1", room2="Спортзал 2")
+    db_session.add(sub_pe)
+    await db_session.commit()
+    await db_session.refresh(sub_pe)
+
+    lesson_girls = Lesson(
+        subject_id=sub_pe.id,
+        day_of_week=4,
+        lesson_number=3,
+        start_time="09:50",
+        end_time="10:35",
+        week_type="ALL",
+        subgroup="girls",
+        room="Спортзал 2",
+    )
+    db_session.add(lesson_girls)
+    await db_session.commit()
+    await db_session.refresh(lesson_girls)
+
+    res_web_clone = await client.post(
+        f"/schedule/{lesson_girls.id}/clone",
+        headers={**auth_headers, "Accept": "application/json"},
+    )
+    assert res_web_clone.status_code == 200
+    assert res_web_clone.json()["ok"] is True
+    # Verify in DB
+    lessons_stmt = select(Lesson).where(Lesson.subject_id == sub_pe.id, Lesson.day_of_week == 4)
+    pe_lessons = (await db_session.execute(lessons_stmt)).scalars().all()
+    assert len(pe_lessons) == 2
+    subs = {l.subgroup for l in pe_lessons}
+    assert subs == {"boys", "girls"}
+    boys_l = next(l for l in pe_lessons if l.subgroup == "boys")
+    assert boys_l.room == "Спортзал 1"
+
+
+@pytest.mark.asyncio
+async def test_admin_subgroup_with_gender_and_user_gender_display_hidden(
+    client: AsyncClient,
+    db_session: AsyncSession,
+):
+    sub_math = Subject(name="Математика")
+    sub_eng = Subject(name="Английский")
+    sub_tech = Subject(name="Технология")
+    db_session.add_all([sub_math, sub_eng, sub_tech])
+    await db_session.commit()
+    await db_session.refresh(sub_math)
+    await db_session.refresh(sub_eng)
+    await db_session.refresh(sub_tech)
+
+    # Monday:
+    # Lesson 1: Math for Subgroup 1, English for Subgroup 2
+    l_math_sub1 = Lesson(
+        subject_id=sub_math.id, day_of_week=1, lesson_number=1,
+        start_time="08:00", end_time="08:45", week_type="ALL", subgroup="1",
+    )
+    l_eng_sub2 = Lesson(
+        subject_id=sub_eng.id, day_of_week=1, lesson_number=1,
+        start_time="08:00", end_time="08:45", week_type="ALL", subgroup="2",
+    )
+    # Lesson 2: Technology for boys, Technology for girls
+    l_tech_boys = Lesson(
+        subject_id=sub_tech.id, day_of_week=1, lesson_number=2,
+        start_time="08:55", end_time="09:40", week_type="ALL", subgroup="boys",
+    )
+    l_tech_girls = Lesson(
+        subject_id=sub_tech.id, day_of_week=1, lesson_number=2,
+        start_time="08:55", end_time="09:40", week_type="ALL", subgroup="girls",
+    )
+    db_session.add_all([l_math_sub1, l_eng_sub2, l_tech_boys, l_tech_girls])
+
+    # Admin: in subgroup 1 and gender "boys"
+    admin_boy = User(
+        username="admin_boy_1",
+        hashed_password=hash_password("adminpass123"),
+        is_active=True,
+        is_admin=True,
+        subgroup=1,
+        gender_subgroup="boys",
+    )
+    # Student: in subgroup 1 and gender "boys"
+    student_boy = User(
+        username="student_boy_1",
+        hashed_password=hash_password("pass123"),
+        is_active=True,
+        is_admin=False,
+        subgroup=1,
+        gender_subgroup="boys",
+    )
+    db_session.add_all([admin_boy, student_boy])
+    await db_session.commit()
+    await db_session.refresh(admin_boy)
+    await db_session.refresh(student_boy)
+
+    t_admin = create_access_token({"sub": str(admin_boy.id), "pwd": get_password_fingerprint(admin_boy.hashed_password)})
+    t_student = create_access_token({"sub": str(student_boy.id), "pwd": get_password_fingerprint(student_boy.hashed_password)})
+    headers_admin = {"Authorization": f"Bearer {t_admin}"}
+    headers_student = {"Authorization": f"Bearer {t_student}"}
+
+    target_monday = "2026-10-26"
+
+    # 1. Admin views dashboard with subgroup 1 (default or ?subgroup=1)
+    # Must show: Math (subgroup 1) AND Technology for boys
+    # Must NOT show: Technology for girls (only in "all" or "girls"), English (subgroup 2)
+    r_admin_default = await client.get(f"/?date={target_monday}", headers=headers_admin)
+    assert r_admin_default.status_code == 200
+    assert f'id="lesson-card-{l_math_sub1.id}"' in r_admin_default.text
+    assert f'id="lesson-card-{l_tech_boys.id}"' in r_admin_default.text
+    assert f'id="lesson-card-{l_eng_sub2.id}"' not in r_admin_default.text
+    assert f'id="lesson-card-{l_tech_girls.id}"' not in r_admin_default.text
+
+    # Explicit ?subgroup=1
+    r_admin_sub1 = await client.get(f"/?date={target_monday}&subgroup=1", headers=headers_admin)
+    assert f'id="lesson-card-{l_math_sub1.id}"' in r_admin_sub1.text
+    assert f'id="lesson-card-{l_tech_boys.id}"' in r_admin_sub1.text
+    assert f'id="lesson-card-{l_tech_girls.id}"' not in r_admin_sub1.text
+
+    # Admin views ?subgroup=all -> shows everything (boys and girls)
+    r_admin_all = await client.get(f"/?date={target_monday}&subgroup=all", headers=headers_admin)
+    assert f'id="lesson-card-{l_math_sub1.id}"' in r_admin_all.text
+    assert f'id="lesson-card-{l_eng_sub2.id}"' in r_admin_all.text
+    assert f'id="lesson-card-{l_tech_boys.id}"' in r_admin_all.text
+    assert f'id="lesson-card-{l_tech_girls.id}"' in r_admin_all.text
+
+    # Admin views ?subgroup=girls -> shows Technology for girls, NOT Technology for boys
+    r_admin_girls = await client.get(f"/?date={target_monday}&subgroup=girls", headers=headers_admin)
+    assert f'id="lesson-card-{l_tech_girls.id}"' in r_admin_girls.text
+    assert f'id="lesson-card-{l_tech_boys.id}"' not in r_admin_girls.text
+
+    # 2. Regular student view:
+    # Must show Math and Technology for boys
+    r_student = await client.get(f"/?date={target_monday}", headers=headers_student)
+    assert r_student.status_code == 200
+    assert f'id="lesson-card-{l_math_sub1.id}"' in r_student.text
+    assert f'id="lesson-card-{l_tech_boys.id}"' in r_student.text
+    assert f'id="lesson-card-{l_tech_girls.id}"' not in r_student.text
+
+    # User's gender must NOT be displayed in header, only subgroup:
+    # "1 подгруппа" is present, but gender pill is absent
+    assert "1 подгруппа" in r_student.text
+    # Check that Мальчики is not in user profile header badge
+    assert '<div class="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl bg-cyan-500/10' not in r_student.text
+
+    # Homework page: gender pill absent for regular student
+    r_hw_student = await client.get("/homework", headers=headers_student)
+    assert r_hw_student.status_code == 200
+    assert "1 подгруппа" in r_hw_student.text
+    assert '<span class="inline-flex items-center gap-1 px-3 py-1 rounded-xl bg-cyan-500/10' not in r_hw_student.text
 
 
 

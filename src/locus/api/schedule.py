@@ -13,6 +13,7 @@ from locus.models.user import User
 from locus.schemas.lesson import LessonCreate, LessonOut, LessonUpdate
 from locus.schedule_service import LessonNotFoundError, clone_lesson_record
 from locus.schedule_validation import LessonConflictError, validate_lesson_conflict
+from locus.subgroup_helpers import build_user_subgroup_filter
 
 router = APIRouter(prefix="/schedule", tags=["Schedule"])
 
@@ -21,7 +22,7 @@ router = APIRouter(prefix="/schedule", tags=["Schedule"])
 async def list_schedule(
     day_of_week: Optional[int] = Query(default=None, ge=1, le=7),
     week_type: Optional[WeekType] = Query(default=None),
-    subgroup: Optional[int] = Query(default=None, ge=1, le=2),
+    subgroup: Optional[str] = Query(default=None),
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
@@ -39,15 +40,14 @@ async def list_schedule(
             )
         )
 
-    effective_subgroup = subgroup
-    if not current_user.is_admin and current_user.subgroup is not None:
-        effective_subgroup = current_user.subgroup
-
-    if effective_subgroup is not None:
+    user_filter = build_user_subgroup_filter(current_user, Lesson.subgroup)
+    if user_filter is not None:
+        stmt = stmt.where(user_filter)
+    elif subgroup is not None and str(subgroup).strip() and str(subgroup).strip() != "all":
         stmt = stmt.where(
             or_(
                 Lesson.subgroup.is_(None),
-                Lesson.subgroup == effective_subgroup,
+                Lesson.subgroup == str(subgroup).strip(),
             )
         )
 

@@ -85,7 +85,7 @@
           </div>
 
           <div class="flex items-center gap-2.5">
-            {% if current_user.is_admin or not current_user.subgroup %}
+            {% if current_user.is_admin or (not current_user.subgroup and not current_user.gender_subgroup) %}
             <div id="desktop-subgroup-filter-{{ day.date_iso }}" class="desktop-subgroup-filter flex items-center bg-[#18181b] p-1 rounded-xl border border-zinc-800 text-xs">
               <a href="/?date={{ day.date_iso }}&subgroup=all"
                  data-subgroup-filter
@@ -94,19 +94,33 @@
               </a>
               <a href="/?date={{ day.date_iso }}&subgroup=1"
                  data-subgroup-filter
-                 class="px-2.5 py-1 rounded-lg font-medium transition {% if active_subgroup == 1 %}bg-emerald-500 text-white font-bold{% else %}text-zinc-400 hover:text-white{% endif %}">
-                1 подгруппа
+                 class="px-2.5 py-1 rounded-lg font-medium transition {% if active_subgroup == '1' %}bg-emerald-500 text-white font-bold{% else %}text-zinc-400 hover:text-white{% endif %}">
+                1
               </a>
               <a href="/?date={{ day.date_iso }}&subgroup=2"
                  data-subgroup-filter
-                 class="px-2.5 py-1 rounded-lg font-medium transition {% if active_subgroup == 2 %}bg-emerald-500 text-white font-bold{% else %}text-zinc-400 hover:text-white{% endif %}">
-                2 подгруппа
+                 class="px-2.5 py-1 rounded-lg font-medium transition {% if active_subgroup == '2' %}bg-emerald-500 text-white font-bold{% else %}text-zinc-400 hover:text-white{% endif %}">
+                2
+              </a>
+              <a href="/?date={{ day.date_iso }}&subgroup=boys"
+                 data-subgroup-filter
+                 class="px-2.5 py-1 rounded-lg font-medium transition {% if active_subgroup == 'boys' %}bg-emerald-500 text-white font-bold{% else %}text-zinc-400 hover:text-white{% endif %}">
+                Мальчики
+              </a>
+              <a href="/?date={{ day.date_iso }}&subgroup=girls"
+                 data-subgroup-filter
+                 class="px-2.5 py-1 rounded-lg font-medium transition {% if active_subgroup == 'girls' %}bg-emerald-500 text-white font-bold{% else %}text-zinc-400 hover:text-white{% endif %}">
+                Девочки
               </a>
             </div>
-            {% elif current_user.subgroup %}
-            <div class="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs font-semibold">
-              <span>{{ current_user.subgroup }} подгруппа</span>
+            {% else %}
+            {% if current_user.subgroup %}
+            <div class="inline-flex items-center gap-1.5">
+              <div class="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs font-semibold">
+                <span>{{ current_user.subgroup }} подгруппа</span>
+              </div>
             </div>
+            {% endif %}
             {% endif %}
 
             <button onclick="openModal('add-hw-modal')"
@@ -161,7 +175,7 @@
                   </span>
                   {% if hw.subgroup %}
                   <span class="text-[10px] font-bold px-1.5 py-0.5 rounded text-emerald-400 bg-emerald-500/15 border border-emerald-500/25">
-                    {{ hw.subgroup }} подгруппа
+                    {{ hw.subgroup|subgroup_badge }}
                   </span>
                   {% endif %}
                 </div>
@@ -255,30 +269,42 @@
         </a>
       </div>
 
-      {% if current_user.is_admin or not current_user.subgroup %}
-      <div id="mobile-subgroup-filter" class="px-1 pt-2 flex items-center justify-center gap-1.5 text-xs">
+      {% if current_user.is_admin or (not current_user.subgroup and not current_user.gender_subgroup) %}
+      <div id="mobile-subgroup-filter" class="px-1 pt-2 flex items-center justify-center gap-1.5 text-xs flex-wrap">
         <a href="/?date={{ selected_date_iso }}&subgroup=all"
            data-subgroup-filter
-           class="px-3 py-1 rounded-xl transition {% if active_subgroup is none %}bg-emerald-500 text-white font-bold{% else %}bg-[#18181b] text-zinc-400 border border-zinc-800{% endif %}">
+           class="px-2.5 py-1 rounded-xl transition {% if active_subgroup is none %}bg-emerald-500 text-white font-bold{% else %}bg-[#18181b] text-zinc-400 border border-zinc-800{% endif %}">
           Все
         </a>
         <a href="/?date={{ selected_date_iso }}&subgroup=1"
            data-subgroup-filter
-           class="px-3 py-1 rounded-xl transition {% if active_subgroup == 1 %}bg-emerald-500 text-white font-bold{% else %}bg-[#18181b] text-zinc-400 border border-zinc-800{% endif %}">
-          1 подгруппа
+           class="px-2.5 py-1 rounded-xl transition {% if active_subgroup == '1' %}bg-emerald-500 text-white font-bold{% else %}bg-[#18181b] text-zinc-400 border border-zinc-800{% endif %}">
+          1
         </a>
         <a href="/?date={{ selected_date_iso }}&subgroup=2"
            data-subgroup-filter
-           class="px-3 py-1 rounded-xl transition {% if active_subgroup == 2 %}bg-emerald-500 text-white font-bold{% else %}bg-[#18181b] text-zinc-400 border border-zinc-800{% endif %}">
-          2 подгруппа
+           class="px-2.5 py-1 rounded-xl transition {% if active_subgroup == '2' %}bg-emerald-500 text-white font-bold{% else %}bg-[#18181b] text-zinc-400 border border-zinc-800{% endif %}">
+          2
+        </a>
+        <a href="/?date={{ selected_date_iso }}&subgroup=boys"
+           data-subgroup-filter
+           class="px-2.5 py-1 rounded-xl transition {% if active_subgroup == 'boys' %}bg-emerald-500 text-white font-bold{% else %}bg-[#18181b] text-zinc-400 border border-zinc-800{% endif %}">
+          М
+        </a>
+        <a href="/?date={{ selected_date_iso }}&subgroup=girls"
+           data-subgroup-filter
+           class="px-2.5 py-1 rounded-xl transition {% if active_subgroup == 'girls' %}bg-emerald-500 text-white font-bold{% else %}bg-[#18181b] text-zinc-400 border border-zinc-800{% endif %}">
+          Д
         </a>
       </div>
-      {% elif current_user.subgroup %}
-      <div class="pt-2 flex justify-center">
+      {% else %}
+      {% if current_user.subgroup %}
+      <div class="pt-2 flex justify-center items-center">
         <span class="inline-flex items-center gap-1 px-3 py-1 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs font-semibold">
           {{ current_user.subgroup }} подгруппа
         </span>
       </div>
+      {% endif %}
       {% endif %}
     </div>
 
@@ -338,7 +364,7 @@
                   </span>
                   {% if hw.subgroup %}
                   <span class="text-[10px] font-bold px-1.5 py-0.5 rounded text-emerald-400 bg-emerald-500/15 border border-emerald-500/25">
-                    {{ hw.subgroup }} подгруппа
+                    {{ hw.subgroup|subgroup_badge }}
                   </span>
                   {% endif %}
                 </div>

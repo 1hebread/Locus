@@ -176,3 +176,32 @@ def test_suggestion_skips_sunday_to_next_weekday():
     assert suggestion["target_lesson_id"] == 3
     assert suggestion["next_date_iso"] == "2026-10-26"
     assert "26 октября" in suggestion["next_date_label"]
+
+
+def test_suggestion_respects_gender_subgroups():
+    l_boys_thurs = make_lesson(1, 1, "Технология", 4, "08:30", "09:15")
+    l_boys_thurs.subgroup = "boys"
+    l_girls_thurs = make_lesson(2, 1, "Технология", 4, "08:30", "09:15")
+    l_girls_thurs.subgroup = "girls"
+
+    l_boys_mon = make_lesson(3, 1, "Технология", 1, "08:30", "09:15")
+    l_boys_mon.subgroup = "boys"
+    l_girls_mon = make_lesson(4, 1, "Технология", 1, "08:30", "09:15")
+    l_girls_mon.subgroup = "girls"
+
+    lessons = [l_boys_thurs, l_girls_thurs, l_boys_mon, l_girls_mon]
+    now = datetime(2026, 10, 22, 9, 0, tzinfo=TZ)  # Thursday during class
+
+    # User with subgroup=1, gender_subgroup="boys"
+    sug_boy = get_next_lesson_suggestion(lessons, now, subgroup=1, gender_subgroup="boys")
+    assert sug_boy is not None
+    assert sug_boy["source_lesson_id"] == 1
+    assert sug_boy["target_lesson_id"] == 3
+    assert sug_boy["subgroup"] == "boys"
+
+    # User with subgroup=2, gender_subgroup="girls"
+    sug_girl = get_next_lesson_suggestion(lessons, now, subgroup=2, gender_subgroup="girls")
+    assert sug_girl is not None
+    assert sug_girl["source_lesson_id"] == 2
+    assert sug_girl["target_lesson_id"] == 4
+    assert sug_girl["subgroup"] == "girls"

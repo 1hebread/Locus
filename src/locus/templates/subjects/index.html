@@ -74,7 +74,7 @@
           {% if has_sub1 %}
           <!-- Subgroup 1 -->
           <div class="space-y-1">
-            <span class="inline-flex items-center px-1.5 py-0.5 rounded {% if current_user.subgroup == 1 %}bg-emerald-500/15 text-emerald-400 border border-emerald-500/25{% else %}bg-zinc-800 text-zinc-400 border border-transparent{% endif %} text-[10px] font-semibold">1 подгруппа</span>
+            <span class="inline-flex items-center px-1.5 py-0.5 rounded {% if current_user.subgroup == 1 or current_user.gender_subgroup == 'boys' %}bg-emerald-500/15 text-emerald-400 border border-emerald-500/25{% else %}bg-zinc-800 text-zinc-400 border border-transparent{% endif %} text-[10px] font-semibold">1 подгруппа / Мальчики</span>
             {% if sub.room %}
             <div class="flex items-center space-x-2">
               <span class="text-zinc-500">Кабинет:</span>
@@ -114,7 +114,7 @@
 
           <!-- Subgroup 2 -->
           <div class="space-y-1 {% if has_sub1 %}pt-1.5 border-t border-zinc-800/50{% endif %}">
-            <span class="inline-flex items-center px-1.5 py-0.5 rounded {% if current_user.subgroup == 2 %}bg-emerald-500/15 text-emerald-400 border border-emerald-500/25{% else %}bg-zinc-800 text-zinc-400 border border-transparent{% endif %} text-[10px] font-semibold">2 подгруппа</span>
+            <span class="inline-flex items-center px-1.5 py-0.5 rounded {% if current_user.subgroup == 2 or current_user.gender_subgroup == 'girls' %}bg-emerald-500/15 text-emerald-400 border border-emerald-500/25{% else %}bg-zinc-800 text-zinc-400 border border-transparent{% endif %} text-[10px] font-semibold">2 подгруппа / Девочки</span>
             {% if sub.room2 %}
             <div class="flex items-center space-x-2">
               <span class="text-zinc-500">Кабинет:</span>

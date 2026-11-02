@@ -7,7 +7,7 @@
       </span>
       {% if hw.subgroup %}
       <span class="text-[10px] font-bold px-1.5 py-0.5 rounded text-emerald-400 bg-emerald-500/15 border border-emerald-500/25">
-        {{ hw.subgroup }} подгруппа
+        {{ hw.subgroup|subgroup_badge }}
       </span>
       {% endif %}
     </div>

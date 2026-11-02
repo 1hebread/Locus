@@ -31,7 +31,7 @@ class Lesson(Base):
     )
     room: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
     note: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
-    subgroup: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    subgroup: Mapped[Optional[str]] = mapped_column(String(20), nullable=True)
 
     subject: Mapped["Subject"] = relationship("Subject", back_populates="lessons")
     homeworks: Mapped[List["Homework"]] = relationship(

@@ -4,7 +4,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from locus.constants import WeekType
+from locus.constants import SUBGROUP_LABELS, WeekType
 from locus.models.lesson import Lesson
 
 TIME_REGEX = re.compile(r"^(?:[01]\d|2[0-3]):[0-5]\d$")
@@ -23,15 +23,28 @@ def check_week_overlap(week1: str, week2: str) -> bool:
     )
 
 
-def check_subgroup_overlap(subgroup1: Optional[int], subgroup2: Optional[int]) -> bool:
+def check_subgroup_overlap(subgroup1: Optional[object], subgroup2: Optional[object]) -> bool:
     """Check if two lessons affect the same student audience.
 
-    If either lesson is for the whole class (None or 0), they overlap.
-    If both belong to explicit subgroups, they overlap only if the subgroups are equal.
+    If either lesson is for the whole class (None or empty), they overlap.
+    If both belong to explicit subgroups:
+      - Pair {"1", "2"}: do not overlap with each other.
+      - Pair {"boys", "girls"}: do not overlap with each other.
+      - Any cross-pair combination (e.g. {"1", "boys"}) overlaps.
+      - Identical subgroups overlap.
     """
-    if not subgroup1 or not subgroup2:
+    if subgroup1 is None or subgroup2 is None:
         return True
-    return subgroup1 == subgroup2
+    s1 = str(subgroup1).strip()
+    s2 = str(subgroup2).strip()
+    if not s1 or not s2 or s1 == "0" or s2 == "0":
+        return True
+    if s1 == s2:
+        return True
+    pair = {s1, s2}
+    if pair == {"1", "2"} or pair == {"boys", "girls"}:
+        return False
+    return True
 
 
 def check_time_overlap(start1: str, end1: str, start2: str, end2: str) -> bool:
@@ -54,7 +67,7 @@ async def validate_lesson_conflict(
     start_time: str,
     end_time: str,
     week_type: str = WeekType.ALL.value,
-    subgroup: Optional[int] = None,
+    subgroup: Optional[object] = None,
     exclude_lesson_id: Optional[int] = None,
 ) -> None:
     """Validate that lesson number and times do not conflict with existing lessons on the same day."""
@@ -80,7 +93,8 @@ async def validate_lesson_conflict(
 
         if other.lesson_number == lesson_number:
             if other.subgroup:
-                group_info = f" для подгруппы {other.subgroup}"
+                sub_label = SUBGROUP_LABELS.get(str(other.subgroup), str(other.subgroup))
+                group_info = f" для подгруппы {sub_label}" if str(other.subgroup) in ("boys", "girls") else f" для подгруппы {other.subgroup}"
             elif subgroup:
                 group_info = " (для всего класса)"
             else:

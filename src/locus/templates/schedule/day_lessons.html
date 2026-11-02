@@ -4,12 +4,12 @@
        {% if current_user.is_admin %}onclick="openEditLessonModalById({{ lesson.id }})"{% endif %}>
     <div class="flex items-start justify-between gap-2">
       <div class="min-w-0 flex-1">
-        <div class="flex items-center space-x-2 mb-1 flex-wrap">
+        <div class="flex items-center space-x-1.5 mb-1 flex-nowrap min-w-0">
           <span class="w-2 h-2 rounded-full shrink-0 bg-emerald-400"></span>
-          <span class="text-xs font-bold text-zinc-200">№{{ lesson.lesson_number }}</span>
-          <span class="text-xs text-zinc-400 font-medium">{{ lesson.start_time }}–{{ lesson.end_time }}</span>
+          <span class="text-xs font-bold text-zinc-200 shrink-0">№{{ lesson.lesson_number }}</span>
+          <span class="text-xs text-zinc-400 font-medium shrink-0">{{ lesson.start_time }}–{{ lesson.end_time }}</span>
           {% if lesson.subgroup %}
-          <span class="px-1.5 py-0.5 rounded bg-emerald-500/15 text-emerald-400 border border-emerald-500/25 text-[10px] font-bold">{{ lesson.subgroup }} подгр.</span>
+          <span class="px-1.5 py-0.5 rounded bg-emerald-500/15 text-emerald-400 border border-emerald-500/25 text-[10px] font-bold shrink-0 whitespace-nowrap">{{ lesson.subgroup|subgroup_badge }}</span>
           {% endif %}
         </div>
 
@@ -39,24 +39,43 @@
       {% if current_user.is_admin %}
       <div class="flex items-center space-x-1 shrink-0" onclick="event.stopPropagation()">
         <!-- Clone with other subgroup button -->
-        {% set ns = namespace(can_clone=true) %}
-        {% if lesson.subgroup == 1 %}
-          {% set target_sub = 2 %}
+        {% set ns = namespace(can_clone=true, target_label="") %}
+        {% if lesson.subgroup == '1' or lesson.subgroup == 1 %}
+          {% set target_sub = '2' %}
+          {% set ns.target_label = "2-й подгруппы" %}
           {% for other in schedule_by_day[d_num] %}
-            {% if other.id != lesson.id and other.lesson_number == lesson.lesson_number and (other.week_type == 'all' or lesson.week_type == 'all' or other.week_type == lesson.week_type) and (other.subgroup == 2 or other.subgroup is none) %}
+            {% if other.id != lesson.id and other.lesson_number == lesson.lesson_number and (other.week_type == 'all' or lesson.week_type == 'all' or other.week_type == lesson.week_type) and (other.subgroup == '2' or other.subgroup == 2 or other.subgroup is none) %}
               {% set ns.can_clone = false %}
             {% endif %}
           {% endfor %}
-        {% elif lesson.subgroup == 2 %}
-          {% set target_sub = 1 %}
+        {% elif lesson.subgroup == '2' or lesson.subgroup == 2 %}
+          {% set target_sub = '1' %}
+          {% set ns.target_label = "1-й подгруппы" %}
           {% for other in schedule_by_day[d_num] %}
-            {% if other.id != lesson.id and other.lesson_number == lesson.lesson_number and (other.week_type == 'all' or lesson.week_type == 'all' or other.week_type == lesson.week_type) and (other.subgroup == 1 or other.subgroup is none) %}
+            {% if other.id != lesson.id and other.lesson_number == lesson.lesson_number and (other.week_type == 'all' or lesson.week_type == 'all' or other.week_type == lesson.week_type) and (other.subgroup == '1' or other.subgroup == 1 or other.subgroup is none) %}
+              {% set ns.can_clone = false %}
+            {% endif %}
+          {% endfor %}
+        {% elif lesson.subgroup == 'boys' %}
+          {% set target_sub = 'girls' %}
+          {% set ns.target_label = "девочек" %}
+          {% for other in schedule_by_day[d_num] %}
+            {% if other.id != lesson.id and other.lesson_number == lesson.lesson_number and (other.week_type == 'all' or lesson.week_type == 'all' or other.week_type == lesson.week_type) and (other.subgroup == 'girls' or other.subgroup is none) %}
+              {% set ns.can_clone = false %}
+            {% endif %}
+          {% endfor %}
+        {% elif lesson.subgroup == 'girls' %}
+          {% set target_sub = 'boys' %}
+          {% set ns.target_label = "мальчиков" %}
+          {% for other in schedule_by_day[d_num] %}
+            {% if other.id != lesson.id and other.lesson_number == lesson.lesson_number and (other.week_type == 'all' or lesson.week_type == 'all' or other.week_type == lesson.week_type) and (other.subgroup == 'boys' or other.subgroup is none) %}
               {% set ns.can_clone = false %}
             {% endif %}
           {% endfor %}
         {% else %}
           {# Whole-class lesson: converts to 1, clones to 2 #}
-          {% set target_sub = 2 %}
+          {% set target_sub = '2' %}
+          {% set ns.target_label = "2-й подгруппы" %}
           {% for other in schedule_by_day[d_num] %}
             {% if other.id != lesson.id and other.lesson_number == lesson.lesson_number and (other.week_type == 'all' or lesson.week_type == 'all' or other.week_type == lesson.week_type) %}
               {% set ns.can_clone = false %}
@@ -69,7 +88,7 @@
                 id="btn-clone-lesson-{{ lesson.id }}"
                 onclick="cloneLessonWithOtherSubgroup({{ lesson.id }})"
                 class="text-zinc-500 hover:text-emerald-400 p-1 transition"
-                title="Клонировать для {{ target_sub }}-й подгруппы">
+                title="Клонировать для {{ ns.target_label }}">
           <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
           </svg>

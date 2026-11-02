@@ -45,10 +45,16 @@
   </div>
   {% endif %}
 
+  {% if gender_subgroup_changed %}
+  <div class="p-3.5 rounded-xl bg-emerald-950/40 border border-emerald-900/60 text-emerald-300 text-xs sm:text-sm">
+    Гендерная подгруппа обновлена.
+  </div>
+  {% endif %}
+
   <form method="post" action="/admin/users" class="p-4 sm:p-5 rounded-2xl bg-[#18181b] border border-zinc-800/90 shadow-[0_4px_20px_rgba(0,0,0,0.85)] space-y-3.5">
     <h2 class="font-bold text-white text-sm sm:text-base">Новый аккаунт</h2>
 
-    <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
       <div>
         <label for="username" class="block text-xs font-medium text-zinc-300 mb-1.5">Логин</label>
         <input type="text" id="username" name="username" required minlength="3" maxlength="255"
@@ -75,6 +81,16 @@
           <option value="2">2-я подгруппа</option>
         </select>
       </div>
+
+      <div>
+        <label for="gender_subgroup" class="block text-xs font-medium text-zinc-300 mb-1.5">Пол / гендер</label>
+        <select id="gender_subgroup" name="gender_subgroup"
+                class="w-full h-10 bg-black border border-zinc-700/80 rounded-xl px-3 text-sm text-white focus:outline-none focus:ring-1 focus:ring-emerald-500 transition">
+          <option value="">Не указан (общий)</option>
+          <option value="boys">Мальчики</option>
+          <option value="girls">Девочки</option>
+        </select>
+      </div>
     </div>
 
     <button type="submit"
@@ -96,7 +112,11 @@
             {% endif %}
             {% if user.subgroup %}
             <span class="px-2.5 py-0.5 rounded-lg bg-emerald-500/15 text-emerald-400 border border-emerald-500/25 text-[10px] font-bold uppercase tracking-wide">{{ user.subgroup }} подгруппа</span>
-            {% else %}
+            {% endif %}
+            {% if user.gender_subgroup %}
+            <span class="px-2.5 py-0.5 rounded-lg bg-cyan-500/15 text-cyan-400 border border-cyan-500/25 text-[10px] font-bold uppercase tracking-wide">{{ user.gender_subgroup|subgroup_badge }}</span>
+            {% endif %}
+            {% if not user.subgroup and not user.gender_subgroup %}
             <span class="px-2.5 py-0.5 rounded-lg bg-zinc-800 text-zinc-400 text-[10px] font-medium">Без подгруппы</span>
             {% endif %}
             {% if not user.is_active %}
@@ -151,6 +171,22 @@
           <button type="submit"
                   class="w-full sm:w-40 h-10 shrink-0 inline-flex items-center justify-center px-4 rounded-xl text-xs sm:text-sm font-semibold bg-zinc-800 hover:bg-zinc-700 active:scale-95 text-zinc-200 transition whitespace-nowrap">
             Сохранить группу
+          </button>
+        </form>
+
+        <!-- Change Gender Subgroup -->
+        <form method="post" action="/admin/users/{{ user.id }}/gender-subgroup" class="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+          <div class="relative flex-1 min-w-0">
+            <select name="gender_subgroup" aria-label="Пол / гендер для {{ user.username }}"
+                    class="w-full h-10 bg-black border border-zinc-700/80 rounded-xl px-3.5 text-xs sm:text-sm text-white focus:outline-none focus:ring-1 focus:ring-emerald-500 transition">
+              <option value="" {% if not user.gender_subgroup %}selected{% endif %}>Не указан (общий)</option>
+              <option value="boys" {% if user.gender_subgroup == 'boys' %}selected{% endif %}>Мальчики</option>
+              <option value="girls" {% if user.gender_subgroup == 'girls' %}selected{% endif %}>Девочки</option>
+            </select>
+          </div>
+          <button type="submit"
+                  class="w-full sm:w-40 h-10 shrink-0 inline-flex items-center justify-center px-4 rounded-xl text-xs sm:text-sm font-semibold bg-zinc-800 hover:bg-zinc-700 active:scale-95 text-zinc-200 transition whitespace-nowrap">
+            Сохранить пол
           </button>
         </form>
 

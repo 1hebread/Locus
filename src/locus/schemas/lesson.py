@@ -17,7 +17,19 @@ class LessonBase(BaseModel):
     week_type: WeekType = WeekType.ALL
     room: Optional[str] = Field(default=None, max_length=50)
     note: Optional[str] = Field(default=None, max_length=255)
-    subgroup: Optional[int] = Field(default=None, ge=1, le=2)
+    subgroup: Optional[str] = None
+
+    @field_validator("subgroup", mode="before")
+    @classmethod
+    def normalize_subgroup(cls, v: Any) -> Optional[str]:
+        if v is None:
+            return None
+        v_str = str(v).strip()
+        if not v_str or v_str in ("0", "all", "none", "None"):
+            return None
+        if v_str not in ("1", "2", "boys", "girls"):
+            raise ValueError("Подгруппа должна быть 1, 2, 'boys' или 'girls'")
+        return v_str
 
     @field_validator("room", "note")
     @classmethod
@@ -56,7 +68,19 @@ class LessonUpdate(BaseModel):
     week_type: Optional[WeekType] = None
     room: Optional[str] = Field(default=None, max_length=50)
     note: Optional[str] = Field(default=None, max_length=255)
-    subgroup: Optional[int] = Field(default=None, ge=1, le=2)
+    subgroup: Optional[str] = None
+
+    @field_validator("subgroup", mode="before")
+    @classmethod
+    def normalize_subgroup(cls, v: Any) -> Optional[str]:
+        if v is None:
+            return None
+        v_str = str(v).strip()
+        if not v_str or v_str in ("0", "all", "none", "None"):
+            return None
+        if v_str not in ("1", "2", "boys", "girls"):
+            raise ValueError("Подгруппа должна быть 1, 2, 'boys' или 'girls'")
+        return v_str
 
     @field_validator("room", "note")
     @classmethod
@@ -98,7 +122,7 @@ class LessonOut(BaseModel):
     week_type: str
     room: Optional[str] = None
     note: Optional[str] = None
-    subgroup: Optional[int] = None
+    subgroup: Optional[str] = None
     subject: Optional[SubjectOut] = None
 
     model_config = ConfigDict(from_attributes=True)

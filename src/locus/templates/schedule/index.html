@@ -242,12 +242,22 @@
     return ['08:00', '08:45'];
   }
 
+  function formatSubgroupLabel(sub) {
+    if (!sub) return '';
+    const s = String(sub);
+    if (s === '1') return ' (1-я подгруппа)';
+    if (s === '2') return ' (2-я подгруппа)';
+    if (s === 'boys') return ' (Мальчики)';
+    if (s === 'girls') return ' (Девочки)';
+    return ' (' + s + ')';
+  }
+
   function updateLessonTimes(lessonNum, force = false) {
     if (isCustomTime && !force) return;
     const daySelect = document.getElementById('day_of_week');
     const subgroupSelect = document.getElementById('subgroup');
     const dayNum = daySelect ? parseInt(daySelect.value, 10) : 1;
-    const curSubgroup = (subgroupSelect && subgroupSelect.value) ? parseInt(subgroupSelect.value, 10) : null;
+    const curSubgroup = (subgroupSelect && subgroupSelect.value) ? subgroupSelect.value.trim() : null;
 
     const times = getSmartLessonTimes(dayNum, lessonNum, curSubgroup);
     const startInput = document.getElementById('start_time');
@@ -258,7 +268,14 @@
 
   function checkSubgroupConflict(sub1, sub2) {
     if (!sub1 || !sub2) return true;
-    return parseInt(sub1, 10) === parseInt(sub2, 10);
+    const s1 = String(sub1).trim();
+    const s2 = String(sub2).trim();
+    if (!s1 || !s2) return true;
+    if (s1 === s2) return true;
+    const pair = new Set([s1, s2]);
+    if (pair.has('1') && pair.has('2')) return false;
+    if (pair.has('boys') && pair.has('girls')) return false;
+    return true;
   }
 
   function checkWeekOverlap(w1, w2) {
@@ -280,7 +297,7 @@
     const dayNum = parseInt(daySelect.value, 10);
     const start = startInput.value.trim();
     const end = endInput.value.trim();
-    const curSubgroup = (subgroupSelect && subgroupSelect.value) ? parseInt(subgroupSelect.value, 10) : null;
+    const curSubgroup = (subgroupSelect && subgroupSelect.value) ? subgroupSelect.value.trim() : null;
     const lessons = scheduleDataByDay[dayNum] || [];
 
     const currentOpt = lessonSelect ? lessonSelect.querySelector('option[value="' + lessonSelect.value + '"]') : null;
@@ -307,7 +324,7 @@
       const other = lessons[i];
       if (checkSubgroupConflict(curSubgroup, other.subgroup)) {
         if (start < other.end_time && end > other.start_time) {
-          const groupLabel = other.subgroup ? ' (' + other.subgroup + ' подгруппа)' : '';
+          const groupLabel = formatSubgroupLabel(other.subgroup);
           warning.textContent = 'Время урока (' + start + '–' + end + ') пересекается с уроком №' + other.lesson_number + ' «' + other.subject_name + '»' + groupLabel + ' (' + other.start_time + '–' + other.end_time + ')';
           warning.classList.remove('hidden');
           submitBtn.disabled = true;
@@ -323,7 +340,7 @@
   function refreshLessonFormForDay(dayNum, shouldUpdateTimes = false) {
     const lessons = scheduleDataByDay[dayNum] || [];
     const subgroupSelect = document.getElementById('subgroup');
-    const curSubgroup = (subgroupSelect && subgroupSelect.value) ? parseInt(subgroupSelect.value, 10) : null;
+    const curSubgroup = (subgroupSelect && subgroupSelect.value) ? subgroupSelect.value.trim() : null;
 
     const occupiedNumbers = lessons
       .filter(l => checkSubgroupConflict(curSubgroup, l.subgroup))
@@ -415,7 +432,7 @@
     const startTime = btn.dataset.startTime || '08:00';
     const endTime = btn.dataset.endTime || '08:45';
     const dayNum = parseInt(btn.dataset.dayOfWeek || '1', 10);
-    const curSubgroup = btn.dataset.subgroup ? parseInt(btn.dataset.subgroup, 10) : null;
+    const curSubgroup = btn.dataset.subgroup ? btn.dataset.subgroup.trim() : null;
     const smartTimes = getSmartLessonTimes(dayNum, lessonNum, curSubgroup, currentEditingLessonId);
     isEditCustomTime = smartTimes[0] !== startTime || smartTimes[1] !== endTime;
 
@@ -474,13 +491,13 @@
     const start = startInput.value.trim();
     const end = endInput.value.trim();
     const curLessonNum = parseInt(lessonSelect.value, 10);
-    const curSubgroup = (subgroupSelect && subgroupSelect.value) ? parseInt(subgroupSelect.value, 10) : null;
+    const curSubgroup = (subgroupSelect && subgroupSelect.value) ? subgroupSelect.value.trim() : null;
     const lessons = (scheduleDataByDay[dayNum] || []).filter(function(l) { return l.id !== currentEditingLessonId; });
 
     for (let i = 0; i < lessons.length; i++) {
       const other = lessons[i];
       if (other.lesson_number === curLessonNum && checkSubgroupConflict(curSubgroup, other.subgroup) && checkWeekOverlap(currentEditingWeekType, other.week_type)) {
-        const groupLabel = other.subgroup ? ' (' + other.subgroup + ' подгруппа)' : '';
+        const groupLabel = formatSubgroupLabel(other.subgroup);
         warning.textContent = 'Урок №' + curLessonNum + groupLabel + ' «' + other.subject_name + '» уже существует в этот день';
         warning.classList.remove('hidden');
         submitBtn.disabled = true;
@@ -504,7 +521,7 @@
       const other = lessons[i];
       if (checkSubgroupConflict(curSubgroup, other.subgroup) && checkWeekOverlap(currentEditingWeekType, other.week_type)) {
         if (start < other.end_time && end > other.start_time) {
-          const groupLabel = other.subgroup ? ' (' + other.subgroup + ' подгруппа)' : '';
+          const groupLabel = formatSubgroupLabel(other.subgroup);
           warning.textContent = 'Время урока (' + start + '–' + end + ') пересекается с уроком №' + other.lesson_number + ' «' + other.subject_name + '»' + groupLabel + ' (' + other.start_time + '–' + other.end_time + ')';
           warning.classList.remove('hidden');
           submitBtn.disabled = true;
@@ -522,7 +539,7 @@
     const daySelect = document.getElementById('edit_day_of_week');
     const subgroupSelect = document.getElementById('edit_subgroup');
     const dayNum = daySelect ? parseInt(daySelect.value, 10) : 1;
-    const curSubgroup = (subgroupSelect && subgroupSelect.value) ? parseInt(subgroupSelect.value, 10) : null;
+    const curSubgroup = (subgroupSelect && subgroupSelect.value) ? subgroupSelect.value.trim() : null;
 
     const times = getSmartLessonTimes(dayNum, parseInt(num, 10), curSubgroup, currentEditingLessonId);
     const startInput = document.getElementById('edit_start_time');
@@ -943,6 +960,8 @@
           <option value="">Весь класс (общий урок)</option>
           <option value="1">1-я подгруппа</option>
           <option value="2">2-я подгруппа</option>
+          <option value="boys">Мальчики</option>
+          <option value="girls">Девочки</option>
         </select>
       </div>
 
@@ -1055,6 +1074,8 @@
           <option value="">Весь класс (общий урок)</option>
           <option value="1">1-я подгруппа</option>
           <option value="2">2-я подгруппа</option>
+          <option value="boys">Мальчики</option>
+          <option value="girls">Девочки</option>
         </select>
       </div>
 

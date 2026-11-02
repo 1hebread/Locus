@@ -1302,7 +1302,7 @@ async def test_lesson_web_admin_edit_settings_and_conflict_validation(
     assert lesson1.subject_id == subj2.id
     assert lesson1.start_time == "08:55"
     assert lesson1.end_time == "09:40"
-    assert lesson1.subgroup == 1
+    assert str(lesson1.subgroup) == "1"
     assert lesson1.room == "205"
     assert lesson1.note == "Обновленная заметка"
 
@@ -1341,7 +1341,7 @@ async def test_lesson_web_admin_edit_settings_and_conflict_validation(
     # Verify hw2 remained attached and synced its subgroup
     await db_session.refresh(hw2)
     assert hw2.lesson_id == lesson1.id
-    assert hw2.subgroup == 2
+    assert str(hw2.subgroup) == "2"
 
     # 4. Conflict: trying to edit lesson1 to conflict with lesson2 (lesson_number=3, subgroup=1)
     res_conflict = await client.post(
@@ -1606,11 +1606,11 @@ async def test_clone_lesson_web(
     )
     all_lessons = list(lessons_res.scalars().all())
     assert len(all_lessons) == 2
-    subgroups = {l.subgroup for l in all_lessons}
-    assert subgroups == {1, 2}
+    subgroups = {str(l.subgroup) for l in all_lessons}
+    assert subgroups == {"1", "2"}
 
     # Verify target room was set from subject.room ("304")
-    sub1_lesson = next(l for l in all_lessons if l.subgroup == 1)
+    sub1_lesson = next(l for l in all_lessons if str(l.subgroup) == "1")
     assert sub1_lesson.room == "304"
 
     # With both subgroups present, clone buttons must be hidden in the rendered HTML

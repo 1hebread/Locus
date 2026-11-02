@@ -701,7 +701,7 @@ async def test_clone_lesson_api(
     assert clone_res.status_code == 201
     cloned_data = clone_res.json()
     assert cloned_data["id"] != lesson1_id
-    assert cloned_data["subgroup"] == 2
+    assert str(cloned_data["subgroup"]) == "2"
     assert cloned_data["lesson_number"] == 1
     assert cloned_data["day_of_week"] == 4
     assert cloned_data["start_time"] == "08:00"
@@ -756,20 +756,20 @@ async def test_clone_lesson_api(
     )
     assert clone_whole.status_code == 201
     cloned_lesson_id = clone_whole.json()["id"]
-    assert clone_whole.json()["subgroup"] == 2
+    assert str(clone_whole.json()["subgroup"]) == "2"
 
     # Verify original whole-class lesson was converted to subgroup 1
     get_orig = await client.get("/api/v1/schedule", headers=auth_headers)
     thursday_lessons = [l for l in get_orig.json() if l["day_of_week"] == 4 and l["lesson_number"] == 2]
     assert len(thursday_lessons) == 2
-    subgroups = {l["subgroup"] for l in thursday_lessons}
-    assert subgroups == {1, 2}
+    subgroups = {str(l["subgroup"]) for l in thursday_lessons}
+    assert subgroups == {"1", "2"}
 
     # Verify homework was duplicated for the cloned lesson
     all_hw = (await client.get("/api/v1/homework", headers=auth_headers)).json()
     hw_for_slot = [h for h in all_hw if h["title"] == "Упражнение 42"]
     assert len(hw_for_slot) == 2
-    hw_subs = {h["subgroup"] for h in hw_for_slot}
-    assert hw_subs == {1, 2}
+    hw_subs = {str(h["subgroup"]) for h in hw_for_slot}
+    assert hw_subs == {"1", "2"}
     hw_lesson_ids = {h["lesson_id"] for h in hw_for_slot}
     assert hw_lesson_ids == {whole_id, cloned_lesson_id}

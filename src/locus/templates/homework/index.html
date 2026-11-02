@@ -41,8 +41,8 @@
       </a>
     </div>
 
-    {% if current_user.is_admin or not current_user.subgroup %}
-    <div id="hw-subgroup-filters" class="flex items-center bg-[#18181b] p-1 rounded-xl border border-zinc-800 text-xs">
+    {% if current_user.is_admin or (not current_user.subgroup and not current_user.gender_subgroup) %}
+    <div id="hw-subgroup-filters" class="flex items-center bg-[#18181b] p-1 rounded-xl border border-zinc-800 text-xs flex-wrap gap-1">
       <a href="/homework{% if current_filter %}?filter={{ current_filter }}&subgroup=all{% else %}?subgroup=all{% endif %}"
          data-subgroup-filter
          class="px-2.5 py-1 rounded-lg font-medium transition {% if active_subgroup is none %}bg-emerald-500 text-white font-bold{% else %}text-zinc-400 hover:text-white{% endif %}">
@@ -50,19 +50,33 @@
       </a>
       <a href="/homework{% if current_filter %}?filter={{ current_filter }}&subgroup=1{% else %}?subgroup=1{% endif %}"
          data-subgroup-filter
-         class="px-2.5 py-1 rounded-lg font-medium transition {% if active_subgroup == 1 %}bg-emerald-500 text-white font-bold{% else %}text-zinc-400 hover:text-white{% endif %}">
-        1 подгруппа
+         class="px-2.5 py-1 rounded-lg font-medium transition {% if active_subgroup == '1' %}bg-emerald-500 text-white font-bold{% else %}text-zinc-400 hover:text-white{% endif %}">
+        1
       </a>
       <a href="/homework{% if current_filter %}?filter={{ current_filter }}&subgroup=2{% else %}?subgroup=2{% endif %}"
          data-subgroup-filter
-         class="px-2.5 py-1 rounded-lg font-medium transition {% if active_subgroup == 2 %}bg-emerald-500 text-white font-bold{% else %}text-zinc-400 hover:text-white{% endif %}">
-        2 подгруппа
+         class="px-2.5 py-1 rounded-lg font-medium transition {% if active_subgroup == '2' %}bg-emerald-500 text-white font-bold{% else %}text-zinc-400 hover:text-white{% endif %}">
+        2
+      </a>
+      <a href="/homework{% if current_filter %}?filter={{ current_filter }}&subgroup=boys{% else %}?subgroup=boys{% endif %}"
+         data-subgroup-filter
+         class="px-2.5 py-1 rounded-lg font-medium transition {% if active_subgroup == 'boys' %}bg-emerald-500 text-white font-bold{% else %}text-zinc-400 hover:text-white{% endif %}">
+        Мальчики
+      </a>
+      <a href="/homework{% if current_filter %}?filter={{ current_filter }}&subgroup=girls{% else %}?subgroup=girls{% endif %}"
+         data-subgroup-filter
+         class="px-2.5 py-1 rounded-lg font-medium transition {% if active_subgroup == 'girls' %}bg-emerald-500 text-white font-bold{% else %}text-zinc-400 hover:text-white{% endif %}">
+        Девочки
       </a>
     </div>
-    {% elif current_user.subgroup %}
-    <span class="inline-flex items-center gap-1 px-3 py-1 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs font-semibold">
-      {{ current_user.subgroup }} подгруппа
-    </span>
+    {% else %}
+    {% if current_user.subgroup %}
+    <div class="inline-flex items-center">
+      <span class="inline-flex items-center gap-1 px-3 py-1 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs font-semibold">
+        {{ current_user.subgroup }} подгруппа
+      </span>
+    </div>
+    {% endif %}
     {% endif %}
   </div>
 
