@@ -284,6 +284,8 @@ async def dashboard_index(
             "unassigned_hw": unassigned_hw_list,
             "has_lessons": len(day_lessons_with_meta) > 0,
             "vacation": d_vacation,
+            "has_copy": bool(unassigned_hw_list)
+            or any(item["homeworks"] for item in day_lessons_with_meta),
         })
 
     desktop_days = [

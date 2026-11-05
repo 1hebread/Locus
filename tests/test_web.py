@@ -57,6 +57,57 @@ async def test_authenticated_dashboard(
 
 
 @pytest.mark.asyncio
+async def test_dashboard_copy_homework_text(
+    client: AsyncClient,
+    test_user: User,
+    auth_token: str,
+    test_subject: Subject,
+    db_session,
+):
+    """Each day with homework exposes its tasks in the copy-to-clipboard format."""
+    from datetime import date
+
+    from locus.config import get_settings
+
+    settings = get_settings()
+    client.cookies.set(settings.COOKIE_NAME, auth_token)
+
+    target = date(2026, 10, 26)  # Monday
+    lesson = Lesson(
+        subject_id=test_subject.id,
+        day_of_week=1,
+        lesson_number=1,
+        start_time="08:00",
+        end_time="08:45",
+    )
+    db_session.add(lesson)
+    await db_session.commit()
+    await db_session.refresh(lesson)
+    await add_homework(
+        db_session,
+        test_user,
+        subject_id=test_subject.id,
+        lesson_id=lesson.id,
+        title="Решить 3 уравнения с котами",
+        due_date=target,
+    )
+    await add_homework(
+        db_session,
+        test_user,
+        subject_id=test_subject.id,
+        title="Дополнительное задание",
+        due_date=target,
+    )
+
+    res = await client.get(f"/?date={target.isoformat()}")
+    assert res.status_code == 200
+    assert 'data-copy-scope="#desktop-day-pane-2026-10-26"' in res.text
+    assert 'data-copy-scope="#mobile-day-1"' in res.text
+    assert 'data-copy-line="Алгебра: Решить 3 уравнения с котами"' in res.text
+    assert 'data-copy-line="Алгебра: Дополнительное задание"' in res.text
+
+
+@pytest.mark.asyncio
 async def test_homework_page_hides_past_due_tasks(
     client: AsyncClient,
     test_user: User,

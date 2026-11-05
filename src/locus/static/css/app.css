@@ -461,6 +461,15 @@ body {
   transform: rotate(180deg);
 }
 
+/* Copy button: emerald hover only for pointer devices. Touch browsers keep
+   :hover after a tap, which left the icon green until another tap. */
+@media (hover: hover) {
+  [data-copy-scope]:hover {
+    color: #34b566;
+    border-color: rgba(46, 163, 91, 0.4);
+  }
+}
+
 /* Prevent touch tap highlights and sticky hover on mobile cards */
 @media (hover: none) {
   [id^="m-lesson-card-"] {

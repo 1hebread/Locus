@@ -30,7 +30,7 @@
   {% if item.homeworks %}
   {% set hw = item.homeworks[0] %}
   <div class="mt-1">
-    <div data-hw-card="{{ hw.id }}" id="desktop-hw-card-{{ hw.id }}" class="flex items-center justify-between gap-2.5 text-xs text-zinc-400 font-medium">
+    <div data-hw-card="{{ hw.id }}" id="desktop-hw-card-{{ hw.id }}" data-copy-line="{{ hw.subject.name if hw.subject else (lesson.subject.name if lesson.subject else 'Предмет') }}: {{ hw.title }}" class="flex items-center justify-between gap-2.5 text-xs text-zinc-400 font-medium">
       <div class="flex items-center gap-1 min-w-0 flex-1">
         <span class="text-emerald-400 shrink-0">
           <svg class="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">

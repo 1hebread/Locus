@@ -807,6 +807,86 @@ function hideOpenOverlays() {
   document.body.style.overflow = '';
 }
 
+function copyTextFallback(text) {
+  const area = document.createElement('textarea');
+  area.value = text;
+  area.setAttribute('readonly', '');
+  area.style.position = 'fixed';
+  area.style.opacity = '0';
+  document.body.appendChild(area);
+  area.select();
+  let copied = false;
+  try {
+    copied = document.execCommand('copy');
+  } catch (_) {}
+  area.remove();
+  return copied;
+}
+
+function showCopyFeedback(button, success) {
+  const copyIcon = button.querySelector('[data-copy-icon]');
+  const doneIcon = button.querySelector('[data-copy-done]');
+  const defaultLabel = button.dataset.copyLabel || 'Скопировать домашнее задание';
+
+  if (copyIcon) copyIcon.classList.toggle('hidden', success);
+  if (doneIcon) doneIcon.classList.toggle('hidden', !success);
+  // The success icon already has its own emerald class; only errors need a tint.
+  button.style.color = success ? '' : '#fb7185';
+  button.title = success ? 'Скопировано' : 'Не удалось скопировать';
+  button.setAttribute('aria-label', success ? 'Скопировано' : 'Не удалось скопировать');
+
+  clearTimeout(button._copyTimer);
+  button._copyTimer = setTimeout(() => {
+    if (copyIcon) copyIcon.classList.remove('hidden');
+    if (doneIcon) doneIcon.classList.add('hidden');
+    // Reset the tint instantly so the returning copy icon is not green for
+    // the length of the color transition.
+    button.style.transition = 'none';
+    button.style.color = '';
+    void button.offsetWidth;
+    button.style.transition = '';
+    button.title = defaultLabel;
+    button.setAttribute('aria-label', defaultLabel);
+  }, 1500);
+}
+
+// Copy text is rebuilt from the rendered cards so in-page homework edits
+// (lesson modal, HTMX toggles) are reflected without a reload.
+function dayCopyText(button) {
+  const scope = document.querySelector(button.dataset.copyScope || '');
+  if (!scope) return '';
+  const lines = Array.from(scope.querySelectorAll('[data-copy-line]'))
+    .map((el) => (el.dataset.copyLine || '').replace(/\s+/g, ' ').trim())
+    .filter(Boolean);
+  return lines.length ? `*Домашнее задание:*\n${lines.join('\n')}` : '';
+}
+
+function updateCopyButtons() {
+  document.querySelectorAll('[data-copy-scope]').forEach((button) => {
+    const scope = document.querySelector(button.dataset.copyScope);
+    button.classList.toggle('hidden', !scope || !scope.querySelector('[data-copy-line]'));
+  });
+}
+
+document.addEventListener('htmx:load', updateCopyButtons);
+updateCopyButtons();
+
+async function copyDayHomework(button) {
+  const text = dayCopyText(button);
+  if (!text) return;
+
+  let copied = false;
+  try {
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      await navigator.clipboard.writeText(text);
+      copied = true;
+    }
+  } catch (_) {}
+  if (!copied) copied = copyTextFallback(text);
+
+  showCopyFeedback(button, copied);
+}
+
 // iOS renders <input type="date"> with a localized, oversized native label
 // ("23 окт. 2026 г."). Show a consistent DD.MM.YYYY value above it instead,
 // while keeping the native date picker for taps.
