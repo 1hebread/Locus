@@ -1,9 +1,10 @@
-from datetime import date
+from datetime import date, timedelta
 import pytest
 from httpx import AsyncClient
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from locus.constants import get_current_date
 from locus.models.homework import Homework
 from locus.models.lesson import Lesson
 from locus.models.subject import Subject
@@ -168,23 +169,24 @@ async def test_homework_isolation_by_subgroup(
     t1 = create_access_token({"sub": str(u1.id), "pwd": get_password_fingerprint(u1.hashed_password)})
     t2 = create_access_token({"sub": str(u2.id), "pwd": get_password_fingerprint(u2.hashed_password)})
 
-    # Homeworks
+    # Homeworks (future-dated: the web page hides past-due homework)
+    due_date = get_current_date() + timedelta(days=1)
     hw_general = Homework(
         subject_id=test_subject.id,
         title="Общее ДЗ",
-        due_date=date(2026, 11, 2),
+        due_date=due_date,
         subgroup=None,
     )
     hw_g1 = Homework(
         subject_id=test_subject.id,
         title="ДЗ только для 1 группы",
-        due_date=date(2026, 11, 2),
+        due_date=due_date,
         subgroup=1,
     )
     hw_g2 = Homework(
         subject_id=test_subject.id,
         title="ДЗ только для 2 группы",
-        due_date=date(2026, 11, 2),
+        due_date=due_date,
         subgroup=2,
     )
     db_session.add_all([hw_general, hw_g1, hw_g2])

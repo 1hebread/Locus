@@ -15,45 +15,10 @@
   <link rel="apple-touch-icon" href="/static/icons/icon-192.png?v={{ asset_version('icons/icon-192.png') }}">
   <link rel="icon" type="image/svg+xml" href="/static/icons/icon.svg?v={{ asset_version('icons/icon.svg') }}">
 
-  <!-- Tailwind CSS & HTMX -->
-  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- HTMX -->
   <script src="https://unpkg.com/htmx.org@2.0.4"></script>
-  <script>
-    tailwind.config = {
-      darkMode: 'class',
-      theme: {
-        extend: {
-          colors: {
-            surface: {
-              DEFAULT: '#000000',
-              panel: '#000000',
-              card: '#000000',
-              subtle: '#121214',
-            },
-            accent: {
-              DEFAULT: '#2ea35b',
-              hover: '#247c45',
-              dark: '#1d6537',
-            },
-            emerald: {
-              50: '#f0fdf4',
-              100: '#dcfce7',
-              200: '#bbf7d0',
-              300: '#86efac',
-              400: '#34b566',
-              500: '#2ea35b',
-              600: '#247c45',
-              700: '#1d6537',
-              800: '#17522c',
-              900: '#134324',
-              950: '#0a2614',
-            }
-          }
-        }
-      }
-    }
-  </script>
 
+  <link rel="stylesheet" href="/static/css/tailwind.css?v={{ asset_version('css/tailwind.css') }}">
   <link rel="stylesheet" href="/static/css/app.css?v={{ asset_version('css/app.css') }}">
   <script defer src="/static/js/app.js?v={{ asset_version('js/app.js') }}"></script>
   {% block head %}{% endblock %}

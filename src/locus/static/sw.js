@@ -1,6 +1,7 @@
 // Locus Service Worker for PWA
 const CACHE_NAME = 'locus-v1';
 const PRECACHE_URLS = [
+  '/static/css/tailwind.css',
   '/static/css/app.css',
   '/static/js/app.js',
   '/static/manifest.json',

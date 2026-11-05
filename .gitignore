@@ -26,6 +26,7 @@ htmlcov/
 .env
 .venv/
 venv/
+node_modules/
 ENV/
 *.db
 *.sqlite3
