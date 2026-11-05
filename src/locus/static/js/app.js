@@ -582,6 +582,7 @@ function openModal(id) {
     syncDateDisplays(modal);
     modal.classList.remove('hidden');
     modal.classList.add('flex');
+    void modal.offsetWidth; // Firefox needs a committed start frame for the open transition
     requestAnimationFrame(() => {
       if (!modal.classList.contains('hidden')) {
         modal.classList.add('modal-visible');
@@ -712,6 +713,7 @@ function initModals() {
   syncDateDisplays();
   document.querySelectorAll('[data-modal].flex').forEach((modal) => {
     if (modal.dataset.closing) return; // fading out after a page switch
+    void modal.offsetWidth; // Firefox needs a committed start frame for the open transition
     requestAnimationFrame(() => {
       if (!modal.classList.contains('hidden')) {
         modal.classList.add('modal-visible');
