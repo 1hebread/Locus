@@ -44,10 +44,18 @@ This file provides comprehensive guidelines on architecture, technology stack, d
 ```text
 .
 ├── alembic.ini                   # Alembic migration configuration
-├── docker-compose.yml            # Docker Compose setup (PostgreSQL + application)
+├── Dockerfile                    # Production image (pinned base images)
+├── .github/
+│   └── workflows/ci.yml          # CI: uv sync + pytest on Python 3.12–3.14
+├── docker-compose.yml            # Local PostgreSQL for development
+├── render.yaml                   # Render Blueprint example
 ├── migrations/                   # Database migration scripts
 │   └── versions/                 # Database schema revisions
+├── docs/
+│   ├── api.md                    # REST API reference
+│   └── privacy.md                # Privacy policy template for instance owners
 ├── pyproject.toml                # Project metadata and dependencies
+├── .env.example                  # Environment variable template
 ├── src/
 │   └── locus/
 │       ├── __init__.py
@@ -55,6 +63,11 @@ This file provides comprehensive guidelines on architecture, technology stack, d
 │       ├── config.py             # Pydantic Settings configuration (.env)
 │       ├── constants.py          # Constants (default bell schedule, etc.)
 │       ├── database.py           # AsyncEngine, async_sessionmaker, Base
+│       ├── crypto.py             # Fernet encryption for teacher names/phones
+│       ├── rate_limiter.py       # Login and API rate limiting
+│       ├── schedule_service.py   # Lesson cloning and schedule helpers
+│       ├── schedule_validation.py # Lesson payload validation
+│       ├── subgroup_helpers.py   # Subgroup parsing and matching
 │       ├── homework_status.py    # Personal status helpers (attach_statuses, set_status)
 │       ├── homework_audit.py     # Homework audit log (create/edit/delete tracking)
 │       ├── homework_cleanup.py   # Automatic cleanup for old homework (HOMEWORK_RETENTION_DAYS)
@@ -79,7 +92,8 @@ This file provides comprehensive guidelines on architecture, technology stack, d
 │       │   ├── homework_completion.py # HomeworkCompletion model (id, homework_id, user_id, status)
 │       │   ├── homework_event.py # HomeworkEvent model (homework change audit log)
 │       │   ├── push_subscription.py # PushSubscription model (browser/PWA subscription)
-│       │   └── api_key.py        # ApiKey model (key hash, bound to a user)
+│       │   ├── api_key.py        # ApiKey model (key hash, bound to a user)
+│       │   └── vacation.py       # Vacation periods
 │       ├── schemas/              # Pydantic request and response schemas
 │       │   ├── auth.py
 │       │   ├── homework.py
@@ -89,7 +103,11 @@ This file provides comprehensive guidelines on architecture, technology stack, d
 │       │   └── vacation.py
 │       ├── static/               # Static assets
 │       │   ├── css/app.css       # Custom styles, animations, scrollbars
+│       │   ├── css/tailwind.css  # Compiled Tailwind build (committed)
+│       │   ├── css/tailwind.src.css # Tailwind source compiled by npm
+│       │   ├── icons/            # PWA icons (SVG + PNG, C2PA metadata stripped)
 │       │   ├── js/app.js         # Modals, mobile week swipe, Scroll Spy
+│       │   ├── js/htmx.min.js    # Vendored HTMX 2.0.4 (0BSD)
 │       │   ├── manifest.json     # PWA manifest
 │       │   └── sw.js             # Service Worker
 │       ├── templates/            # Jinja2 HTML templates
@@ -110,14 +128,17 @@ This file provides comprehensive guidelines on architecture, technology stack, d
 │           └── subjects_routes.py
 └── tests/                        # Pytest tests
     ├── conftest.py               # Fixtures: async test client, in-memory test database
+    ├── helpers.py                # Shared test factories
     ├── test_admin.py
     ├── test_api_keys.py
     ├── test_auth.py
     ├── test_homework.py
     ├── test_homework_audit.py
     ├── test_homework_cleanup.py
+    ├── test_lesson_suggestion.py
     ├── test_push.py
     ├── test_schedule.py
+    ├── test_subgroups.py
     └── test_web.py
 ```
 
