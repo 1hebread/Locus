@@ -4,6 +4,7 @@ const PRECACHE_URLS = [
   '/static/css/tailwind.css',
   '/static/css/app.css',
   '/static/js/app.js',
+  '/static/js/htmx.min.js',
   '/static/manifest.json',
   '/static/icons/icon.svg'
 ];

@@ -736,7 +736,10 @@ async def test_clone_lesson_api(
 
     # Add homework attached to this whole-class lesson
     from datetime import date, timedelta
-    due = (date.today() + timedelta(days=2)).isoformat()
+    due_date = date.today() + timedelta(days=2)
+    if due_date.isoweekday() == 7:  # the API rejects homework due on Sunday
+        due_date += timedelta(days=1)
+    due = due_date.isoformat()
     hw_res = await client.post(
         "/api/v1/homework",
         headers=auth_headers,
