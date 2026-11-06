@@ -35,3 +35,7 @@ updates:
     groups:
       js:
         patterns: ["*"]
+    ignore:
+      # Tailwind 4 moved the config from tailwind.config.js into CSS and changed the CLI.
+      - dependency-name: "tailwindcss"
+        update-types: ["version-update:semver-major"]
