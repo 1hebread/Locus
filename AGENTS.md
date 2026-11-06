@@ -1,115 +1,115 @@
-# AGENTS.md — Инструкция для ИИ-агентов в проекте Locus
+# AGENTS.md — Instructions for AI Agents in the Locus Project
 
-Данный файл содержит исчерпывающее руководство по архитектуре, стеку технологий, правилам разработки и соглашениям проекта **Locus** для автономных и парных ИИ-агентов.
-
----
-
-## 1. О проекте Locus
-
-**Locus** — это быстрый селф-хостед электронный школьный онлайн-дневник с общим расписанием уроков, звонками и гибким трекером домашних заданий с персональными статусами выполнения.
-
-### Ключевые возможности:
-- **Единый дневник и расписание**: просмотр уроков по дням недели, время звонков, кабинеты, имена учителей, учет перемен. Расписание и предметы общие для всех пользователей школы/класса и управляются администратором (`is_admin`).
-- **Общий пул ДЗ и персональный трекинг**: задания общие для всех пользователей (любой может добавлять, редактировать или удалять их), а статусы выполнения (`TODO` / `DONE`) хранятся персонально для каждого пользователя в таблице `homework_completions`.
-- **Журнал изменений ДЗ**: создание, правка и удаление заданий пишутся в `homework_events` (кто, когда, какие поля изменились). В модалке урока показывается последний изменивший, полная история доступна админу на `/admin/history`.
-- **Push-уведомления (Web Push)**: создание, правка и удаление ДЗ отправляются подписанным браузерам/PWA (всем активным пользователям, кроме автора, с учётом подгрупп). Подписки хранятся в `push_subscriptions`, ключи VAPID задаются через `VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY` (генерация — `uv run locus-vapid`). Без ключей push отключён.
-- **Публичный API**: REST `/api/v1` с JWT или API-ключом (`Authorization: Bearer lk_…`), документация — `docs/api.md` (Swagger `/docs` доступен только в development). Ключи создаются админом на `/admin/api-keys` и действуют от имени выбранного пользователя; сводка на день — `GET /api/v1/summary?date=YYYY-MM-DD`.
-- **PWA и мобильный фокус**: адаптивный интерфейс с чистым AMOLED-дизайном (`#000000`), плавными микроанимациями, динамической плавающей навигацией (Dock) и PWA-манифестом.
-- **Гибридный рендеринг**: Server-Side Rendering (SSR) через Jinja2 + реактивные частичные обновления через HTMX без необходимости в тяжелых SPA-фреймворках.
-- **Безопасность и администрирование**: JWT-аутентификация в защищенных HTTP-only cookies (для SSR) и в заголовках `Authorization: Bearer` (для REST API). Вход выполняется по логину. Публичной регистрации нет: пользователей создаёт и администрирует (смена паролей, удаление) администратор. Первый существующий пользователь становится админом, а для пустой базы админ создаётся из `ADMIN_USERNAME` / `ADMIN_PASSWORD`. Администратор не может удалить самого себя.
+This file provides comprehensive guidelines on architecture, technology stack, development rules, and conventions for the **Locus** project, intended for autonomous and pair-programming AI agents.
 
 ---
 
-## 2. Стек технологий
+## 1. About the Locus Project
 
-- **Язык**: Python 3.12+ (поддерживается 3.14 / uv).
-- **Web-фреймворк**: FastAPI (совмещает REST API `/api/v1` и SSR веб-роуты).
-- **База данных и ORM**: SQLAlchemy 2.0 (строго асинхронный режим `AsyncSession`).
-  - Разработка и тесты: SQLite (`aiosqlite`).
+**Locus** is a fast, self-hosted online school electronic planner/diary featuring a shared lesson schedule, bell timetables, and a flexible homework tracker with personal completion statuses.
+
+### Key Features:
+- **Unified Diary and Schedule**: view lessons by day of the week, bell times, classrooms, teacher names, and recess intervals. The schedule and subjects are shared across all users in a school/class and managed by an administrator (`is_admin`).
+- **Shared Homework Pool & Personal Tracking**: assignments are shared across all users (anyone can add, edit, or delete them), while completion statuses (`TODO` / `DONE`) are tracked individually per user in the `homework_completions` table.
+- **Homework Audit Log**: assignment creation, edits, and deletions are logged in `homework_events` (who, when, and which fields changed). Lesson modals display the last editor, and the full history is accessible to admins at `/admin/history`.
+- **Push Notifications (Web Push)**: homework creation, edits, and deletions are pushed to subscribed browsers/PWAs (to all active users except the author, respecting subgroups). Subscriptions are stored in `push_subscriptions`, and VAPID keys are configured via `VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY` (generation: `uv run locus-vapid`). Without keys, push notifications are disabled.
+- **Public API**: REST `/api/v1` with JWT or API key (`Authorization: Bearer lk_…`), documentation: `docs/api.md` (Swagger `/docs` is only available in development). Keys are created by admins at `/admin/api-keys` and act on behalf of the selected user; daily summary is available at `GET /api/v1/summary?date=YYYY-MM-DD`.
+- **PWA & Mobile-First Focus**: responsive UI with pure AMOLED black design (`#000000`), smooth micro-animations, a dynamic floating navigation dock, and a PWA manifest.
+- **Hybrid Rendering**: Server-Side Rendering (SSR) via Jinja2 + reactive partial updates via HTMX without requiring heavy SPA frameworks.
+- **Security & Administration**: JWT authentication via secure HTTP-only cookies (for SSR) and `Authorization: Bearer` headers (for REST API). Login is username-based. There is no public registration: users are created and managed (password changes, deletion) by an administrator. The first existing user automatically becomes an admin; for a fresh database, an admin user is seeded from `ADMIN_USERNAME` / `ADMIN_PASSWORD`. Administrators cannot delete their own account.
+
+---
+
+## 2. Technology Stack
+
+- **Language**: Python 3.12+ (supports 3.14 / uv).
+- **Web Framework**: FastAPI (combines REST API `/api/v1` and SSR web routes).
+- **Database & ORM**: SQLAlchemy 2.0 (strictly asynchronous `AsyncSession`).
+  - Development & Tests: SQLite (`aiosqlite`).
   - Production: PostgreSQL (`asyncpg`).
-- **Миграции**: Alembic.
-- **Валидация данных**: Pydantic v2 (`pydantic-settings`).
-- **Шаблонизация и фронтенд**:
-  - Jinja2 (HTML-шаблоны).
-  - HTMX (частичные AJAX-свопы DOM без перезагрузки страниц).
-  - Tailwind CSS (темная AMOLED-палитра).
-  - Нативный Vanilla JavaScript (`src/locus/static/js/app.js`) для модалок, свайпов и Scroll Spy.
-- **Пакетный менеджер**: `uv`.
-- **Тестирование**: `pytest`, `pytest-asyncio`, `httpx`.
+- **Migrations**: Alembic.
+- **Data Validation**: Pydantic v2 (`pydantic-settings`).
+- **Templating & Frontend**:
+  - Jinja2 (HTML templates).
+  - HTMX (partial DOM AJAX swaps without full-page reloads).
+  - Tailwind CSS (AMOLED dark palette).
+  - Vanilla JavaScript (`src/locus/static/js/app.js`) for modals, swipes, and Scroll Spy.
+- **Package Manager**: `uv`.
+- **Testing**: `pytest`, `pytest-asyncio`, `httpx`.
 
 ---
 
-## 3. Структура репозитория
+## 3. Repository Structure
 
 ```text
 .
-├── alembic.ini                   # Конфигурация миграций Alembic
-├── docker-compose.yml            # Docker-сборка (PostgreSQL + приложение)
-├── migrations/                   # Скрипты миграций базы данных
-│   └── versions/                 # Файлы версий схемы БД
-├── pyproject.toml                # Зависимости и метаданные проекта
+├── alembic.ini                   # Alembic migration configuration
+├── docker-compose.yml            # Docker Compose setup (PostgreSQL + application)
+├── migrations/                   # Database migration scripts
+│   └── versions/                 # Database schema revisions
+├── pyproject.toml                # Project metadata and dependencies
 ├── src/
 │   └── locus/
 │       ├── __init__.py
-│       ├── main.py               # Точка входа приложения FastAPI, lifespan, статика
-│       ├── config.py             # Настройки Pydantic Settings (.env)
-│       ├── constants.py          # Константы (расписание звонков по умолчанию и т.д.)
+│       ├── main.py               # FastAPI entrypoint, lifespan, static file mounting
+│       ├── config.py             # Pydantic Settings configuration (.env)
+│       ├── constants.py          # Constants (default bell schedule, etc.)
 │       ├── database.py           # AsyncEngine, async_sessionmaker, Base
-│       ├── homework_status.py    # Хелперы персональных статусов (attach_statuses, set_status)
-│       ├── homework_audit.py     # Журнал изменений ДЗ (создание/правка/удаление)
-│       ├── homework_cleanup.py   # Автоочистка старых ДЗ (HOMEWORK_RETENTION_DAYS)
-│       ├── lesson_suggestion.py  # Автоподстановка следующего урока
-│       ├── push.py               # Отправка Web Push о изменениях ДЗ (фоновые задачи)
-│       ├── vapid.py              # Генерация ключей VAPID (`uv run locus-vapid`)
-│       ├── security.py           # Хеширование паролей (bcrypt), JWT, генерация/хеш API-ключей
-│       ├── templates_config.py   # Конфигурация Jinja2Templates и кастомных фильтров
-│       ├── api/                  # REST API эндпоинты (/api/v1)
-│       │   ├── auth.py           # Логин, получение текущего профиля
+│       ├── homework_status.py    # Personal status helpers (attach_statuses, set_status)
+│       ├── homework_audit.py     # Homework audit log (create/edit/delete tracking)
+│       ├── homework_cleanup.py   # Automatic cleanup for old homework (HOMEWORK_RETENTION_DAYS)
+│       ├── lesson_suggestion.py  # Next lesson auto-suggestion
+│       ├── push.py               # Web Push notifications for homework changes (background tasks)
+│       ├── vapid.py              # VAPID key generation (`uv run locus-vapid`)
+│       ├── security.py           # Password hashing (bcrypt), JWT, API key generation/hashing
+│       ├── templates_config.py   # Jinja2Templates configuration and custom filters
+│       ├── api/                  # REST API endpoints (/api/v1)
+│       │   ├── auth.py           # Login, current profile endpoint
 │       │   ├── deps.py           # FastAPI Dependencies (get_db, get_current_user, get_current_admin, get_current_admin_web)
-│       │   ├── homework.py       # CRUD для общих домашних заданий и персональных статусов
-│       │   ├── schedule.py       # Управление уроками расписания (только админ)
-│       │   ├── subjects.py       # Управление предметами (только админ)
-│       │   ├── summary.py        # Сводка на день: уроки + привязанные ДЗ (/api/v1/summary)
-│       │   └── vacations.py      # Каникулы
-│       ├── models/               # Модели SQLAlchemy 2.0
-│       │   ├── user.py           # Модель User (id, username, hashed_password, is_admin, is_active)
-│       │   ├── subject.py        # Модель Subject (id, name, teacher_name, room)
-│       │   ├── lesson.py         # Модель Lesson (id, subject_id, day_of_week, lesson_number, bell_times...)
-│       │   ├── homework.py       # Модель Homework (id, subject_id, lesson_id, title, due_date)
-│       │   ├── homework_completion.py # Модель HomeworkCompletion (id, homework_id, user_id, status)
-│       │   ├── homework_event.py # Модель HomeworkEvent (журнал изменений ДЗ)
-│       │   ├── push_subscription.py # Модель PushSubscription (подписка браузера/PWA)
-│       │   └── api_key.py        # Модель ApiKey (хеш ключа, привязка к пользователю)
-│       ├── schemas/              # Pydantic-схемы запросов и ответов
+│       │   ├── homework.py       # CRUD for shared homework and personal statuses
+│       │   ├── schedule.py       # Schedule lesson management (admin only)
+│       │   ├── subjects.py       # Subject management (admin only)
+│       │   ├── summary.py        # Daily summary: lessons + associated homework (/api/v1/summary)
+│       │   └── vacations.py      # Vacations
+│       ├── models/               # SQLAlchemy 2.0 models
+│       │   ├── user.py           # User model (id, username, hashed_password, is_admin, is_active)
+│       │   ├── subject.py        # Subject model (id, name, teacher_name, room)
+│       │   ├── lesson.py         # Lesson model (id, subject_id, day_of_week, lesson_number, bell_times...)
+│       │   ├── homework.py       # Homework model (id, subject_id, lesson_id, title, due_date)
+│       │   ├── homework_completion.py # HomeworkCompletion model (id, homework_id, user_id, status)
+│       │   ├── homework_event.py # HomeworkEvent model (homework change audit log)
+│       │   ├── push_subscription.py # PushSubscription model (browser/PWA subscription)
+│       │   └── api_key.py        # ApiKey model (key hash, bound to a user)
+│       ├── schemas/              # Pydantic request and response schemas
 │       │   ├── auth.py
 │       │   ├── homework.py
 │       │   ├── lesson.py
 │       │   ├── subject.py
 │       │   ├── summary.py
 │       │   └── vacation.py
-│       ├── static/               # Статические ресурсы
-│       │   ├── css/app.css       # Кастомные стили, анимации, скроллбары
-│       │   ├── js/app.js         # Модалки, мобильный свайп недели, Scroll Spy
-│       │   ├── manifest.json     # PWA манифест
+│       ├── static/               # Static assets
+│       │   ├── css/app.css       # Custom styles, animations, scrollbars
+│       │   ├── js/app.js         # Modals, mobile week swipe, Scroll Spy
+│       │   ├── manifest.json     # PWA manifest
 │       │   └── sw.js             # Service Worker
-│       ├── templates/            # Jinja2 HTML шаблоны
-│       │   ├── base.html         # Базовый каркас (Sidebar для десктопа, Dock для мобайла)
-│       │   ├── auth/             # Страница входа
-│       │   ├── admin/            # Пользователи, история изменений, API-ключи (только для админа)
-│       │   ├── dashboard/        # Дневник (Desktop view, Mobile scroll, HTMX-фрагменты)
-│       │   ├── homework/         # Раздел управления заданиями
-│       │   ├── schedule/         # Конструктор расписания
-│       │   └── subjects/         # Управление списком предметов
-│       └── web/                  # SSR роуты (FastAPI + Jinja2 + HTMX)
+│       ├── templates/            # Jinja2 HTML templates
+│       │   ├── base.html         # Base layout (Sidebar for desktop, Dock for mobile)
+│       │   ├── auth/             # Login page
+│       │   ├── admin/            # Users, change history, API keys (admin only)
+│       │   ├── dashboard/        # Dashboard (Desktop view, Mobile scroll, HTMX fragments)
+│       │   ├── homework/         # Homework management section
+│       │   ├── schedule/         # Schedule constructor
+│       │   └── subjects/         # Subject list management
+│       └── web/                  # SSR routes (FastAPI + Jinja2 + HTMX)
 │           ├── auth_routes.py
 │           ├── admin_routes.py
 │           ├── dashboard_routes.py
 │           ├── homework_routes.py
-│           ├── push_routes.py    # Подписка/отписка Web Push и выдача VAPID-ключа
+│           ├── push_routes.py    # Web Push subscribe/unsubscribe and VAPID key delivery
 │           ├── schedule_routes.py
 │           └── subjects_routes.py
-└── tests/                        # Тесты pytest
-    ├── conftest.py               # Фикстуры: асинхронный тестовый клиент, тестовая БД в памяти
+└── tests/                        # Pytest tests
+    ├── conftest.py               # Fixtures: async test client, in-memory test database
     ├── test_admin.py
     ├── test_api_keys.py
     ├── test_auth.py
@@ -123,96 +123,96 @@
 
 ---
 
-## 4. Команды разработки и соглашения Git
+## 4. Development Commands and Git Conventions
 
-Все команды запускаются через `uv`:
+All commands are run using `uv`:
 
 ```bash
-# Установка зависимостей
+# Install dependencies
 uv sync
 
-# Запуск локального сервера разработки (порт 8010)
+# Run local development server (port 8010)
 uv run locus
-# либо напрямую через uvicorn:
+# or directly via uvicorn:
 uv run uvicorn locus.main:app --host 0.0.0.0 --port 8010 --reload
 
-# Запуск тестов
+# Run tests
 uv run pytest -v
 
-# Применение миграций базы данных
+# Apply database migrations
 uv run alembic upgrade head
 
-# Создание новой миграции
-uv run alembic revision --autogenerate -m "описание изменений"
+# Create a new migration
+uv run alembic revision --autogenerate -m "description of changes"
 
-# Проверка форматирования и отсутствия хвостовых пробелов
+# Check formatting and trailing whitespace
 git diff --check
 ```
 
-### Соглашения о коммитах (Git Commits)
-- **Язык коммитов**: сообщения коммитов (`git commit`) оформляются **строго на английском языке** (English only).
-- **Формат**: рекомендуется следовать спецификации Conventional Commits (`feat: ...`, `fix: ...`, `refactor: ...`, `chore: ...`).
+### Git Commit Conventions
+- **Commit Language**: commit messages (`git commit`) must be written **strictly in English**.
+- **Format**: follow the Conventional Commits specification (`feat: ...`, `fix: ...`, `refactor: ...`, `chore: ...`).
 
 ---
 
-## 5. Фронтенд-соглашения и специфика HTMX
+## 5. Frontend Conventions and HTMX Specifics
 
-### AMOLED Pure Black палитра
-- Основной фон страницы и карточек уроков — чистый чёрный `#000000` (`bg-black`).
-- Карточки отделяются от фона границей `border border-zinc-800/90` и контрастной тенью `shadow-[0_4px_20px_rgba(0,0,0,0.85)]`.
-- Второстепенный текст, пустые состояния и подписи уроков оформляются в серых тонах: `text-zinc-400` / `text-zinc-500`.
-- Акцентный цвет бренда — изумрудный (`text-emerald-400`, `bg-emerald-500`).
+### AMOLED Pure Black Palette
+- Primary background of pages and lesson cards: pure black `#000000` (`bg-black`).
+- Cards are separated from the background with a border `border border-zinc-800/90` and contrast shadow `shadow-[0_4px_20px_rgba(0,0,0,0.85)]`.
+- Secondary text, empty states, and lesson captions are styled in gray tones: `text-zinc-400` / `text-zinc-500`.
+- Brand accent color: emerald (`text-emerald-400`, `bg-emerald-500`).
 
-### Двухрежимный дашборд (Desktop vs Mobile)
-В `dashboard/index.html` одновременно присутствуют две секции:
-- **Desktop** (`hidden md:block`): классический переключатель дней недели сверху, просмотр по одному выбранному дню.
-- **Mobile** (`md:hidden`): все дни недели рендерятся в едином вертикальном скролле со sticky-шапкой дней (`.sticky-mobile-week`), плавной прокруткой и scroll-spy подсветкой текущего дня.
+### Dual-Mode Dashboard (Desktop vs Mobile)
+In `dashboard/index.html`, two sections coexist simultaneously:
+- **Desktop** (`hidden md:block`): traditional weekday tabs at the top, viewing one selected day at a time.
+- **Mobile** (`md:hidden`): all weekdays rendered in a single vertical scroll with a sticky day header (`.sticky-mobile-week`), smooth scrolling, and scroll-spy active day highlighting.
 
-### Важнейшие правила для HTMX-запросов
-Из-за сосуществования десктопного и мобильного DOM-дерева на одной странице:
-1. **Таргетинг только через `closest`**:
-   - Категорически избегайте `hx-target="#hw-card-{{ hw.id }}"`, так как глобальный `querySelector` всегда перехватывает первое (десктопное) вхождение в DOM, ломая клики на мобильных.
-2. **Параметры `view` при переключении ДЗ**:
-   - `?view=compact` — возвращает лаконичную строку урока из [hw_compact_item.html](src/locus/templates/dashboard/hw_compact_item.html).
-   - `?view=unassigned` — возвращает карточку нераспределенного ДЗ из [hw_unassigned_item.html](src/locus/templates/dashboard/hw_unassigned_item.html).
-   - Без параметра — возвращает полную standalone-карточку из [homework/hw_item.html](src/locus/templates/homework/hw_item.html).
-3. **Защита от двойного клика**:
-   - На всех интерактивных кнопках переключения статуса обязательно должен присутствовать `hx-disabled-elt="this"`.
-4. **Уникальность `id`**:
-   - В DOM десктопные элементы получают префикс `id="desktop-..."`, а мобильные — `id="mobile-...-{{ day.day_num }}"`.
-
----
-
-## 6. Бэкенд и база данных
-
-1. **Асинхронность**:
-   - Все эндпоинты, работающие с БД, должны быть строго асинхронными (`async def`).
-   - Использование синхронных сессий SQLAlchemy запрещено.
-2. **Общие сущности и персональные статусы**:
-   - `Subject`, `Lesson` и `Homework` не содержат `user_id` и являются общими для всех пользователей.
-   - Персональный статус выполнения ДЗ хранится в таблице `homework_completions` (пара `homework_id`, `user_id`).
-   - Модель `Homework` не имеет колонки `status` в БД. Для передачи статуса в шаблоны и схемы Pydantic используется транзиентный атрибут `hw.status`, который выставляется через хелперы `attach_statuses(db, homework_list, user_id)` или `attach_status(db, hw, user_id)` из модуля `locus.homework_status`. Если записи о выполнении нет, статус считается `TODO`.
-3. **Eager Loading связей**:
-   - При выборке уроков или ДЗ всегда подгружайте связанные сущности через `selectinload(Lesson.subject)` или `selectinload(Homework.subject)`, чтобы избежать ошибки `MissingGreenlet` в асинхронном режиме при рендеринге шаблонов.
-4. **Разграничение прав и безопасность**:
-   - `get_current_user` / `get_current_user_web` — базовая аутентификация пользователя.
-   - `get_current_admin` / `get_current_admin_web` — проверка прав администратора (`is_admin=True`). Не-админы не имеют доступа к созданию, обновлению и удалению предметов и расписания, а также к админ-панели управления пользователями (`/admin/users`).
-   - Администратор не может удалить собственный аккаунт.
-   - Аутентификация проверяет заголовок `Authorization: Bearer <token>`, а при его отсутствии извлекает токен из защищенной cookie (по умолчанию `locus_session`).
-   - Пароли хешируются через `bcrypt`.
+### Critical Rules for HTMX Requests
+Due to both desktop and mobile DOM trees coexisting on the same page:
+1. **Targeting via `closest` only**:
+   - Strictly avoid `hx-target="#hw-card-{{ hw.id }}"`, because a global `querySelector` will always match the first (desktop) instance in the DOM, breaking interactions on mobile.
+2. **`view` parameter when toggling homework status**:
+   - `?view=compact` — returns a compact lesson row from [hw_compact_item.html](src/locus/templates/dashboard/hw_compact_item.html).
+   - `?view=unassigned` — returns an unassigned homework card from [hw_unassigned_item.html](src/locus/templates/dashboard/hw_unassigned_item.html).
+   - Without parameter — returns a full standalone card from [homework/hw_item.html](src/locus/templates/homework/hw_item.html).
+3. **Double-click Protection**:
+   - All interactive status-toggling buttons must include `hx-disabled-elt="this"`.
+4. **Unique `id`s**:
+   - In the DOM, desktop elements use the prefix `id="desktop-..."`, while mobile elements use `id="mobile-...-{{ day.day_num }}"`.
 
 ---
 
-## 7. Особенности и проблемы iOS PWA (WebKit / Standalone)
+## 6. Backend and Database
 
-При разработке интерфейса под установленные PWA на iOS (WebKit в режиме Standalone):
-1. **Системный прогрессивный блюр / translucent scrim в строке состояния**:
-   - В iOS WebKit при включенном `apple-mobile-web-app-capable: yes` операционная система принудительно накладывает градиентный блюр-слой (scrim) в верхней области экрана (Dynamic Island / Notch, ~44–59px).
-   - Свойство `backdrop-filter: none` в CSS **не отключает** этот системный блюр, так как он рендерится композитором iOS поверх веб-вью.
-   - Метатеги `apple-mobile-web-app-status-bar-style: black-translucent` или `black` расширяют размытую полосу вглубь шапки приложения, размывая заголовки и кнопки. Рекомендуется использовать `content="default"` в паре с `theme-color="#000000"`.
-   - *Важно:* iOS кэширует метатеги манифеста в момент добавления приложения на экран «Домой» (Add to Home Screen). Изменение метатегов не применится, пока пользователь не переустановит ярлык PWA.
-2. **Безопасные отступы (Safe Area) и защита от перекрытия**:
-   - Все интерактивные элементы в прикрепленной (sticky/fixed) шапке должны быть опущены ниже зоны Dynamic Island и системного блюра с помощью запаса отступа: `padding-top: calc(env(safe-area-inset-top, 0px) + 1.25rem)`.
-   - Фон шапки должен быть строго непрозрачным (`#000000`, 100% solid black). Использование полупрозрачности (`bg-black/95`) в сочетании с `backdrop-blur` вызывает визуальную грязь, двоение текста и мерцание при прокрутке в WebKit.
-3. **Смещение якорного скролла (`scroll-margin-top`)**:
-   - Для секций дней недели (`.mobile-day-section`) задается `scroll-margin-top: calc(env(safe-area-inset-top, 0px) + 7rem)` (класс `.scroll-mt-safe`), чтобы при программном переходе к выбранному дню его заголовок не прятался под зафиксированной верхней панелью.
+1. **Asynchronous Execution**:
+   - All endpoints interacting with the database must be strictly asynchronous (`async def`).
+   - Using synchronous SQLAlchemy sessions is forbidden.
+2. **Shared Entities and Personal Statuses**:
+   - `Subject`, `Lesson`, and `Homework` do not have a `user_id` column and are shared across all users.
+   - Personal homework completion statuses are stored in the `homework_completions` table (`homework_id`, `user_id` pair).
+   - The `Homework` model has no `status` column in the database. To pass statuses to templates and Pydantic schemas, use the transient attribute `hw.status`, populated via the `attach_statuses(db, homework_list, user_id)` or `attach_status(db, hw, user_id)` helpers from `locus.homework_status`. If no completion record exists, the status defaults to `TODO`.
+3. **Eager Loading of Relationships**:
+   - When querying lessons or homework, always eagerly load related entities via `selectinload(Lesson.subject)` or `selectinload(Homework.subject)` to avoid `MissingGreenlet` errors in async mode during template rendering.
+4. **Access Control & Security**:
+   - `get_current_user` / `get_current_user_web` — base user authentication.
+   - `get_current_admin` / `get_current_admin_web` — administrator privileges check (`is_admin=True`). Non-admin users cannot create, update, or delete subjects and schedule lessons, nor access the admin user management panel (`/admin/users`).
+   - Administrators cannot delete their own account.
+   - Authentication checks the `Authorization: Bearer <token>` header first; if absent, it extracts the token from a secure cookie (`locus_session` by default).
+   - Passwords are hashed using `bcrypt`.
+
+---
+
+## 7. iOS PWA Nuances and Quirks (WebKit / Standalone)
+
+When developing the UI for standalone installed PWAs on iOS (WebKit Standalone mode):
+1. **System Progressive Blur / Translucent Scrim in Status Bar**:
+   - In iOS WebKit with `apple-mobile-web-app-capable: yes` enabled, the operating system forcibly overlays a gradient blur layer (scrim) across the top screen area (Dynamic Island / Notch, ~44–59px).
+   - Setting `backdrop-filter: none` in CSS **does not** disable this system blur, as it is rendered by the iOS compositor above the web view.
+   - The meta tags `apple-mobile-web-app-status-bar-style: black-translucent` or `black` expand the blurred region deeper into the application header, blurring headers and buttons. It is recommended to use `content="default"` paired with `theme-color="#000000"`.
+   - *Important:* iOS caches manifest meta tags when the app is added to the home screen ("Add to Home Screen"). Any changes to these meta tags will not take effect until the user reinstalls the PWA shortcut.
+2. **Safe Area Insets and Overlap Protection**:
+   - All interactive elements in sticky/fixed headers must be positioned below the Dynamic Island / system blur area using padding: `padding-top: calc(env(safe-area-inset-top, 0px) + 1.25rem)`.
+   - The header background must be 100% solid black (`#000000`). Using semi-transparency (`bg-black/95`) combined with `backdrop-blur` causes visual artifacts, double text rendering, and flickering during scrolling in WebKit.
+3. **Anchor Scroll Offset (`scroll-margin-top`)**:
+   - For weekday sections (`.mobile-day-section`), specify `scroll-margin-top: calc(env(safe-area-inset-top, 0px) + 7rem)` (via `.scroll-mt-safe`) so that programmatic scrolling to a selected day does not hide its header beneath the fixed top bar.
