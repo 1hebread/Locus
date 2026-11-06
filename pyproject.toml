@@ -1,9 +1,25 @@
 [project]
 name = "locus"
-version = "0.1.0"
-description = "Personal school schedule and homework tracker"
+version = "1.0"
+description = "Self-hosted school diary: shared schedule, bell times and a collaborative homework tracker"
 readme = "README.md"
-requires-python = ">=3.11"
+license = "MIT"
+license-files = ["LICENSE"]
+requires-python = ">=3.12"
+authors = [{ name = "1hebread" }]
+keywords = ["school", "diary", "planner", "schedule", "homework", "fastapi", "pwa", "self-hosted"]
+classifiers = [
+    "Environment :: Web Environment",
+    "Framework :: FastAPI",
+    "Intended Audience :: Education",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+    "Topic :: Education",
+]
 dependencies = [
     "fastapi>=0.115.0",
     "uvicorn[standard]>=0.30.0",
@@ -23,6 +39,12 @@ dependencies = [
 [project.scripts]
 locus = "locus.main:run"
 locus-vapid = "locus.vapid:main"
+
+[project.urls]
+Homepage = "https://github.com/1hebread/Locus"
+Repository = "https://github.com/1hebread/Locus"
+Issues = "https://github.com/1hebread/Locus/issues"
+Documentation = "https://github.com/1hebread/Locus/blob/main/docs/api.md"
 
 [project.optional-dependencies]
 dev = [

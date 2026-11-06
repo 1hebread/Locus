@@ -1,4 +1,5 @@
 services:
+  # Local development only. These credentials are public and must not be reused in production.
   db:
     image: postgres:15-alpine
     container_name: diary-db

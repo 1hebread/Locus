@@ -24,9 +24,18 @@ wheels/
 .coverage
 htmlcov/
 .env
+.env.*
+!.env.example
 .venv/
 venv/
 node_modules/
 ENV/
 *.db
 *.sqlite3
+*.log
+
+# OS / editor junk
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/

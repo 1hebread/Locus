@@ -5,6 +5,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
+    # Local development default (matches docker-compose.yml). Never use in production.
     DATABASE_URL: str = "postgresql+asyncpg://admin:secret@localhost:5432/diary"
     SECRET_KEY: str = "change-this-to-a-very-secret-random-key-in-production-min-32-chars"
     ENCRYPTION_KEY: str = ""
