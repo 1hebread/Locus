@@ -5,6 +5,6 @@
     "css:watch": "tailwindcss -i ./src/locus/static/css/tailwind.src.css -o ./src/locus/static/css/tailwind.css --watch"
   },
   "devDependencies": {
-    "tailwindcss": "^3.4.17"
+    "tailwindcss": "^4.3.4"
   }
 }
