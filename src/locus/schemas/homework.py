@@ -26,6 +26,11 @@ class HomeworkBase(BaseModel):
             raise ValueError("Подгруппа должна быть 1, 2, 'boys' или 'girls'")
         return v_str
 
+
+class HomeworkIn(HomeworkBase):
+    """Input-only rules. Output schemas must not inherit them: a stored row that
+    breaks a rule (e.g. a legacy Sunday due_date) would fail the whole response."""
+
     @field_validator("due_date")
     @classmethod
     def validate_not_sunday(cls, v: date) -> date:
@@ -34,7 +39,7 @@ class HomeworkBase(BaseModel):
         return v
 
 
-class HomeworkCreate(HomeworkBase):
+class HomeworkCreate(HomeworkIn):
     pass
 
 
