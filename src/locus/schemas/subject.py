@@ -12,6 +12,12 @@ class SubjectBase(BaseModel):
     teacher2_phone: Optional[str] = Field(default=None, max_length=50)
     room2: Optional[str] = Field(default=None, max_length=50)
 
+
+class SubjectIn(SubjectBase):
+    """Input-only rules. Output schemas must not inherit them: a stored row that
+    breaks a rule (legacy data, manual SQL edit) would otherwise fail the whole
+    response."""
+
     @field_validator("name")
     @classmethod
     def validate_name(cls, v: str) -> str:
@@ -44,7 +50,7 @@ class SubjectBase(BaseModel):
         return None
 
 
-class SubjectCreate(SubjectBase):
+class SubjectCreate(SubjectIn):
     pass
 
 

@@ -1,6 +1,7 @@
 import pytest
 from httpx import AsyncClient
 from sqlalchemy import text
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from locus.models.subject import Subject
 from tests.helpers import next_valid_due_date
@@ -40,6 +41,24 @@ async def test_subject_crud(client: AsyncClient, auth_headers: dict):
     # Delete subject
     res_delete = await client.delete(f"/api/v1/subjects/{subj_id}", headers=auth_headers)
     assert res_delete.status_code == 204
+
+
+@pytest.mark.asyncio
+async def test_stored_invalid_phone_does_not_break_response(
+    client: AsyncClient,
+    auth_headers: dict,
+    db_session: AsyncSession,
+):
+    """Input rules must not apply to output: a phone saved outside the API
+    (legacy data, manual SQL edit) must not turn the whole list into a 500."""
+    subject = Subject(name="Химия", teacher_phone="позвонить в школу")
+    db_session.add(subject)
+    await db_session.commit()
+
+    res = await client.get("/api/v1/subjects", headers=auth_headers)
+
+    assert res.status_code == 200
+    assert any(s["name"] == "Химия" for s in res.json())
 
 
 @pytest.mark.asyncio
