@@ -2,14 +2,9 @@ import pytest
 from datetime import date, timedelta
 from httpx import AsyncClient
 
+from locus.models.homework import Homework
 from locus.models.subject import Subject
-
-
-def get_valid_due_date(days_ahead: int = 1) -> str:
-    d = date.today() + timedelta(days=days_ahead)
-    if d.isoweekday() == 7:
-        d += timedelta(days=1)
-    return d.isoformat()
+from tests.helpers import next_valid_due_date
 
 
 @pytest.mark.asyncio
@@ -18,7 +13,7 @@ async def test_homework_crud_and_status_patch(
     auth_headers: dict,
     test_subject: Subject,
 ):
-    tomorrow = get_valid_due_date(1)
+    tomorrow = next_valid_due_date(1).isoformat()
 
     # Create HW
     res_create = await client.post(
@@ -63,7 +58,7 @@ async def test_homework_is_shared_but_status_is_per_user(
     regular_auth_headers: dict,
     test_subject: Subject,
 ):
-    tomorrow = get_valid_due_date(1)
+    tomorrow = next_valid_due_date(1).isoformat()
 
     res_create = await client.post(
         "/api/v1/homework",
@@ -107,7 +102,7 @@ async def test_homework_invalid_lesson_id_rejected(
     test_subject: Subject,
 ):
     """Providing a non-existent or foreign lesson_id must return 404."""
-    tomorrow = get_valid_due_date(1)
+    tomorrow = next_valid_due_date(1).isoformat()
     res = await client.post(
         "/api/v1/homework",
         headers=auth_headers,
@@ -133,7 +128,7 @@ async def test_homework_web_toggle(
     settings = get_settings()
     client.cookies.set(settings.COOKIE_NAME, auth_token)
 
-    tomorrow = get_valid_due_date(1)
+    tomorrow = next_valid_due_date(1).isoformat()
 
     # Create HW via web
     res_create = await client.post(
@@ -215,7 +210,7 @@ async def test_api_todo_filter_includes_uncompleted_and_excludes_done(
     test_subject: Subject,
 ):
     """REST API ?status=TODO returns tasks without completion records and excludes DONE tasks."""
-    tomorrow = get_valid_due_date(1)
+    tomorrow = next_valid_due_date(1).isoformat()
 
     # Create task 1 (will stay uncompleted / default TODO)
     r1 = await client.post(
@@ -313,3 +308,28 @@ async def test_homework_cannot_be_assigned_on_sunday(
     )
     assert res_modal.status_code == 400
     assert "Нельзя записать домашнее задание на воскресенье" in res_modal.text
+
+
+@pytest.mark.asyncio
+async def test_stored_sunday_due_date_does_not_break_response(
+    client: AsyncClient,
+    auth_headers: dict,
+    db_session,
+    test_subject: Subject,
+):
+    """Input rules must not apply to output: a row already in the database
+    (legacy data, manual SQL edit) must still be returned instead of a 500."""
+    today = date.today()
+    sunday = today + timedelta(days=(7 - today.isoweekday()) % 7)
+    hw = Homework(
+        subject_id=test_subject.id,
+        title="Легаси ДЗ на воскресенье",
+        due_date=sunday,
+    )
+    db_session.add(hw)
+    await db_session.commit()
+
+    res = await client.get("/api/v1/homework", headers=auth_headers)
+
+    assert res.status_code == 200
+    assert "Легаси ДЗ на воскресенье" in [h["title"] for h in res.json()]

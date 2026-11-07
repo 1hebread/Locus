@@ -1,4 +1,4 @@
-from datetime import date, timedelta
+from datetime import date
 import pytest
 from httpx import AsyncClient
 from sqlalchemy import select
@@ -11,6 +11,7 @@ from locus.models.subject import Subject
 from locus.models.user import User
 from locus.schedule_validation import LessonConflictError, validate_lesson_conflict
 from locus.security import create_access_token, get_password_fingerprint, hash_password
+from tests.helpers import next_valid_due_date
 
 
 @pytest.mark.asyncio
@@ -170,7 +171,7 @@ async def test_homework_isolation_by_subgroup(
     t2 = create_access_token({"sub": str(u2.id), "pwd": get_password_fingerprint(u2.hashed_password)})
 
     # Homeworks (future-dated: the web page hides past-due homework)
-    due_date = get_current_date() + timedelta(days=1)
+    due_date = next_valid_due_date(1)
     hw_general = Homework(
         subject_id=test_subject.id,
         title="Общее ДЗ",

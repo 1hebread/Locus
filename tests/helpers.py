@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import date, timedelta
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -6,6 +6,14 @@ from locus.constants import HomeworkStatus
 from locus.models.homework import Homework
 from locus.models.homework_completion import HomeworkCompletion
 from locus.models.user import User
+
+
+def next_valid_due_date(days_ahead: int = 1) -> date:
+    """A future date the API accepts (it rejects homework due on Sunday)."""
+    d = date.today() + timedelta(days=days_ahead)
+    if d.isoweekday() == 7:
+        d += timedelta(days=1)
+    return d
 
 
 async def add_homework(

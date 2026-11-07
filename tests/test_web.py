@@ -6,7 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from locus.models.lesson import Lesson
 from locus.models.subject import Subject
 from locus.models.user import User
-from tests.helpers import add_homework
+from tests.helpers import add_homework, next_valid_due_date
 
 
 @pytest.mark.asyncio
@@ -746,16 +746,12 @@ async def test_web_shared_homework_and_personal_completion(
     db_session,
 ):
     """Homework is shared, status is personal, any user can delete shared homework."""
-    from datetime import date, timedelta
     from sqlalchemy import select
     from locus.config import get_settings
     from locus.models.homework import Homework
 
     settings = get_settings()
-    target_date = date.today() + timedelta(days=1)
-    if target_date.isoweekday() == 7:
-        target_date += timedelta(days=1)
-    tomorrow = target_date.isoformat()
+    tomorrow = next_valid_due_date(1).isoformat()
 
     # 1. Regular user creates a shared homework via web
     client.cookies.set(settings.COOKIE_NAME, regular_token)
