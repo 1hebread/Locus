@@ -69,6 +69,7 @@ This file provides comprehensive guidelines on architecture, technology stack, d
 │       ├── schedule_validation.py # Lesson payload validation
 │       ├── subgroup_helpers.py   # Subgroup parsing and matching
 │       ├── homework_status.py    # Personal status helpers (attach_statuses, set_status)
+│       ├── homework_rules.py     # Homework business rules (one assignment per lesson+date)
 │       ├── homework_audit.py     # Homework audit log (create/edit/delete tracking)
 │       ├── homework_cleanup.py   # Automatic cleanup for old homework (HOMEWORK_RETENTION_DAYS)
 │       ├── lesson_suggestion.py  # Next lesson auto-suggestion
@@ -174,6 +175,10 @@ git diff --check
 - **Commit Language**: commit messages (`git commit`) must be written **strictly in English**.
 - **Format**: follow the Conventional Commits specification (`feat: ...`, `fix: ...`, `refactor: ...`, `chore: ...`).
 
+### Documentation Sync
+- If a change touches a documented area, update the docs in the same change. This includes `AGENTS.md` (structure, modules, conventions), `docs/api.md` (endpoints, fields, limits, error codes), `.env.example` (new settings) and `docs/privacy.md` (data storage/privacy).
+- Do not leave documentation describing behavior that no longer exists: stale docs are worse than missing ones.
+
 ---
 
 ## 5. Frontend Conventions and HTMX Specifics
@@ -213,6 +218,7 @@ Due to both desktop and mobile DOM trees coexisting on the same page:
    - `Subject`, `Lesson`, and `Homework` do not have a `user_id` column and are shared across all users.
    - Personal homework completion statuses are stored in the `homework_completions` table (`homework_id`, `user_id` pair).
    - The `Homework` model has no `status` column in the database. To pass statuses to templates and Pydantic schemas, use the transient attribute `hw.status`, populated via the `attach_statuses(db, homework_list, user_id)` or `attach_status(db, hw, user_id)` helpers from `locus.homework_status`. If no completion record exists, the status defaults to `TODO`.
+   - A lesson can hold only one assignment per due date. The web form and REST API reject duplicates with `409 Conflict` via `lesson_homework_exists` from `locus.homework_rules`, and the partial unique index `uq_homeworks_lesson_due_date` (`lesson_id`, `due_date`; unassigned rows exempt) is the real guarantee; the dashboard lesson modal reuses the existing row instead of creating another.
 3. **Eager Loading of Relationships**:
    - When querying lessons or homework, always eagerly load related entities via `selectinload(Lesson.subject)` or `selectinload(Homework.subject)` to avoid `MissingGreenlet` errors in async mode during template rendering.
 4. **Access Control & Security**:

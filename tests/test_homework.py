@@ -1,10 +1,15 @@
 import pytest
 from datetime import date, timedelta
 from httpx import AsyncClient
+from sqlalchemy.exc import IntegrityError
 
+from locus.config import get_settings
 from locus.models.homework import Homework
+from locus.models.lesson import Lesson
 from locus.models.subject import Subject
 from tests.helpers import next_valid_due_date
+
+settings = get_settings()
 
 
 @pytest.mark.asyncio
@@ -250,10 +255,6 @@ async def test_homework_cannot_be_assigned_on_sunday(
     db_session,
 ):
     """Ensure homework cannot be assigned on Sunday via API and Web."""
-    from locus.config import get_settings
-    from locus.models.lesson import Lesson
-    settings = get_settings()
-
     # Find next Sunday
     today = date.today()
     days_until_sunday = (7 - today.isoweekday()) % 7
@@ -333,3 +334,135 @@ async def test_stored_sunday_due_date_does_not_break_response(
 
     assert res.status_code == 200
     assert "Легаси ДЗ на воскресенье" in [h["title"] for h in res.json()]
+
+
+@pytest.mark.asyncio
+async def test_one_homework_per_lesson_and_date(
+    client: AsyncClient,
+    auth_headers: dict,
+    auth_token: str,
+    test_subject: Subject,
+):
+    """A lesson can hold only one assignment per due date (no double-submit duplicates)."""
+    lesson_res = await client.post(
+        "/api/v1/schedule",
+        headers=auth_headers,
+        json={
+            "subject_id": test_subject.id,
+            "day_of_week": 1,
+            "lesson_number": 1,
+            "start_time": "08:00",
+            "end_time": "08:45",
+            "subgroup": None,
+        },
+    )
+    assert lesson_res.status_code == 201
+    lesson_id = lesson_res.json()["id"]
+    due = next_valid_due_date(2).isoformat()
+    payload = {
+        "subject_id": test_subject.id,
+        "lesson_id": lesson_id,
+        "title": "Первое задание",
+        "due_date": due,
+    }
+
+    first = await client.post("/api/v1/homework", headers=auth_headers, json=payload)
+    assert first.status_code == 201
+
+    # Editing the row itself must not be seen as a conflict with itself
+    renamed = await client.put(
+        f"/api/v1/homework/{first.json()['id']}",
+        headers=auth_headers,
+        json={"title": "Переименовано"},
+    )
+    assert renamed.status_code == 200
+
+    duplicate = await client.post("/api/v1/homework", headers=auth_headers, json=payload)
+    assert duplicate.status_code == 409
+
+    # Moving another assignment onto the same lesson/date is rejected too
+    other = await client.post(
+        "/api/v1/homework",
+        headers=auth_headers,
+        json={"subject_id": test_subject.id, "title": "Второе задание", "due_date": due},
+    )
+    assert other.status_code == 201
+    moved = await client.put(
+        f"/api/v1/homework/{other.json()['id']}",
+        headers=auth_headers,
+        json={"lesson_id": lesson_id},
+    )
+    assert moved.status_code == 409
+
+    # Web form duplicate is rejected as well
+    client.cookies.set(settings.COOKIE_NAME, auth_token)
+    web_duplicate = await client.post(
+        "/homework",
+        data={
+            "subject_id": test_subject.id,
+            "lesson_id": lesson_id,
+            "title": "Дубль из формы",
+            "due_date": due,
+        },
+    )
+    assert web_duplicate.status_code == 409
+
+
+@pytest.mark.asyncio
+async def test_database_rejects_duplicate_lesson_and_date(db_session, test_subject: Subject):
+    """The unique index backs the check up, so a race cannot slip a duplicate in."""
+    lesson = Lesson(
+        subject_id=test_subject.id,
+        day_of_week=1,
+        lesson_number=1,
+        start_time="08:00",
+        end_time="08:45",
+    )
+    db_session.add(lesson)
+    await db_session.commit()
+
+    due = next_valid_due_date(2)
+    for title in ("Первое", "Второе"):
+        db_session.add(
+            Homework(subject_id=test_subject.id, lesson_id=lesson.id, title=title, due_date=due)
+        )
+    with pytest.raises(IntegrityError):
+        await db_session.flush()
+    await db_session.rollback()
+
+
+@pytest.mark.asyncio
+async def test_duplicate_race_returns_conflict_not_500(
+    client: AsyncClient,
+    auth_headers: dict,
+    db_session,
+    test_subject: Subject,
+    monkeypatch,
+):
+    """The pre-check can lose a race; the unique index answer must still be a 409."""
+    lesson = Lesson(
+        subject_id=test_subject.id,
+        day_of_week=1,
+        lesson_number=1,
+        start_time="08:00",
+        end_time="08:45",
+    )
+    db_session.add(lesson)
+    await db_session.commit()
+
+    payload = {
+        "subject_id": test_subject.id,
+        "lesson_id": lesson.id,
+        "title": "Задание",
+        "due_date": next_valid_due_date(2).isoformat(),
+    }
+    first = await client.post("/api/v1/homework", headers=auth_headers, json=payload)
+    assert first.status_code == 201
+
+    async def _precheck_lost(*args, **kwargs):
+        return False
+
+    monkeypatch.setattr("locus.api.homework.lesson_homework_exists", _precheck_lost)
+
+    raced = await client.post("/api/v1/homework", headers=auth_headers, json=payload)
+    assert raced.status_code == 409

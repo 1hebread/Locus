@@ -1,6 +1,6 @@
 from datetime import date, datetime, timezone
 from typing import TYPE_CHECKING, List, Optional
-from sqlalchemy import Date, DateTime, ForeignKey, Integer, String
+from sqlalchemy import Date, DateTime, ForeignKey, Index, Integer, String, text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from locus.database import Base
@@ -17,6 +17,17 @@ def get_utc_now() -> datetime:
 
 class Homework(Base):
     __tablename__ = "homeworks"
+    __table_args__ = (
+        # One assignment per lesson and due date; unassigned homework is exempt.
+        Index(
+            "uq_homeworks_lesson_due_date",
+            "lesson_id",
+            "due_date",
+            unique=True,
+            sqlite_where=text("lesson_id IS NOT NULL"),
+            postgresql_where=text("lesson_id IS NOT NULL"),
+        ),
+    )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
     subject_id: Mapped[int] = mapped_column(

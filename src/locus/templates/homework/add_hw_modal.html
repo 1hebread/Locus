@@ -45,7 +45,7 @@
 
     <!-- Scrollable Body -->
     <div class="px-4 pt-3 pb-4 sm:px-5 sm:pt-3 sm:pb-5 overflow-y-auto flex-1 bg-[#121214]">
-      <form method="post" action="/homework" class="space-y-3">
+      <form method="post" action="/homework" onsubmit="this.querySelector('button[type=submit]').disabled = true" class="space-y-3">
         {% if next_lesson is defined and next_lesson %}
         <button type="button"
                 data-next-lesson-btn

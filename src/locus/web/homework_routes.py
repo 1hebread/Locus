@@ -3,6 +3,7 @@ from typing import Optional
 from fastapi import APIRouter, BackgroundTasks, Depends, Form, HTTPException, Query, Request, Response, status
 from fastapi.responses import HTMLResponse, RedirectResponse
 from sqlalchemy import and_, or_, select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -15,6 +16,7 @@ from locus.homework_audit import (
     log_homework_event,
     snapshot_changes,
 )
+from locus.homework_rules import LESSON_SLOT_TAKEN, lesson_homework_exists
 from locus.homework_status import attach_statuses, get_completion, set_status
 from locus.lesson_suggestion import get_next_lesson_suggestion
 from locus.models.homework import Homework
@@ -234,6 +236,11 @@ async def create_homework_web(
             status_code=403,
             detail="Нельзя привязать задание к уроку чужой подгруппы",
         )
+    if lesson is not None and await lesson_homework_exists(db, lesson.id, parsed_due_date):
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=LESSON_SLOT_TAKEN,
+        )
 
     if resolved_subgroup is not None:
         has_subgroups = bool(subject.teacher2_name and subject.teacher2_name.strip())
@@ -253,7 +260,12 @@ async def create_homework_web(
         subgroup=resolved_subgroup,
     )
     db.add(hw)
-    await db.flush()
+    try:
+        await db.flush()
+    except IntegrityError:
+        # Unique index (lesson_id, due_date) caught a concurrent duplicate.
+        await db.rollback()
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=LESSON_SLOT_TAKEN)
     await set_status(db, hw.id, current_user.id, HomeworkStatus.TODO.value)
     log_homework_event(db, current_user, ACTION_CREATED, hw.id, snapshot_changes(hw))
     await db.commit()

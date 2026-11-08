@@ -2,6 +2,7 @@ from datetime import date
 from typing import List, Optional
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, status
 from sqlalchemy import and_, or_, select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -17,6 +18,7 @@ from locus.homework_audit import (
     snapshot,
     snapshot_changes,
 )
+from locus.homework_rules import LESSON_SLOT_TAKEN, lesson_homework_exists
 from locus.homework_status import attach_status, attach_statuses, set_status
 from locus.models.homework import Homework
 from locus.models.homework_completion import HomeworkCompletion
@@ -140,6 +142,11 @@ async def create_homework(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Нельзя привязать задание к уроку чужой подгруппы",
         )
+    if lesson is not None and await lesson_homework_exists(db, lesson.id, data.due_date):
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=LESSON_SLOT_TAKEN,
+        )
 
     if resolved_subgroup is not None:
         has_subgroups = bool(subject.teacher2_name and subject.teacher2_name.strip())
@@ -159,7 +166,12 @@ async def create_homework(
         subgroup=resolved_subgroup,
     )
     db.add(hw)
-    await db.flush()
+    try:
+        await db.flush()
+    except IntegrityError:
+        # Unique index (lesson_id, due_date) caught a concurrent duplicate.
+        await db.rollback()
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=LESSON_SLOT_TAKEN)
     await set_status(db, hw.id, current_user.id, data.status.value)
     log_homework_event(db, current_user, ACTION_CREATED, hw.id, snapshot_changes(hw))
     await db.commit()
@@ -278,6 +290,22 @@ async def update_homework(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Нельзя привязать задание к уроку чужой подгруппы",
         )
+    # Only a move onto a new slot can create a duplicate; a plain edit of a
+    # legacy duplicate must stay possible.
+    if (
+        target_lesson_id is not None
+        and ("lesson_id" in update_dict or "due_date" in update_dict)
+        and await lesson_homework_exists(
+            db,
+            target_lesson_id,
+            update_dict.get("due_date") or hw.due_date,
+            exclude_id=hw.id,
+        )
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=LESSON_SLOT_TAKEN,
+        )
 
     if "subgroup" in update_dict and update_dict["subgroup"] is not None:
         target_subject_id = update_dict.get("subject_id", hw.subject_id)
@@ -303,7 +331,12 @@ async def update_homework(
     if new_status is not None:
         await set_status(db, hw.id, current_user.id, new_status.value)
 
-    await db.commit()
+    try:
+        await db.commit()
+    except IntegrityError:
+        # Unique index (lesson_id, due_date) caught a concurrent duplicate.
+        await db.rollback()
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=LESSON_SLOT_TAKEN)
 
     res = await db.execute(stmt)
     hw = res.scalar_one()

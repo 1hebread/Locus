@@ -809,14 +809,14 @@ async def test_web_shared_homework_and_personal_completion(
 
 
 @pytest.mark.asyncio
-async def test_multiple_homeworks_on_same_lesson_does_not_crash_modal_save(
+async def test_homework_on_other_dates_does_not_crash_modal_save(
     client: AsyncClient,
     test_user: User,
     auth_token: str,
     test_subject: Subject,
     db_session,
 ):
-    """When multiple homeworks exist for the same lesson and date, saving does not crash with MultipleResultsFound."""
+    """Existing homeworks for the same lesson on other dates must not confuse the modal lookup."""
     from datetime import date
     from locus.config import get_settings
     from locus.models.lesson import Lesson
@@ -836,22 +836,14 @@ async def test_multiple_homeworks_on_same_lesson_does_not_crash_modal_save(
     await db_session.refresh(lesson)
 
     target_date = "2026-10-22"
-    # Create two homeworks for the same lesson and date
-    hw1 = await add_homework(
+    # One assignment per lesson and date, so the neighbour lives on another date
+    await add_homework(
         db_session,
         test_user,
         subject_id=test_subject.id,
         lesson_id=lesson.id,
         title="Первое задание",
-        due_date=date.fromisoformat(target_date),
-    )
-    hw2 = await add_homework(
-        db_session,
-        test_user,
-        subject_id=test_subject.id,
-        lesson_id=lesson.id,
-        title="Второе задание",
-        due_date=date.fromisoformat(target_date),
+        due_date=date.fromisoformat("2026-10-29"),
     )
 
     # Save via modal without passing hw_id -> should succeed without 500
