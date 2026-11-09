@@ -433,14 +433,17 @@ async def test_password_length_limits(
     )
     assert res.status_code == 400
 
-    # Minimum is 8 characters
+    # Minimum of 8 characters is enforced in production only (see test below)
     res = await client.post(
         "/admin/users",
         data={"username": "shortpass", "password": "1234567"},
         follow_redirects=False,
     )
-    assert res.status_code == 400
-    assert "8" in res.text
+    assert res.status_code == 303
+
+    # Development renders no client-side minimum
+    page = await client.get("/admin/users")
+    assert 'minlength="1"' in page.text
 
     # 72 bytes is fine
     res = await client.post(
@@ -449,3 +452,37 @@ async def test_password_length_limits(
         follow_redirects=False,
     )
     assert res.status_code in (200, 303)
+
+
+@pytest.mark.asyncio
+async def test_short_password_rejected_in_production(
+    client: AsyncClient,
+    test_user: User,
+    auth_token: str,
+    regular_user: User,
+    db_session: AsyncSession,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    client.cookies.set(settings.COOKIE_NAME, auth_token)
+    monkeypatch.setattr(settings, "ENVIRONMENT", "production")
+
+    res = await client.post(
+        "/admin/users",
+        data={"username": "shortpass", "password": "1234567"},
+        follow_redirects=False,
+    )
+    assert res.status_code == 400
+    assert "не короче 8 символов" in res.text
+    created = await db_session.execute(select(User).where(User.username == "shortpass"))
+    assert created.scalar_one_or_none() is None
+
+    page = await client.get("/admin/users")
+    assert 'minlength="8"' in page.text
+
+    res = await client.post(
+        f"/admin/users/{regular_user.id}/password",
+        data={"password": "1234567"},
+        follow_redirects=False,
+    )
+    assert res.status_code == 400
+    assert "не короче 8 символов" in res.text

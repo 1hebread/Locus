@@ -19,12 +19,13 @@ from locus.models.lesson import Lesson
 from locus.models.subject import Subject
 from locus.models.user import User
 from locus.security import (
-    MAX_PASSWORD_BYTES,
+    MIN_PASSWORD_LENGTH,
     create_access_token,
     generate_api_key,
     get_password_fingerprint,
     hash_api_key,
     hash_password_async,
+    password_error,
     set_session_cookie,
 )
 from locus.templates_config import templates
@@ -64,6 +65,7 @@ async def _render_users(
             "username_changed": username_changed,
             "subgroup_changed": subgroup_changed,
             "gender_subgroup_changed": gender_subgroup_changed,
+            "min_password_length": MIN_PASSWORD_LENGTH if get_settings().is_production else 1,
         },
         status_code=status_code,
     )
@@ -137,10 +139,8 @@ async def create_user(
         error = "Логин не должен содержать пробелы"
     elif not USERNAME_PATTERN.match(username):
         error = "Логин может содержать только буквы, цифры, точки, дефисы и знаки подчеркивания"
-    elif len(password) < 8:
-        error = "Пароль должен быть не короче 8 символов"
-    elif len(password.encode("utf-8")) > MAX_PASSWORD_BYTES:
-        error = f"Пароль должен быть не длиннее {MAX_PASSWORD_BYTES} байт"
+    elif (pwd_error := password_error(password)):
+        error = pwd_error
     else:
         existing = await db.execute(
             select(User).where(func.lower(User.username) == username)
@@ -346,21 +346,12 @@ async def change_password(
             status_code=status.HTTP_404_NOT_FOUND,
         )
 
-    if len(password) < 8:
+    if pwd_error := password_error(password):
         return await _render_users(
             request,
             db,
             current_user,
-            error="Пароль должен быть не короче 8 символов",
-            status_code=status.HTTP_400_BAD_REQUEST,
-        )
-
-    if len(password.encode("utf-8")) > MAX_PASSWORD_BYTES:
-        return await _render_users(
-            request,
-            db,
-            current_user,
-            error=f"Пароль должен быть не длиннее {MAX_PASSWORD_BYTES} байт",
+            error=pwd_error,
             status_code=status.HTTP_400_BAD_REQUEST,
         )
 

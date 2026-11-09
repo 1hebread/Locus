@@ -66,7 +66,7 @@
 
       <div>
         <label for="password" class="block text-xs font-medium text-zinc-300 mb-1.5">Пароль</label>
-        <input type="password" id="password" name="password" required minlength="6"
+        <input type="password" id="password" name="password" required minlength="{{ min_password_length }}"
                autocomplete="new-password"
                class="w-full h-10 bg-black border border-zinc-700/80 rounded-xl px-3.5 text-sm text-white focus:outline-none focus:ring-1 focus:ring-emerald-500 placeholder-zinc-500 transition"
                placeholder="••••••••">
@@ -193,7 +193,7 @@
         <!-- Change Password -->
         <form method="post" action="/admin/users/{{ user.id }}/password" class="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
           <div class="relative flex-1 min-w-0">
-            <input type="password" name="password" required minlength="6"
+            <input type="password" name="password" required minlength="{{ min_password_length }}"
                    autocomplete="new-password"
                    aria-label="Новый пароль для {{ user.username }}"
                    class="w-full h-10 bg-black border border-zinc-700/80 rounded-xl px-3.5 text-xs sm:text-sm text-white focus:outline-none focus:ring-1 focus:ring-emerald-500 placeholder-zinc-500 transition"

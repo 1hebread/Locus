@@ -18,6 +18,17 @@ API_KEY_PREFIX = "lk_"
 API_KEY_LENGTH = len(API_KEY_PREFIX) + 43
 # bcrypt refuses longer input (ValueError), so reject it at the form boundary
 MAX_PASSWORD_BYTES = 72
+# Enforced in production only: development instances use throwaway passwords
+MIN_PASSWORD_LENGTH = 8
+
+
+def password_error(password: str) -> Optional[str]:
+    """Reason to reject a password, or None when it is acceptable."""
+    if settings.is_production and len(password) < MIN_PASSWORD_LENGTH:
+        return f"Пароль должен быть не короче {MIN_PASSWORD_LENGTH} символов"
+    if len(password.encode("utf-8")) > MAX_PASSWORD_BYTES:
+        return f"Пароль должен быть не длиннее {MAX_PASSWORD_BYTES} байт"
+    return None
 
 
 def generate_api_key() -> str:
