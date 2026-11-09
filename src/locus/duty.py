@@ -1,0 +1,77 @@
+import re
+from typing import Any, Dict, List, Optional
+
+from sqlalchemy import func, select
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from locus.constants import DAY_NAMES, get_current_date
+from locus.models.duty_day import DutyDay
+from locus.models.user import User
+
+# "Иван И. (ivan)" binds the entry to the user with that login
+DUTY_LOGIN_PATTERN = re.compile(r"^(?P<name>.+?)\s*\((?P<login>[^()]*)\)\s*$")
+
+
+def parse_duty_day(text: Optional[str]) -> List[Dict[str, Any]]:
+    """Split a day's text into entries, one per non-empty line.
+
+    Each entry has "name" and "login" (None when the line has no login);
+    load_duty_days() adds "linked" once it knows which logins exist.
+    """
+    entries: List[Dict[str, Any]] = []
+    for raw_line in (text or "").splitlines():
+        line = raw_line.strip()
+        if not line:
+            continue
+        match = DUTY_LOGIN_PATTERN.match(line)
+        if match and match.group("name").strip() and match.group("login").strip():
+            entries.append(
+                {"name": match.group("name").strip(), "login": match.group("login").strip()}
+            )
+        else:
+            entries.append({"name": line, "login": None})
+    return entries
+
+
+async def load_duty_days(db: AsyncSession) -> List[Dict[str, Any]]:
+    """All seven weekdays with parsed entries and a "linked" flag per entry."""
+    rows = (await db.execute(select(DutyDay))).scalars().all()
+    texts = {row.day_of_week: row.text for row in rows}
+    today = get_current_date().isoweekday()
+
+    days = [
+        {
+            "day_of_week": day_num,
+            "name": DAY_NAMES[day_num],
+            "text": texts.get(day_num, ""),
+            "entries": parse_duty_day(texts.get(day_num, "")),
+            "is_today": day_num == today,
+        }
+        for day_num in range(1, 8)
+    ]
+
+    logins = {
+        entry["login"].lower() for day in days for entry in day["entries"] if entry["login"]
+    }
+    linked_logins = set()
+    if logins:
+        result = await db.execute(
+            select(User.username).where(func.lower(User.username).in_(logins))
+        )
+        linked_logins = {username.lower() for username in result.scalars().all()}
+
+    for day in days:
+        for entry in day["entries"]:
+            entry["linked"] = bool(entry["login"]) and entry["login"].lower() in linked_logins
+    return days
+
+
+async def set_duty_text(db: AsyncSession, day_of_week: int, text: str) -> DutyDay:
+    """Upsert one weekday's text; the caller commits."""
+    row = await db.get(DutyDay, day_of_week)
+    if row is None:
+        row = DutyDay(day_of_week=day_of_week, text=text)
+        db.add(row)
+    else:
+        row.text = text
+    return row

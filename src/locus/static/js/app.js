@@ -783,7 +783,7 @@ window.addEventListener('click', (e) => {
 let isNavigatingPage = false;
 let lastPagePath = window.location.pathname;
 let lastPageUrl = window.location.pathname + window.location.search;
-const SECTION_PATHS = new Set(['/', '/homework', '/subjects', '/schedule', '/admin/users', '/admin/history', '/admin/api-keys']);
+const SECTION_PATHS = new Set(['/', '/homework', '/subjects', '/schedule', '/duty', '/admin/users', '/admin/history', '/admin/api-keys']);
 
 // Inline <script> tags inserted via innerHTML never run, so re-create them
 function runScripts(container) {

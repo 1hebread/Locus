@@ -23,6 +23,7 @@ It combines a school-wide schedule and a single homework pool with individual pr
 - 📚 **Shared homework pool**: any authenticated user can add, edit or delete an assignment.
 - ✅ **Personal completion tracking**: each student has their own `TODO` / `DONE` status, stored in the isolated `homework_completions` table.
 - 👥 **Subgroup support**: split classes into subgroups (foreign languages, for example) across the schedule, homework and push notifications.
+- 🧹 **Duty roster**: who is on duty for each weekday, with optional binding to a user by login (`Ivan I. (ivan)`) and a highlight for today's duty.
 - 🔔 **Web Push notifications**: background browser and PWA pushes (VAPID) on homework creation, update and deletion, filtered by subgroup and sent to every active user except the author of the change.
 - 📜 **Change history (audit log)**: a transparent trail of homework edits with the author, timestamp and changed fields (`homework_events`). The last editor is shown in the lesson modal, and the full feed is at `/admin/history`.
 - 💡 **Smart defaults**: when adding homework, the next date and the matching lesson are preselected.

@@ -12,6 +12,7 @@ This file provides comprehensive guidelines on architecture, technology stack, d
 - **Unified Diary and Schedule**: view lessons by day of the week, bell times, classrooms, teacher names, and recess intervals. The schedule and subjects are shared across all users in a school/class and managed by an administrator (`is_admin`).
 - **Shared Homework Pool & Personal Tracking**: assignments are shared across all users (anyone can add, edit, or delete them), while completion statuses (`TODO` / `DONE`) are tracked individually per user in the `homework_completions` table.
 - **Homework Audit Log**: assignment creation, edits, and deletions are logged in `homework_events` (who, when, and which fields changed). Lesson modals display the last editor, and the full history is accessible to admins at `/admin/history`.
+- **Duty Roster**: `/duty` shows who is on duty for each weekday. Entries are plain lines of text; `Иван И. (ivan)` binds a line to the user with that login, and the linked name is highlighted on today's card. Only administrators can edit the roster. Also available via `GET /api/v1/duty`, editing via `PUT /api/v1/duty/{day_of_week}` (admin only).
 - **Push Notifications (Web Push)**: homework creation, edits, and deletions are pushed to subscribed browsers/PWAs (to all active users except the author, respecting subgroups). Subscriptions are stored in `push_subscriptions`, and VAPID keys are configured via `VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY` (generation: `uv run locus-vapid`). Without keys, push notifications are disabled.
 - **Public API**: REST `/api/v1` with JWT or API key (`Authorization: Bearer lk_…`), documentation: `docs/api.md` (Swagger `/docs` is only available in development). Keys are created by admins at `/admin/api-keys` and act on behalf of the selected user; daily summary is available at `GET /api/v1/summary?date=YYYY-MM-DD`.
 - **PWA & Mobile-First Focus**: responsive UI with pure AMOLED black design (`#000000`), smooth micro-animations, a dynamic floating navigation dock, and a PWA manifest.
@@ -70,6 +71,7 @@ This file provides comprehensive guidelines on architecture, technology stack, d
 │       ├── subgroup_helpers.py   # Subgroup parsing and matching
 │       ├── homework_status.py    # Personal status helpers (attach_statuses, set_status)
 │       ├── homework_rules.py     # Homework business rules (one assignment per lesson+date)
+│       ├── duty.py               # Duty roster parsing, day loading and upsert
 │       ├── homework_audit.py     # Homework audit log (create/edit/delete tracking)
 │       ├── homework_cleanup.py   # Automatic cleanup for old homework (HOMEWORK_RETENTION_DAYS)
 │       ├── lesson_suggestion.py  # Next lesson auto-suggestion
@@ -80,6 +82,7 @@ This file provides comprehensive guidelines on architecture, technology stack, d
 │       ├── api/                  # REST API endpoints (/api/v1)
 │       │   ├── auth.py           # Login, current profile endpoint
 │       │   ├── deps.py           # FastAPI Dependencies (get_db, get_current_user, get_current_admin, get_current_admin_web)
+│       │   ├── duty.py           # Duty roster: read for everyone, edit for admins
 │       │   ├── homework.py       # CRUD for shared homework and personal statuses
 │       │   ├── schedule.py       # Schedule lesson management (admin only)
 │       │   ├── subjects.py       # Subject management (admin only)
@@ -94,9 +97,11 @@ This file provides comprehensive guidelines on architecture, technology stack, d
 │       │   ├── homework_event.py # HomeworkEvent model (homework change audit log)
 │       │   ├── push_subscription.py # PushSubscription model (browser/PWA subscription)
 │       │   ├── api_key.py        # ApiKey model (key hash, bound to a user)
-│       │   └── vacation.py       # Vacation periods
+│       │   ├── vacation.py       # Vacation periods
+│       │   └── duty_day.py       # DutyDay model (duty roster text per weekday)
 │       ├── schemas/              # Pydantic request and response schemas
 │       │   ├── auth.py
+│       │   ├── duty.py
 │       │   ├── homework.py
 │       │   ├── lesson.py
 │       │   ├── subject.py
@@ -117,6 +122,7 @@ This file provides comprehensive guidelines on architecture, technology stack, d
 │       │   ├── admin/            # Users, change history, API keys (admin only)
 │       │   ├── dashboard/        # Dashboard (Desktop view, Mobile scroll, HTMX fragments)
 │       │   ├── homework/         # Homework management section
+│       │   ├── duty/             # Duty roster per weekday
 │       │   ├── schedule/         # Schedule constructor
 │       │   └── subjects/         # Subject list management
 │       └── web/                  # SSR routes (FastAPI + Jinja2 + HTMX)
@@ -125,6 +131,7 @@ This file provides comprehensive guidelines on architecture, technology stack, d
 │           ├── dashboard_routes.py
 │           ├── homework_routes.py
 │           ├── push_routes.py    # Web Push subscribe/unsubscribe and VAPID key delivery
+│           ├── duty_routes.py    # Duty roster page and admin editing
 │           ├── schedule_routes.py
 │           └── subjects_routes.py
 └── tests/                        # Pytest tests
@@ -133,6 +140,7 @@ This file provides comprehensive guidelines on architecture, technology stack, d
     ├── test_admin.py
     ├── test_api_keys.py
     ├── test_auth.py
+    ├── test_duty.py
     ├── test_homework.py
     ├── test_homework_audit.py
     ├── test_homework_cleanup.py

@@ -85,8 +85,18 @@
         <span>Сетка звонков</span>
       </a>
 
+      <!-- 5. Дежурные -->
+      <a href="/duty"
+         class="flex items-center space-x-3 px-3.5 py-2.5 rounded-xl transition whitespace-nowrap
+                {% if active_page == 'duty' %}bg-emerald-500 text-white shadow-md shadow-emerald-500/25 font-bold{% else %}text-zinc-400 hover:text-white hover:bg-zinc-800/60{% endif %}">
+        <svg class="w-5 h-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+        </svg>
+        <span>Дежурные</span>
+      </a>
+
       {% if current_user.is_admin %}
-      <!-- 5. Пользователи -->
+      <!-- 6. Пользователи -->
       <a href="/admin/users"
          class="flex items-center space-x-3 px-3.5 py-2.5 rounded-xl transition whitespace-nowrap
                 {% if active_page == 'admin' %}bg-emerald-500 text-white shadow-md shadow-emerald-500/25 font-bold{% else %}text-zinc-400 hover:text-white hover:bg-zinc-800/60{% endif %}">
@@ -96,7 +106,7 @@
         <span>Пользователи</span>
       </a>
 
-      <!-- 6. История изменений -->
+      <!-- 7. История изменений -->
       <a href="/admin/history"
          class="flex items-center space-x-3 px-3.5 py-2.5 rounded-xl transition whitespace-nowrap
                 {% if active_page == 'admin_history' %}bg-emerald-500 text-white shadow-md shadow-emerald-500/25 font-bold{% else %}text-zinc-400 hover:text-white hover:bg-zinc-800/60{% endif %}">
@@ -106,7 +116,7 @@
         <span>История изменений</span>
       </a>
 
-      <!-- 7. API-ключи -->
+      <!-- 8. API-ключи -->
       <a href="/admin/api-keys"
          class="flex items-center space-x-3 px-3.5 py-2.5 rounded-xl transition whitespace-nowrap
                 {% if active_page == 'admin_api_keys' %}bg-emerald-500 text-white shadow-md shadow-emerald-500/25 font-bold{% else %}text-zinc-400 hover:text-white hover:bg-zinc-800/60{% endif %}">
@@ -240,6 +250,13 @@
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
           </svg>
           <span>Сетка звонков недели</span>
+        </a>
+
+        <a href="/duty" class="flex items-center space-x-3 px-3.5 py-2.5 rounded-xl text-zinc-300 hover:bg-zinc-800 transition">
+          <svg class="w-5 h-5 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+          <span>Дежурные</span>
         </a>
 
         {% if current_user.is_admin %}

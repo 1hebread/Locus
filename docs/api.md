@@ -225,6 +225,25 @@ curl -H "Authorization: Bearer $KEY" "https://example.com/api/v1/schedule?day_of
 
 `POST /vacations`, `PUT /vacations/{id}`, `DELETE /vacations/{id}` — только админ.
 
+### Дежурные
+
+`GET /duty` — дежурные на все семь дней недели. Строки разбираются на имя и логин (`Иван И. (ivan)`); `linked` — логин совпал с существующим пользователем, `is_today` — текущий день.
+
+```json
+{
+  "day_of_week": 1,
+  "name": "Понедельник",
+  "text": "Иван И. (ivan)\nПётр П.",
+  "entries": [
+    { "name": "Иван И.", "login": "ivan", "linked": true },
+    { "name": "Пётр П.", "login": null, "linked": false }
+  ],
+  "is_today": true
+}
+```
+
+`PUT /duty/{day_of_week}` — `{"text": "Иван И. (ivan)\nПётр П."}` заменяет список дежурных на день (1–7, только админ). Пустой `text` очищает день, длина — до 2000 символов.
+
 ### Авторизация
 
 `POST /auth/login` — `{"username": "root", "password": "..."}` → `{"access_token": "...", "token_type": "bearer"}`.

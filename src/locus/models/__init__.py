@@ -7,6 +7,7 @@ from locus.models.homework_event import HomeworkEvent
 from locus.models.api_key import ApiKey
 from locus.models.push_subscription import PushSubscription
 from locus.models.vacation import Vacation
+from locus.models.duty_day import DutyDay
 
 __all__ = [
     "User",
@@ -18,4 +19,5 @@ __all__ = [
     "ApiKey",
     "PushSubscription",
     "Vacation",
+    "DutyDay",
 ]
