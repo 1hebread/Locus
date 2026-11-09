@@ -673,6 +673,23 @@ async def test_unassigned_homework_saved_in_modal_removes_unassigned_card(
 
 
 @pytest.mark.asyncio
+async def test_schedule_day_cards_have_add_button_for_admins(
+    client: AsyncClient,
+    test_user: User,
+    auth_token: str,
+):
+    from locus.config import get_settings
+
+    client.cookies.set(get_settings().COOKIE_NAME, auth_token)
+
+    res = await client.get("/schedule")
+
+    assert res.status_code == 200
+    for day_num in range(1, 7):
+        assert f'onclick="openAddLessonModal({day_num})"' in res.text
+
+
+@pytest.mark.asyncio
 async def test_non_admin_web_subjects_and_schedule_restrictions(
     client: AsyncClient,
     regular_user: User,
@@ -716,6 +733,7 @@ async def test_non_admin_web_subjects_and_schedule_restrictions(
     res_sched = await client.get("/schedule")
     assert res_sched.status_code == 200
     assert "Добавить урок" not in res_sched.text
+    assert 'onclick="openAddLessonModal(' not in res_sched.text
 
     # 5. Creating a lesson returns 403
     res_create_lesson = await client.post(
