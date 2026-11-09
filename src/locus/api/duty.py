@@ -18,7 +18,7 @@ async def list_duty_days(
     db: AsyncSession = Depends(get_db),
 ):
     """Duty roster for all seven weekdays."""
-    return await load_duty_days(db)
+    return await load_duty_days(db, current_user)
 
 
 @router.put("/{day_of_week}", response_model=DutyDayOut)
@@ -31,5 +31,5 @@ async def update_duty_day(
     """Replace one weekday's roster text (admin only)."""
     await set_duty_text(db, day_of_week, data.text)
     await db.commit()
-    days = await load_duty_days(db)
+    days = await load_duty_days(db, current_user)
     return days[day_of_week - 1]

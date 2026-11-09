@@ -33,8 +33,12 @@ def parse_duty_day(text: Optional[str]) -> List[Dict[str, Any]]:
     return entries
 
 
-async def load_duty_days(db: AsyncSession) -> List[Dict[str, Any]]:
-    """All seven weekdays with parsed entries and a "linked" flag per entry."""
+async def load_duty_days(db: AsyncSession, current_user: User) -> List[Dict[str, Any]]:
+    """All seven weekdays with parsed entries.
+
+    Each entry gets "linked" (its login belongs to a real user) and "is_me"
+    (that user is the one viewing the roster).
+    """
     rows = (await db.execute(select(DutyDay))).scalars().all()
     texts = {row.day_of_week: row.text for row in rows}
     today = get_current_date().isoweekday()
@@ -62,7 +66,9 @@ async def load_duty_days(db: AsyncSession) -> List[Dict[str, Any]]:
 
     for day in days:
         for entry in day["entries"]:
-            entry["linked"] = bool(entry["login"]) and entry["login"].lower() in linked_logins
+            login = entry["login"].lower() if entry["login"] else None
+            entry["linked"] = bool(login) and login in linked_logins
+            entry["is_me"] = entry["linked"] and login == current_user.username.lower()
     return days
 
 

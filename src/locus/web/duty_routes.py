@@ -23,7 +23,7 @@ async def duty_page(
         context={
             "current_user": current_user,
             "active_page": "duty",
-            "days": await load_duty_days(db),
+            "days": await load_duty_days(db, current_user),
         },
     )
 

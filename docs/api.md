@@ -227,7 +227,7 @@ curl -H "Authorization: Bearer $KEY" "https://example.com/api/v1/schedule?day_of
 
 ### Дежурные
 
-`GET /duty` — дежурные на все семь дней недели. Строки разбираются на имя и логин (`Иван И. (ivan)`); `linked` — логин совпал с существующим пользователем, `is_today` — текущий день.
+`GET /duty` — дежурные на все семь дней недели. Строки разбираются на имя и логин (`Иван И. (ivan)`); `linked` — логин совпал с существующим пользователем, `is_me` — это строка того, кто делает запрос, `is_today` — текущий день.
 
 ```json
 {
@@ -235,8 +235,8 @@ curl -H "Authorization: Bearer $KEY" "https://example.com/api/v1/schedule?day_of
   "name": "Понедельник",
   "text": "Иван И. (ivan)\nПётр П.",
   "entries": [
-    { "name": "Иван И.", "login": "ivan", "linked": true },
-    { "name": "Пётр П.", "login": null, "linked": false }
+    { "name": "Иван И.", "login": "ivan", "linked": true, "is_me": true },
+    { "name": "Пётр П.", "login": null, "linked": false, "is_me": false }
   ],
   "is_today": true
 }

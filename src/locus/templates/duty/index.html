@@ -37,7 +37,7 @@
       {% if day.entries %}
       <ul class="mt-3 space-y-2">
         {% for entry in day.entries %}
-        <li class="flex items-center gap-2 text-sm truncate {% if day.is_today and entry.linked %}text-emerald-400 font-semibold{% else %}text-zinc-200{% endif %}">
+        <li class="flex items-center gap-2 text-sm truncate {% if day.is_today and entry.is_me %}text-emerald-400 font-semibold{% else %}text-zinc-200{% endif %}">
           <span class="truncate">{{ entry.name }}{% if entry.login and not entry.linked %} ({{ entry.login }}){% endif %}</span>
         </li>
         {% endfor %}

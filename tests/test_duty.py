@@ -56,6 +56,25 @@ async def test_duty_page_highlights_linked_user_today(
 
 
 @pytest.mark.asyncio
+async def test_duty_page_does_not_highlight_other_users(
+    client: AsyncClient,
+    test_user: User,
+    regular_user: User,
+    auth_token: str,
+    db_session: AsyncSession,
+):
+    db_session.add(DutyDay(day_of_week=get_current_date().isoweekday(), text="Мяу (regular)"))
+    await db_session.commit()
+
+    client.cookies.set(settings.COOKIE_NAME, auth_token)
+    res = await client.get("/duty")
+
+    assert res.status_code == 200
+    assert "Мяу" in res.text
+    assert "text-emerald-400 font-semibold" not in res.text
+
+
+@pytest.mark.asyncio
 async def test_duty_page_keeps_unknown_login_as_text(
     client: AsyncClient,
     test_user: User,
@@ -120,11 +139,14 @@ async def test_api_duty_requires_auth(client: AsyncClient):
 async def test_api_lists_duty_days(
     client: AsyncClient,
     test_user: User,
+    regular_user: User,
     auth_headers: dict,
     db_session: AsyncSession,
 ):
     today = get_current_date().isoweekday()
-    db_session.add(DutyDay(day_of_week=today, text="Иван И. (student)\nПётр П. (ghost)"))
+    db_session.add(
+        DutyDay(day_of_week=today, text="Иван И. (student)\nПётр П. (ghost)\nМяу (regular)")
+    )
     await db_session.commit()
 
     res = await client.get("/api/v1/duty", headers=auth_headers)
@@ -137,8 +159,9 @@ async def test_api_lists_duty_days(
     today_payload = days[today - 1]
     assert today_payload["is_today"] is True
     assert today_payload["entries"] == [
-        {"name": "Иван И.", "login": "student", "linked": True},
-        {"name": "Пётр П.", "login": "ghost", "linked": False},
+        {"name": "Иван И.", "login": "student", "linked": True, "is_me": True},
+        {"name": "Пётр П.", "login": "ghost", "linked": False, "is_me": False},
+        {"name": "Мяу", "login": "regular", "linked": True, "is_me": False},
     ]
     assert [day["is_today"] for day in days].count(True) == 1
 
@@ -162,8 +185,8 @@ async def test_api_admin_replaces_duty_day(
     assert payload["name"] == DAY_NAMES[3]
     assert payload["text"] == "Иван И. (student)\n\nПётр П."
     assert payload["entries"] == [
-        {"name": "Иван И.", "login": "student", "linked": True},
-        {"name": "Пётр П.", "login": None, "linked": False},
+        {"name": "Иван И.", "login": "student", "linked": True, "is_me": True},
+        {"name": "Пётр П.", "login": None, "linked": False, "is_me": False},
     ]
 
     again = await client.put("/api/v1/duty/3", json={"text": ""}, headers=auth_headers)

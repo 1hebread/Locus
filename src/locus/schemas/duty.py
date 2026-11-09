@@ -7,6 +7,7 @@ class DutyEntryOut(BaseModel):
     name: str
     login: Optional[str] = None
     linked: bool = False
+    is_me: bool = False
 
 
 class DutyDayUpdate(BaseModel):
