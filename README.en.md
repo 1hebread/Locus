@@ -188,7 +188,7 @@ What is stored, who can see it, for how long and how it is deleted is described 
 > [!WARNING]
 > **Locus** is an independent project and is not affiliated with any official state or commercial education system. The software is provided "as is", without warranty of any kind — see the [MIT License](LICENSE). The author is not liable for inaccuracies in the schedule, missed deadlines, data loss or any other damage arising from the use of this project.
 >
-> The project is developed in free time. No support is provided and no response or fix deadlines are guaranteed. The instance owner is solely responsible for the security, availability, backups and personal data protection of their deployment.
+> The project is developed in free time. Questions, ideas and bug reports are welcome — [open an issue](https://github.com/1hebread/Locus/issues): the author will try to reply and help as far as time allows. This is not a commitment or a guarantee: no response or fix deadlines are promised. The instance owner is solely responsible for the security, availability, backups and personal data protection of their deployment.
 
 ## License
 
