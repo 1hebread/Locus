@@ -1255,6 +1255,43 @@ function syncDashboardLinks() {
   });
 }
 
+// Remember the chosen homework subgroup across section switches
+const SELECTED_HW_SUBGROUP_KEY = 'locus:hw-subgroup';
+
+function readSelectedHwSubgroup() {
+  try {
+    return sessionStorage.getItem(SELECTED_HW_SUBGROUP_KEY) || '';
+  } catch (e) {
+    return '';
+  }
+}
+
+function writeSelectedHwSubgroup(subgroup) {
+  try {
+    sessionStorage.setItem(SELECTED_HW_SUBGROUP_KEY, subgroup);
+  } catch (e) {
+    // Storage may be unavailable — links then fall back to the default subgroup
+  }
+}
+
+function homeworkHref() {
+  if (window.location.pathname === '/homework') {
+    const subgroup = new URLSearchParams(window.location.search).get('subgroup');
+    if (subgroup) writeSelectedHwSubgroup(subgroup);
+  }
+
+  const saved = readSelectedHwSubgroup();
+  return saved ? `/homework?subgroup=${encodeURIComponent(saved)}` : '/homework';
+}
+
+// Point the sidebar/dock "Задания" links at the subgroup the user last picked
+function syncHomeworkLinks() {
+  const href = homeworkHref();
+  document.querySelectorAll('[data-nav-homework]').forEach((link) => {
+    link.setAttribute('href', href);
+  });
+}
+
 async function navigateToPage(targetUrl, push = true) {
   if (isNavigatingPage) return false;
 
@@ -1691,6 +1728,7 @@ async function navigateHomeworkFilter(targetUrl, push = true) {
     if (push) {
       window.history.pushState({ locusPageUrl: targetUrl }, '', targetUrl);
     }
+    syncHomeworkLinks();
 
     if (window.htmx) {
       window.htmx.process(container);
@@ -2207,6 +2245,7 @@ function initMobileWeekScrollSpy() {
 
 function initPageBehaviour() {
   syncDashboardLinks();
+  syncHomeworkLinks();
   initMobileDayPosition();
   initMobileWeekScrollSpy();
   updateCurrentLessonBadges();

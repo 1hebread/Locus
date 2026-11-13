@@ -57,6 +57,7 @@
 
       <!-- 2. Задания -->
       <a href="/homework"
+         data-nav-homework
          class="flex items-center space-x-3 px-3.5 py-2.5 rounded-xl transition whitespace-nowrap
                 {% if active_page == 'homework' %}bg-emerald-500 text-white shadow-md shadow-emerald-500/25 font-bold{% else %}text-zinc-400 hover:text-white hover:bg-zinc-800/60{% endif %}">
         <svg class="w-5 h-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -184,6 +185,7 @@
 
       <!-- 2. ДЗ -->
       <a href="/homework"
+         data-nav-homework
          data-dock-tab="homework"
          class="dock-btn flex-1 h-11 rounded-full flex items-center justify-center transition-all duration-300 ease-in-out
                 {% if active_page == 'homework' %}bg-emerald-500 text-white shadow-md shadow-emerald-500/25 font-bold is-active{% else %}text-zinc-400 hover:text-white bg-transparent{% endif %}"
