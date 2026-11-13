@@ -2,13 +2,13 @@ from datetime import date, timedelta
 from typing import Optional
 from fastapi import APIRouter, BackgroundTasks, Depends, Form, HTTPException, Query, Request, Response, status
 from fastapi.responses import HTMLResponse, RedirectResponse
-from sqlalchemy import and_, or_, select
+from sqlalchemy import or_, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from locus.api.deps import get_current_user_web
-from locus.constants import HomeworkStatus, get_current_datetime
+from locus.constants import HomeworkStatus, get_current_date, get_current_datetime
 from locus.database import get_db
 from locus.homework_audit import (
     ACTION_CREATED,
@@ -20,7 +20,6 @@ from locus.homework_rules import LESSON_SLOT_TAKEN, lesson_homework_exists
 from locus.homework_status import attach_statuses, get_completion, set_status
 from locus.lesson_suggestion import get_next_lesson_suggestion
 from locus.models.homework import Homework
-from locus.models.homework_completion import HomeworkCompletion
 from locus.models.lesson import Lesson
 from locus.models.subject import Subject
 from locus.models.user import User
@@ -32,39 +31,25 @@ from locus.templates_config import templates
 router = APIRouter(prefix="/homework", tags=["Web Homework"])
 
 
-@router.get("", response_class=HTMLResponse)
-async def homework_page(
-    request: Request,
-    filter: Optional[str] = Query(default=None),
-    open: Optional[str] = Query(default=None),
-    subgroup_param: Optional[str] = Query(default=None, alias="subgroup"),
-    current_user: User = Depends(get_current_user_web),
-    db: AsyncSession = Depends(get_db),
-):
-    now = get_current_datetime()
-    today = now.date()
-
-    active_subgroup: Optional[str] = None
+def _resolve_active_subgroup(current_user: User, subgroup_param: Optional[str]) -> Optional[str]:
+    """Subgroup applied to the homework list for this request."""
     if current_user.is_admin or (current_user.subgroup is None and current_user.gender_subgroup is None):
-        if subgroup_param in ("1", "2", "boys", "girls"):
-            active_subgroup = subgroup_param
-        else:
-            active_subgroup = None
-    elif current_user.subgroup is not None:
-        active_subgroup = str(current_user.subgroup)
-    elif current_user.gender_subgroup is not None:
-        active_subgroup = current_user.gender_subgroup
+        return subgroup_param if subgroup_param in ("1", "2", "boys", "girls") else None
+    if current_user.subgroup is not None:
+        return str(current_user.subgroup)
+    return current_user.gender_subgroup
 
+
+async def _load_visible_homework(
+    db: AsyncSession,
+    current_user: User,
+    active_subgroup: Optional[str],
+    today: date,
+) -> list[Homework]:
+    """All non-archived homework this user can see, with personal statuses attached."""
     stmt = (
         select(Homework)
         .options(selectinload(Homework.subject))
-        .outerjoin(
-            HomeworkCompletion,
-            and_(
-                HomeworkCompletion.homework_id == Homework.id,
-                HomeworkCompletion.user_id == current_user.id,
-            ),
-        )
         .where(
             # Past-due homework is archived: keep only today and upcoming tasks
             Homework.due_date >= today,
@@ -93,19 +78,38 @@ async def homework_page(
         if user_filter is not None:
             stmt = stmt.where(user_filter)
 
-    if filter == "todo":
-        stmt = stmt.where(
-            or_(
-                HomeworkCompletion.id.is_(None),
-                HomeworkCompletion.status != HomeworkStatus.DONE.value,
-            )
-        )
-    elif filter == "done":
-        stmt = stmt.where(HomeworkCompletion.status == HomeworkStatus.DONE.value)
-
     stmt = stmt.order_by(Homework.due_date.asc(), Homework.id.desc())
     res = await db.execute(stmt)
-    homework_list = await attach_statuses(db, list(res.scalars().all()), current_user.id)
+    return await attach_statuses(db, list(res.scalars().all()), current_user.id)
+
+
+def _count_by_status(homeworks: list[Homework]) -> dict[str, int]:
+    done = sum(1 for hw in homeworks if hw.status == HomeworkStatus.DONE.value)
+    return {"all": len(homeworks), "todo": len(homeworks) - done, "done": done}
+
+
+@router.get("", response_class=HTMLResponse)
+async def homework_page(
+    request: Request,
+    filter: Optional[str] = Query(default=None),
+    open: Optional[str] = Query(default=None),
+    subgroup_param: Optional[str] = Query(default=None, alias="subgroup"),
+    current_user: User = Depends(get_current_user_web),
+    db: AsyncSession = Depends(get_db),
+):
+    now = get_current_datetime()
+    today = now.date()
+
+    active_subgroup = _resolve_active_subgroup(current_user, subgroup_param)
+    visible_homework = await _load_visible_homework(db, current_user, active_subgroup, today)
+    counts = _count_by_status(visible_homework)
+
+    if filter == "todo":
+        homework_list = [hw for hw in visible_homework if hw.status != HomeworkStatus.DONE.value]
+    elif filter == "done":
+        homework_list = [hw for hw in visible_homework if hw.status == HomeworkStatus.DONE.value]
+    else:
+        homework_list = visible_homework
 
     subj_res = await db.execute(select(Subject).order_by(Subject.name))
     subjects = subj_res.scalars().all()
@@ -158,6 +162,8 @@ async def homework_page(
             "active_subgroup": active_subgroup,
             "auto_open": (open == "new"),
             "homework_list": homework_list,
+            "counts": counts,
+            "today": today,
             "subjects": subjects,
             "subgroup_subject_ids": subgroup_subject_ids,
             "gender_subject_ids": gender_subject_ids,
@@ -284,6 +290,7 @@ async def toggle_homework_status(
     view: Optional[str] = Query(default=None),
     prefix: Optional[str] = Query(default=None),
     day_num: Optional[int] = Query(default=None),
+    subgroup_param: Optional[str] = Query(default=None, alias="subgroup"),
     current_user: User = Depends(get_current_user_web),
     db: AsyncSession = Depends(get_db),
 ):
@@ -324,32 +331,51 @@ async def toggle_homework_status(
             context={"hw": hw, "prefix": prefix, "day_num": day_num},
         )
 
+    today = get_current_date()
+    active_subgroup = _resolve_active_subgroup(current_user, subgroup_param)
+    visible_homework = await _load_visible_homework(db, current_user, active_subgroup, today)
     return templates.TemplateResponse(
         request=request,
         name="homework/hw_item.html",
-        context={"hw": hw},
+        context={
+            "hw": hw,
+            "today": today,
+            "active_subgroup": active_subgroup,
+            "counts": _count_by_status(visible_homework),
+            "oob_counts": True,
+        },
     )
 
 
 @router.delete("/{hw_id}")
 async def delete_homework_web(
     hw_id: int,
+    request: Request,
     background: BackgroundTasks,
+    subgroup_param: Optional[str] = Query(default=None, alias="subgroup"),
     current_user: User = Depends(get_current_user_web),
     db: AsyncSession = Depends(get_db),
 ):
     hw = await db.get(Homework, hw_id)
-    if hw:
-        if not user_matches_subgroup(current_user, hw.subgroup):
-            raise HTTPException(status_code=403, detail="Нельзя удалить задание чужой подгруппы")
-        subject = await db.get(Subject, hw.subject_id)
-        notify_homework_change(
-            background, current_user, ACTION_DELETED, hw.id, hw.title, subject.name if subject else "", hw.subgroup, hw.due_date
-        )
-        log_homework_event(
-            db, current_user, ACTION_DELETED, None, snapshot_changes(hw, deleted=True)
-        )
-        await db.delete(hw)
-        await db.commit()
+    if not hw:
+        return Response(content="", status_code=status.HTTP_200_OK)
 
-    return Response(content="", status_code=status.HTTP_200_OK)
+    if not user_matches_subgroup(current_user, hw.subgroup):
+        raise HTTPException(status_code=403, detail="Нельзя удалить задание чужой подгруппы")
+    subject = await db.get(Subject, hw.subject_id)
+    notify_homework_change(
+        background, current_user, ACTION_DELETED, hw.id, hw.title, subject.name if subject else "", hw.subgroup, hw.due_date
+    )
+    log_homework_event(
+        db, current_user, ACTION_DELETED, None, snapshot_changes(hw, deleted=True)
+    )
+    await db.delete(hw)
+    await db.commit()
+
+    active_subgroup = _resolve_active_subgroup(current_user, subgroup_param)
+    visible_homework = await _load_visible_homework(db, current_user, active_subgroup, get_current_date())
+    return templates.TemplateResponse(
+        request=request,
+        name="homework/hw_counts_oob.html",
+        context={"counts": _count_by_status(visible_homework)},
+    )

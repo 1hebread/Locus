@@ -168,6 +168,60 @@ async def test_homework_page_hides_past_due_tasks(
 
 
 @pytest.mark.asyncio
+async def test_homework_page_filter_counts_and_due_labels(
+    client: AsyncClient,
+    test_user: User,
+    auth_token: str,
+    test_subject: Subject,
+    db_session,
+):
+    """Filter chips show task counts and near due dates read as words."""
+    from datetime import timedelta
+
+    from locus.config import get_settings
+    from locus.constants import HomeworkStatus, get_current_date
+    from locus.templates_config import due_meta
+
+    settings = get_settings()
+    client.cookies.set(settings.COOKIE_NAME, auth_token)
+
+    today = get_current_date()
+    todo = await add_homework(
+        db_session,
+        test_user,
+        subject_id=test_subject.id,
+        title="Задача на сегодня",
+        due_date=today,
+    )
+    await add_homework(
+        db_session,
+        test_user,
+        subject_id=test_subject.id,
+        title="Готовая задача на завтра",
+        due_date=today + timedelta(days=1),
+        status=HomeworkStatus.DONE.value,
+    )
+
+    res = await client.get("/homework")
+    assert res.status_code == 200
+    assert 'id="hw-count-all" class="font-bold opacity-60">2</span>' in res.text
+    assert 'id="hw-count-todo" class="font-bold opacity-60">1</span>' in res.text
+    assert 'id="hw-count-done" class="font-bold opacity-60">1</span>' in res.text
+    assert "Сегодня" in res.text
+    assert "Завтра" in res.text
+
+    assert due_meta(today, today) == ("Сегодня", "text-emerald-400 font-semibold")
+    assert due_meta(today + timedelta(days=1), today) == ("Завтра", "text-zinc-300")
+    assert due_meta(today - timedelta(days=1), today) == ("Просрочено", "text-rose-400")
+
+    # Toggling refreshes the counters in place via htmx OOB swaps
+    toggled = await client.post(f"/homework/{todo.id}/toggle")
+    assert toggled.status_code == 200
+    assert 'id="hw-count-todo" hx-swap-oob="outerHTML" class="font-bold opacity-60">0</span>' in toggled.text
+    assert 'id="hw-count-done" hx-swap-oob="outerHTML" class="font-bold opacity-60">2</span>' in toggled.text
+
+
+@pytest.mark.asyncio
 async def test_dashboard_offers_next_lesson_quick_action(
     client: AsyncClient,
     test_user: User,
@@ -819,6 +873,8 @@ async def test_web_shared_homework_and_personal_completion(
     # 4. Regular user deletes the homework
     res_del = await client.delete(f"/homework/{hw.id}")
     assert res_del.status_code == 200
+    # The list counters are refreshed along with the removed card
+    assert 'id="hw-count-all" hx-swap-oob="outerHTML"' in res_del.text
 
     # 5. Admin no longer sees it
     client.cookies.set(settings.COOKIE_NAME, auth_token)

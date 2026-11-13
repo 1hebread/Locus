@@ -2,7 +2,7 @@
   <div class="flex items-start justify-between gap-2.5">
     <!-- Status toggle checkbox -->
     <div class="flex items-start space-x-2.5 min-w-0 flex-1">
-      <button hx-post="/homework/{{ hw.id }}/toggle"
+      <button hx-post="/homework/{{ hw.id }}/toggle{% if active_subgroup %}?subgroup={{ active_subgroup }}{% endif %}"
               hx-target="closest .hw-card"
               hx-swap="outerHTML"
               hx-disabled-elt="this"
@@ -31,8 +31,9 @@
           {% endif %}
 
           <!-- Due date badge -->
-          <span class="text-[11px] font-medium text-zinc-400 ml-auto">
-            {{ hw.due_date.strftime('%d.%m') }}
+          {% set due_label, due_tone = hw.due_date|due_meta(today) %}
+          <span class="text-[11px] font-medium ml-auto whitespace-nowrap {{ due_tone }}">
+            {{ due_label }}
           </span>
         </div>
 
@@ -44,7 +45,7 @@
 
     <!-- Actions menu -->
     <div class="flex items-center space-x-1 shrink-0">
-      <button hx-delete="/homework/{{ hw.id }}"
+      <button hx-delete="/homework/{{ hw.id }}{% if active_subgroup %}?subgroup={{ active_subgroup }}{% endif %}"
               hx-target="closest .hw-card"
               hx-swap="outerHTML"
               hx-confirm="Удалить это задание?"
@@ -58,3 +59,4 @@
     </div>
   </div>
 </div>
+{% if oob_counts is defined %}{% include "homework/hw_counts_oob.html" %}{% endif %}

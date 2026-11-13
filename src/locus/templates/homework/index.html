@@ -27,17 +27,17 @@
       <a href="/homework{% if active_subgroup %}?subgroup={{ active_subgroup }}{% endif %}"
          data-hw-filter
          class="px-3.5 py-1.5 rounded-xl font-medium whitespace-nowrap transition {% if not current_filter %}bg-emerald-500 text-white font-bold shadow-md shadow-emerald-500/25{% else %}bg-black border border-zinc-800 text-zinc-400 hover:text-white{% endif %}">
-        Все
+        Все <span id="hw-count-all" class="font-bold opacity-60">{{ counts.all }}</span>
       </a>
       <a href="/homework?filter=todo{% if active_subgroup %}&subgroup={{ active_subgroup }}{% endif %}"
          data-hw-filter
          class="px-3.5 py-1.5 rounded-xl font-medium whitespace-nowrap transition {% if current_filter == 'todo' %}bg-emerald-500 text-white font-bold shadow-md shadow-emerald-500/25{% else %}bg-black border border-zinc-800 text-zinc-400 hover:text-white{% endif %}">
-        К сдаче
+        К сдаче <span id="hw-count-todo" class="font-bold opacity-60">{{ counts.todo }}</span>
       </a>
       <a href="/homework?filter=done{% if active_subgroup %}&subgroup={{ active_subgroup }}{% endif %}"
          data-hw-filter
          class="px-3.5 py-1.5 rounded-xl font-medium whitespace-nowrap transition {% if current_filter == 'done' %}bg-emerald-500 text-white font-bold shadow-md shadow-emerald-500/25{% else %}bg-black border border-zinc-800 text-zinc-400 hover:text-white{% endif %}">
-        Выполненные
+        Выполненные <span id="hw-count-done" class="font-bold opacity-60">{{ counts.done }}</span>
       </a>
     </div>
 
