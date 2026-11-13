@@ -1,6 +1,6 @@
 from typing import List
 
-from fastapi import APIRouter, Depends, Path
+from fastapi import APIRouter, Depends, HTTPException, Path, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from locus.api.deps import get_current_admin, get_current_user
@@ -17,7 +17,7 @@ async def list_duty_days(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """Duty roster for all seven weekdays."""
+    """Duty roster for the six school weekdays (Monday to Saturday)."""
     return await load_duty_days(db, current_user)
 
 
@@ -28,7 +28,12 @@ async def update_duty_day(
     current_user: User = Depends(get_current_admin),
     db: AsyncSession = Depends(get_db),
 ):
-    """Replace one weekday's roster text (admin only)."""
+    """Replace one school weekday's roster text (admin only)."""
+    if day_of_week == 7:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Нельзя назначить дежурных на воскресенье",
+        )
     await set_duty_text(db, day_of_week, data.text)
     await db.commit()
     days = await load_duty_days(db, current_user)

@@ -115,7 +115,7 @@ async def test_admin_saves_duty(
     client.cookies.set(settings.COOKIE_NAME, auth_token)
     res = await client.post(
         "/duty",
-        data={"day_1": "Иван И. (student)", "day_2": "Пётр П."},
+        data={"day_1": "Иван И. (student)", "day_2": "Пётр П.", "day_7": "Воскресный В."},
         follow_redirects=False,
     )
 
@@ -126,6 +126,7 @@ async def test_admin_saves_duty(
     saved = {row.day_of_week: row.text for row in rows}
     assert saved[1] == "Иван И. (student)"
     assert saved[2] == "Пётр П."
+    assert 7 not in saved
 
 
 @pytest.mark.asyncio
@@ -153,8 +154,8 @@ async def test_api_lists_duty_days(
 
     assert res.status_code == 200
     days = res.json()
-    assert [day["day_of_week"] for day in days] == list(range(1, 8))
-    assert [day["name"] for day in days] == [DAY_NAMES[num] for num in range(1, 8)]
+    assert [day["day_of_week"] for day in days] == list(range(1, 7))
+    assert [day["name"] for day in days] == [DAY_NAMES[num] for num in range(1, 7)]
 
     today_payload = days[today - 1]
     assert today_payload["is_today"] is True
@@ -222,6 +223,10 @@ async def test_api_duty_rejects_bad_day_and_text(
     for day in (0, 8):
         res = await client.put(f"/api/v1/duty/{day}", json={"text": "x"}, headers=auth_headers)
         assert res.status_code == 422
+
+    sunday = await client.put("/api/v1/duty/7", json={"text": "x"}, headers=auth_headers)
+    assert sunday.status_code == 400
+    assert sunday.json()["detail"] == "Нельзя назначить дежурных на воскресенье"
 
     assert (
         await client.put("/api/v1/duty/1", json={}, headers=auth_headers)

@@ -34,7 +34,7 @@ def parse_duty_day(text: Optional[str]) -> List[Dict[str, Any]]:
 
 
 async def load_duty_days(db: AsyncSession, current_user: User) -> List[Dict[str, Any]]:
-    """All seven weekdays with parsed entries.
+    """The six school weekdays (Monday to Saturday) with parsed entries.
 
     Each entry gets "linked" (its login belongs to a real user) and "is_me"
     (that user is the one viewing the roster).
@@ -51,7 +51,7 @@ async def load_duty_days(db: AsyncSession, current_user: User) -> List[Dict[str,
             "entries": parse_duty_day(texts.get(day_num, "")),
             "is_today": day_num == today,
         }
-        for day_num in range(1, 8)
+        for day_num in range(1, 7)
     ]
 
     logins = {

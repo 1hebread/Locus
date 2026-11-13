@@ -35,7 +35,7 @@ async def save_duty(
     db: AsyncSession = Depends(get_db),
 ):
     form = await request.form()
-    for day_num in range(1, 8):
+    for day_num in range(1, 7):
         text = str(form.get(f"day_{day_num}", "") or "").strip()
         await set_duty_text(db, day_num, text)
     await db.commit()
