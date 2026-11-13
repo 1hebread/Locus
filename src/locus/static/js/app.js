@@ -1149,39 +1149,32 @@ document.addEventListener('change', (e) => {
   if (lessonInput) lessonInput.value = '';
 });
 
-let lastAlertedSundayValue = null;
 function handleDateInput(event) {
   const input = event.target;
   if (input && input.classList && input.classList.contains('hw-date-input')) {
-    if (input.value) {
-      const parts = input.value.split('-');
-      if (parts.length === 3) {
-        const d = new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, parseInt(parts[2], 10));
-        if (d.getDay() === 0) {
-          if (lastAlertedSundayValue !== input.value) {
-            lastAlertedSundayValue = input.value;
-            alert('Нельзя записать домашнее задание на воскресенье');
-            setTimeout(() => { lastAlertedSundayValue = null; }, 500);
-          }
-          d.setDate(d.getDate() + 1);
-          const y = d.getFullYear();
-          const m = String(d.getMonth() + 1).padStart(2, '0');
-          const day = String(d.getDate()).padStart(2, '0');
-          input.value = `${y}-${m}-${day}`;
-          const modal = input.closest('#add-hw-modal');
-          if (modal) {
-            const lessonInput = modal.querySelector('#hw_lesson_id');
-            if (lessonInput) lessonInput.value = '';
-          }
-        }
-      }
-    }
     syncDateDisplays(input.parentElement);
   }
 }
 
 document.addEventListener('input', handleDateInput);
 document.addEventListener('change', handleDateInput);
+
+// Validate Sunday on save, not while the date is being picked. Capture phase
+// keeps the inline onsubmit from disabling the button on a rejected submit.
+document.addEventListener('submit', (event) => {
+  const form = event.target;
+  const input = form && form.querySelector ? form.querySelector('.hw-date-input') : null;
+  if (!input || !input.value) return;
+
+  const parts = input.value.split('-');
+  if (parts.length !== 3) return;
+  const d = new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, parseInt(parts[2], 10));
+  if (d.getDay() !== 0) return;
+
+  event.preventDefault();
+  event.stopPropagation();
+  alert('Нельзя записать домашнее задание на воскресенье');
+}, true);
 
 // Highlight the dock button immediately, before the new page arrives
 function setDockActive(pathname) {
