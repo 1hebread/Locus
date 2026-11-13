@@ -185,6 +185,7 @@ git diff --check
 ### Git Commit Conventions
 - **Commit Language**: commit messages (`git commit`) must be written **strictly in English**.
 - **Format**: follow the Conventional Commits specification (`feat: ...`, `fix: ...`, `refactor: ...`, `chore: ...`).
+- **Body**: only for large changes; small commits need nothing beyond the subject line. For a larger change, write a short bullet list of what it includes, one line per change.
 
 ### Documentation Sync
 - If a change touches a documented area, update the docs in the same change. This includes `AGENTS.md` (structure, modules, conventions), `docs/api.md` (endpoints, fields, limits, error codes), `.env.example` (new settings) and `docs/privacy.md` (data storage/privacy).

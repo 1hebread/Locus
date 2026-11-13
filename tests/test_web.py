@@ -875,6 +875,8 @@ async def test_web_shared_homework_and_personal_completion(
     assert res_del.status_code == 200
     # The list counters are refreshed along with the removed card
     assert 'id="hw-count-all" hx-swap-oob="outerHTML"' in res_del.text
+    # Deleting the last card shows the empty state instead of a blank list
+    assert "Заданий не найдено" in res_del.text
 
     # 5. Admin no longer sees it
     client.cookies.set(settings.COOKIE_NAME, auth_token)

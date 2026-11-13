@@ -364,6 +364,54 @@ async def test_dashboard_admin_defaults_to_own_subgroup(
 
 
 @pytest.mark.asyncio
+async def test_homework_page_admin_defaults_to_own_subgroup(
+    client: AsyncClient,
+    db_session: AsyncSession,
+    test_subject: Subject,
+):
+    hw1 = Homework(
+        subject_id=test_subject.id,
+        title="Задание для первой подгруппы",
+        due_date=next_valid_due_date(1),
+        subgroup=1,
+    )
+    hw2 = Homework(
+        subject_id=test_subject.id,
+        title="Задание для второй подгруппы",
+        due_date=next_valid_due_date(1),
+        subgroup=2,
+    )
+    db_session.add_all([hw1, hw2])
+
+    admin = User(
+        username="admin_hw_sub2",
+        hashed_password=hash_password("pass123"),
+        is_active=True,
+        is_admin=True,
+        subgroup=2,
+    )
+    db_session.add(admin)
+    await db_session.commit()
+    await db_session.refresh(admin)
+
+    token = create_access_token({
+        "sub": str(admin.id),
+        "pwd": get_password_fingerprint(admin.hashed_password),
+    })
+    headers = {"Authorization": f"Bearer {token}"}
+
+    # No explicit filter -> admin's own (2nd) subgroup
+    r_default = await client.get("/homework", headers=headers)
+    assert hw2.title in r_default.text
+    assert hw1.title not in r_default.text
+
+    # Explicit "all" still shows every subgroup
+    r_all = await client.get("/homework?subgroup=all", headers=headers)
+    assert hw1.title in r_all.text
+    assert hw2.title in r_all.text
+
+
+@pytest.mark.asyncio
 async def test_homework_security_cross_subgroup_prohibited(
     client: AsyncClient,
     db_session: AsyncSession,

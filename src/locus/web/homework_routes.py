@@ -33,8 +33,13 @@ router = APIRouter(prefix="/homework", tags=["Web Homework"])
 
 def _resolve_active_subgroup(current_user: User, subgroup_param: Optional[str]) -> Optional[str]:
     """Subgroup applied to the homework list for this request."""
-    if current_user.is_admin or (current_user.subgroup is None and current_user.gender_subgroup is None):
-        return subgroup_param if subgroup_param in ("1", "2", "boys", "girls") else None
+    # Admins with a subgroup default to it; "all" is an explicit opt-out.
+    if subgroup_param == "all":
+        return None
+    if subgroup_param in ("1", "2", "boys", "girls") and (
+        current_user.is_admin or (current_user.subgroup is None and current_user.gender_subgroup is None)
+    ):
+        return subgroup_param
     if current_user.subgroup is not None:
         return str(current_user.subgroup)
     return current_user.gender_subgroup
@@ -88,6 +93,14 @@ def _count_by_status(homeworks: list[Homework]) -> dict[str, int]:
     return {"all": len(homeworks), "todo": len(homeworks) - done, "done": done}
 
 
+def _filter_by_status(homeworks: list[Homework], filter_param: Optional[str]) -> list[Homework]:
+    if filter_param == "todo":
+        return [hw for hw in homeworks if hw.status != HomeworkStatus.DONE.value]
+    if filter_param == "done":
+        return [hw for hw in homeworks if hw.status == HomeworkStatus.DONE.value]
+    return homeworks
+
+
 @router.get("", response_class=HTMLResponse)
 async def homework_page(
     request: Request,
@@ -104,12 +117,7 @@ async def homework_page(
     visible_homework = await _load_visible_homework(db, current_user, active_subgroup, today)
     counts = _count_by_status(visible_homework)
 
-    if filter == "todo":
-        homework_list = [hw for hw in visible_homework if hw.status != HomeworkStatus.DONE.value]
-    elif filter == "done":
-        homework_list = [hw for hw in visible_homework if hw.status == HomeworkStatus.DONE.value]
-    else:
-        homework_list = visible_homework
+    homework_list = _filter_by_status(visible_homework, filter)
 
     subj_res = await db.execute(select(Subject).order_by(Subject.name))
     subjects = subj_res.scalars().all()
@@ -353,6 +361,7 @@ async def delete_homework_web(
     request: Request,
     background: BackgroundTasks,
     subgroup_param: Optional[str] = Query(default=None, alias="subgroup"),
+    filter_param: Optional[str] = Query(default=None, alias="filter"),
     current_user: User = Depends(get_current_user_web),
     db: AsyncSession = Depends(get_db),
 ):
@@ -374,8 +383,15 @@ async def delete_homework_web(
 
     active_subgroup = _resolve_active_subgroup(current_user, subgroup_param)
     visible_homework = await _load_visible_homework(db, current_user, active_subgroup, get_current_date())
+    counts = _count_by_status(visible_homework)
+    if not _filter_by_status(visible_homework, filter_param):
+        return templates.TemplateResponse(
+            request=request,
+            name="homework/hw_empty.html",
+            context={"counts": counts, "oob_counts": True},
+        )
     return templates.TemplateResponse(
         request=request,
         name="homework/hw_counts_oob.html",
-        context={"counts": _count_by_status(visible_homework)},
+        context={"counts": counts},
     )
