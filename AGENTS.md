@@ -169,6 +169,9 @@ uv run uvicorn locus.main:app --host 0.0.0.0 --port 8010 --reload
 # Run tests
 uv run pytest -v
 
+# Rebuild the committed Tailwind build (required after adding new utility classes)
+npm run css:build
+
 # Apply database migrations
 uv run alembic upgrade head
 

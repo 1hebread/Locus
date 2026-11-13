@@ -197,12 +197,14 @@ body {
   transform: translate(-50%, -60%) rotate(-45deg) scale(1);
 }
 
-/* Enlarge the invisible tap target of the small homework checkboxes */
-[data-hw-toggle] {
+/* Enlarge the invisible tap target of the small homework checkboxes and delete buttons */
+[data-hw-toggle],
+[data-hw-delete] {
   position: relative;
 }
 
-[data-hw-toggle]::before {
+[data-hw-toggle]::before,
+[data-hw-delete]::before {
   content: '';
   position: absolute;
   inset: -0.75rem;

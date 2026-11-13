@@ -607,7 +607,7 @@
 
   async function deleteCurrentEditingLesson() {
     if (!currentEditingLessonId || isDeletingLesson) return;
-    if (!confirm('Удалить этот урок?')) return;
+    if (!(await askConfirm('Удалить этот урок?'))) return;
 
     isDeletingLesson = true;
     const deleteBtn = document.getElementById('edit-lesson-delete-btn');

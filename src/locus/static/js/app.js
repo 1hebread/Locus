@@ -556,6 +556,52 @@ function bindSheetSwipe(modal) {
   });
 }
 
+// In-app dialog for hx-confirm / data-confirm: native window.confirm looks foreign in a PWA.
+// shortcut: the OK button always says "Удалить" — every confirmation is destructive,
+// revisit if a non-destructive confirmation is added.
+let pendingConfirm = null;
+
+function askConfirm(question) {
+  return new Promise((resolve) => {
+    const modal = document.getElementById('confirm-modal');
+    if (!modal) {
+      resolve(window.confirm(question));
+      return;
+    }
+    modal.querySelector('[data-confirm-text]').textContent = question;
+    pendingConfirm = resolve;
+    openModal('confirm-modal');
+    const ok = modal.querySelector('[data-confirm-ok]');
+    if (ok) ok.focus();
+  });
+}
+
+function resolveConfirm(confirmed) {
+  if (!pendingConfirm) return;
+  const resolve = pendingConfirm;
+  pendingConfirm = null;
+  closeModal('confirm-modal');
+  resolve(confirmed);
+}
+
+document.addEventListener('htmx:confirm', (event) => {
+  if (!event.detail.question) return;
+  event.preventDefault();
+  askConfirm(event.detail.question).then((confirmed) => {
+    if (confirmed) event.detail.issueRequest(true);
+  });
+});
+
+// Plain <form data-confirm="..."> asks with the same dialog instead of confirm()
+document.addEventListener('submit', (event) => {
+  const form = event.target;
+  if (!(form instanceof HTMLFormElement) || !form.dataset.confirm) return;
+  event.preventDefault();
+  askConfirm(form.dataset.confirm).then((confirmed) => {
+    if (confirmed) form.submit();
+  });
+});
+
 function openModal(id) {
   const pendingClose = modalCloseTimeouts.get(id);
   if (pendingClose) {
@@ -593,6 +639,12 @@ function openModal(id) {
 }
 
 function closeModal(id) {
+  // Dismissed without an answer (Escape / backdrop): treat as "Отмена".
+  if (id === 'confirm-modal' && pendingConfirm) {
+    const resolve = pendingConfirm;
+    pendingConfirm = null;
+    resolve(false);
+  }
   const modal = document.getElementById(id);
   if (modal) {
     // Drop keyboard focus before hiding: iOS otherwise keeps scrolling the

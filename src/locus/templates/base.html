@@ -299,5 +299,27 @@
   <div id="toast-container" class="fixed top-5 right-5 z-50 flex flex-col space-y-2 pointer-events-none"></div>
 
   <div id="page-modals">{% block modals %}{% endblock %}</div>
+
+  <!-- In-app confirm dialog for hx-confirm / data-confirm (native window.confirm looks foreign in the PWA) -->
+  <div id="confirm-modal" data-modal role="alertdialog" aria-modal="true" aria-labelledby="confirm-modal-text"
+       class="fixed inset-0 z-50 hidden items-center justify-center p-4">
+    <div class="fixed inset-0 bg-black/85 backdrop-blur-sm" onclick="closeModal('confirm-modal')"></div>
+    <div class="relative z-10 w-full max-w-xs bg-[#121214] border border-zinc-800 rounded-2xl p-5 shadow-2xl space-y-4">
+      <p id="confirm-modal-text" data-confirm-text class="text-sm font-semibold text-zinc-100 leading-snug"></p>
+      <div class="flex items-center justify-end gap-2">
+        <button type="button"
+                onclick="resolveConfirm(false)"
+                class="px-3.5 py-1.5 rounded-xl text-xs font-medium text-zinc-300 hover:text-white hover:bg-zinc-800 transition">
+          Отмена
+        </button>
+        <button type="button"
+                data-confirm-ok
+                onclick="resolveConfirm(true)"
+                class="px-4 py-1.5 rounded-xl text-xs font-semibold bg-rose-500 hover:bg-rose-600 text-white shadow-md shadow-rose-500/20 transition">
+          Удалить
+        </button>
+      </div>
+    </div>
+  </div>
 </body>
 </html>
