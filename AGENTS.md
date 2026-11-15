@@ -23,7 +23,7 @@ This file provides comprehensive guidelines on architecture, technology stack, d
 
 ## 2. Technology Stack
 
-- **Language**: Python 3.12+ (supports 3.14 / uv).
+- **Language**: Python 3.12+ (supports 3.15 / uv).
 - **Web Framework**: FastAPI (combines REST API `/api/v1` and SSR web routes).
 - **Database & ORM**: SQLAlchemy 2.0 (strictly asynchronous `AsyncSession`).
   - Development & Tests: SQLite (`aiosqlite`).
@@ -47,7 +47,7 @@ This file provides comprehensive guidelines on architecture, technology stack, d
 ├── alembic.ini                   # Alembic migration configuration
 ├── Dockerfile                    # Production image (pinned base images)
 ├── .github/
-│   └── workflows/ci.yml          # CI: uv sync + pytest on Python 3.12–3.14
+│   └── workflows/ci.yml          # CI: uv sync + pytest on Python 3.12–3.15
 ├── docker-compose.yml            # Local PostgreSQL for development
 ├── render.yaml                   # Render Blueprint example
 ├── migrations/                   # Database migration scripts

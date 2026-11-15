@@ -1,15 +1,25 @@
+from datetime import date
+
 import pytest
 from httpx import AsyncClient
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from locus.config import get_settings
-from locus.constants import DAY_NAMES, get_current_date
+from locus.constants import DAY_NAMES
 from locus.duty import parse_duty_day
 from locus.models.duty_day import DutyDay
 from locus.models.user import User
 
 settings = get_settings()
+
+
+@pytest.fixture
+def school_day(monkeypatch) -> date:
+    """Fixed weekday: the roster covers Monday to Saturday and is empty on Sunday."""
+    fixed = date(2026, 10, 22)  # Thursday
+    monkeypatch.setattr("locus.duty.get_current_date", lambda: fixed)
+    return fixed
 
 
 @pytest.mark.parametrize(
@@ -40,9 +50,9 @@ async def test_duty_page_highlights_linked_user_today(
     test_user: User,
     auth_token: str,
     db_session: AsyncSession,
+    school_day: date,
 ):
-    today = get_current_date().isoweekday()
-    db_session.add(DutyDay(day_of_week=today, text="Иван И. (student)\nПётр П."))
+    db_session.add(DutyDay(day_of_week=school_day.isoweekday(), text="Иван И. (student)\nПётр П."))
     await db_session.commit()
 
     client.cookies.set(settings.COOKIE_NAME, auth_token)
@@ -62,8 +72,9 @@ async def test_duty_page_does_not_highlight_other_users(
     regular_user: User,
     auth_token: str,
     db_session: AsyncSession,
+    school_day: date,
 ):
-    db_session.add(DutyDay(day_of_week=get_current_date().isoweekday(), text="Мяу (regular)"))
+    db_session.add(DutyDay(day_of_week=school_day.isoweekday(), text="Мяу (regular)"))
     await db_session.commit()
 
     client.cookies.set(settings.COOKIE_NAME, auth_token)
@@ -143,10 +154,13 @@ async def test_api_lists_duty_days(
     regular_user: User,
     auth_headers: dict,
     db_session: AsyncSession,
+    school_day: date,
 ):
-    today = get_current_date().isoweekday()
     db_session.add(
-        DutyDay(day_of_week=today, text="Иван И. (student)\nПётр П. (ghost)\nМяу (regular)")
+        DutyDay(
+            day_of_week=school_day.isoweekday(),
+            text="Иван И. (student)\nПётр П. (ghost)\nМяу (regular)",
+        )
     )
     await db_session.commit()
 
@@ -157,7 +171,7 @@ async def test_api_lists_duty_days(
     assert [day["day_of_week"] for day in days] == list(range(1, 7))
     assert [day["name"] for day in days] == [DAY_NAMES[num] for num in range(1, 7)]
 
-    today_payload = days[today - 1]
+    today_payload = days[school_day.isoweekday() - 1]
     assert today_payload["is_today"] is True
     assert today_payload["entries"] == [
         {"name": "Иван И.", "login": "student", "linked": True, "is_me": True},
