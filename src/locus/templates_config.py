@@ -25,12 +25,12 @@ def due_meta(due: date, today: date) -> tuple[str, str]:
     """Human due-date label and its text color for homework cards."""
     days_left = (due - today).days
     if days_left < 0:
-        return "Просрочено", "text-rose-400"
+        return "Просрочено", "text-danger-ink"
     if days_left == 0:
-        return "Сегодня", "text-emerald-400 font-semibold"
+        return "Сегодня", "text-accent-ink font-semibold"
     if days_left == 1:
-        return "Завтра", "text-zinc-300"
-    return f"{DAY_SHORT_NAMES[due.isoweekday()]}, {due.strftime('%d.%m')}", "text-zinc-400"
+        return "Завтра", "text-fg-muted"
+    return f"{DAY_SHORT_NAMES[due.isoweekday()]}, {due.strftime('%d.%m')}", "text-fg-subtle"
 
 
 templates.env.filters["subgroup_badge"] = subgroup_badge

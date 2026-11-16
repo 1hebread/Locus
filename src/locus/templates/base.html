@@ -1,5 +1,7 @@
 <!DOCTYPE html>
-<html lang="ru" class="dark" style="background-color: #000000;">
+{% set theme = (current_user.theme if current_user else 'system') or 'system' %}
+{% set theme = theme if theme in ('dark', 'light', 'system') else 'system' %}
+<html lang="ru" data-theme="{{ theme }}" data-theme-pref="{{ theme }}">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
@@ -8,6 +10,21 @@
   <!-- PWA Meta Tags -->
   <link rel="manifest" href="/static/manifest.json">
   <meta name="theme-color" content="#000000">
+  <script>
+    (function () {
+      var root = document.documentElement;
+      if (root.dataset.theme === 'system') {
+        root.dataset.theme = window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
+      }
+      var meta = document.querySelector('meta[name="theme-color"]');
+      if (meta) meta.content = root.dataset.theme === 'light' ? '#f5f5f7' : '#000000';
+    })();
+  </script>
+  <style>
+    /* Paint the correct backdrop before app.css is parsed */
+    html { background-color: #000000; }
+    html[data-theme="light"] { background-color: #f5f5f7; }
+  </style>
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
@@ -23,22 +40,22 @@
   <script defer src="/static/js/app.js?v={{ asset_version('js/app.js') }}"></script>
   {% block head %}{% endblock %}
 </head>
-<body class="bg-black text-zinc-100 min-h-screen flex antialiased selection:bg-emerald-500 selection:text-white" style="background-color: #000000;">
+<body class="bg-surface text-fg min-h-screen flex antialiased selection:bg-accent selection:text-on-accent">
 
   <!-- iOS PWA Status Bar Top Cover (Prevents content scrolling behind notch from showing through) -->
-  <div class="md:hidden fixed top-0 left-0 right-0 z-50 bg-black pointer-events-none" style="height: env(safe-area-inset-top, 0px);"></div>
+  <div class="md:hidden fixed top-0 left-0 right-0 z-50 bg-surface pointer-events-none" style="height: env(safe-area-inset-top, 0px);"></div>
 
   {% if current_user %}
   <!-- Desktop Sidebar (Visible on md and larger screens) -->
-  <aside class="hidden md:flex flex-col w-64 bg-black border-r border-zinc-800/80 p-5 shrink-0 select-none">
+  <aside class="hidden md:flex flex-col w-64 bg-surface-card border-r border-edge/80 p-5 shrink-0 select-none">
     <!-- Brand Header with balanced spacing -->
-    <a href="/" data-nav-dashboard class="flex items-center space-x-2.5 pb-3.5 border-b border-zinc-800/60">
+    <a href="/" data-nav-dashboard class="flex items-center space-x-2.5 pb-3.5 border-b border-edge/60">
       <img src="/static/icons/icon.svg?v={{ asset_version('icons/icon.svg') }}"
            alt="" aria-hidden="true"
-           class="w-8 h-8 shrink-0 shadow-lg shadow-emerald-500/10">
+           class="w-8 h-8 shrink-0 shadow-lg shadow-accent/10">
       <div class="flex flex-col justify-center">
-        <span class="font-extrabold text-base tracking-tight text-white leading-tight">Locus</span>
-        <span class="text-[10px] text-zinc-500 font-medium leading-none mt-1">Школьный дневник</span>
+        <span class="font-extrabold text-base tracking-tight text-fg leading-tight">Locus</span>
+        <span class="text-[10px] text-fg-faint font-medium leading-none mt-1">Школьный дневник</span>
       </div>
     </a>
 
@@ -48,7 +65,7 @@
       <a href="/"
          data-nav-dashboard
          class="flex items-center space-x-3 px-3.5 py-2.5 rounded-xl transition whitespace-nowrap
-                {% if active_page == 'dashboard' %}bg-emerald-500 text-white shadow-md shadow-emerald-500/25 font-bold{% else %}text-zinc-400 hover:text-white hover:bg-zinc-800/60{% endif %}">
+                {% if active_page == 'dashboard' %}bg-accent text-on-accent shadow-md shadow-accent/25 font-bold{% else %}text-fg-subtle hover:text-fg hover:bg-surface-strong/60{% endif %}">
         <svg class="w-5 h-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
         </svg>
@@ -59,7 +76,7 @@
       <a href="/homework"
          data-nav-homework
          class="flex items-center space-x-3 px-3.5 py-2.5 rounded-xl transition whitespace-nowrap
-                {% if active_page == 'homework' %}bg-emerald-500 text-white shadow-md shadow-emerald-500/25 font-bold{% else %}text-zinc-400 hover:text-white hover:bg-zinc-800/60{% endif %}">
+                {% if active_page == 'homework' %}bg-accent text-on-accent shadow-md shadow-accent/25 font-bold{% else %}text-fg-subtle hover:text-fg hover:bg-surface-strong/60{% endif %}">
         <svg class="w-5 h-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
         </svg>
@@ -69,7 +86,7 @@
       <!-- 3. Предметы -->
       <a href="/subjects"
          class="flex items-center space-x-3 px-3.5 py-2.5 rounded-xl transition whitespace-nowrap
-                {% if active_page == 'subjects' %}bg-emerald-500 text-white shadow-md shadow-emerald-500/25 font-bold{% else %}text-zinc-400 hover:text-white hover:bg-zinc-800/60{% endif %}">
+                {% if active_page == 'subjects' %}bg-accent text-on-accent shadow-md shadow-accent/25 font-bold{% else %}text-fg-subtle hover:text-fg hover:bg-surface-strong/60{% endif %}">
         <svg class="w-5 h-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
         </svg>
@@ -79,7 +96,7 @@
       <!-- 4. Сетка недели -->
       <a href="/schedule"
          class="flex items-center space-x-3 px-3.5 py-2.5 rounded-xl transition whitespace-nowrap
-                {% if active_page == 'schedule' %}bg-emerald-500 text-white shadow-md shadow-emerald-500/25 font-bold{% else %}text-zinc-400 hover:text-white hover:bg-zinc-800/60{% endif %}">
+                {% if active_page == 'schedule' %}bg-accent text-on-accent shadow-md shadow-accent/25 font-bold{% else %}text-fg-subtle hover:text-fg hover:bg-surface-strong/60{% endif %}">
         <svg class="w-5 h-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
         </svg>
@@ -89,7 +106,7 @@
       <!-- 5. Дежурные -->
       <a href="/duty"
          class="flex items-center space-x-3 px-3.5 py-2.5 rounded-xl transition whitespace-nowrap
-                {% if active_page == 'duty' %}bg-emerald-500 text-white shadow-md shadow-emerald-500/25 font-bold{% else %}text-zinc-400 hover:text-white hover:bg-zinc-800/60{% endif %}">
+                {% if active_page == 'duty' %}bg-accent text-on-accent shadow-md shadow-accent/25 font-bold{% else %}text-fg-subtle hover:text-fg hover:bg-surface-strong/60{% endif %}">
         <svg class="w-5 h-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
         </svg>
@@ -100,7 +117,7 @@
       <!-- 6. Пользователи -->
       <a href="/admin/users"
          class="flex items-center space-x-3 px-3.5 py-2.5 rounded-xl transition whitespace-nowrap
-                {% if active_page == 'admin' %}bg-emerald-500 text-white shadow-md shadow-emerald-500/25 font-bold{% else %}text-zinc-400 hover:text-white hover:bg-zinc-800/60{% endif %}">
+                {% if active_page == 'admin' %}bg-accent text-on-accent shadow-md shadow-accent/25 font-bold{% else %}text-fg-subtle hover:text-fg hover:bg-surface-strong/60{% endif %}">
         <svg class="w-5 h-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
         </svg>
@@ -110,7 +127,7 @@
       <!-- 7. История изменений -->
       <a href="/admin/history"
          class="flex items-center space-x-3 px-3.5 py-2.5 rounded-xl transition whitespace-nowrap
-                {% if active_page == 'admin_history' %}bg-emerald-500 text-white shadow-md shadow-emerald-500/25 font-bold{% else %}text-zinc-400 hover:text-white hover:bg-zinc-800/60{% endif %}">
+                {% if active_page == 'admin_history' %}bg-accent text-on-accent shadow-md shadow-accent/25 font-bold{% else %}text-fg-subtle hover:text-fg hover:bg-surface-strong/60{% endif %}">
         <svg class="w-5 h-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
         </svg>
@@ -120,20 +137,31 @@
       <!-- 8. API-ключи -->
       <a href="/admin/api-keys"
          class="flex items-center space-x-3 px-3.5 py-2.5 rounded-xl transition whitespace-nowrap
-                {% if active_page == 'admin_api_keys' %}bg-emerald-500 text-white shadow-md shadow-emerald-500/25 font-bold{% else %}text-zinc-400 hover:text-white hover:bg-zinc-800/60{% endif %}">
+                {% if active_page == 'admin_api_keys' %}bg-accent text-on-accent shadow-md shadow-accent/25 font-bold{% else %}text-fg-subtle hover:text-fg hover:bg-surface-strong/60{% endif %}">
         <svg class="w-5 h-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" />
         </svg>
         <span>API-ключи</span>
       </a>
       {% endif %}
+
+      <!-- 9. Настройки (always last) -->
+      <a href="/settings"
+         class="flex items-center space-x-3 px-3.5 py-2.5 rounded-xl transition whitespace-nowrap
+                {% if active_page == 'settings' %}bg-accent text-on-accent shadow-md shadow-accent/25 font-bold{% else %}text-fg-subtle hover:text-fg hover:bg-surface-strong/60{% endif %}">
+        <svg class="w-5 h-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+        </svg>
+        <span>Настройки</span>
+      </a>
     </nav>
 
     <!-- Sidebar Footer -->
-    <div class="pt-4 border-t border-zinc-800/60 text-xs text-zinc-400">
+    <div class="pt-4 border-t border-edge/60 text-xs text-fg-subtle">
       <button type="button"
               data-push-toggle
-              class="hidden w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-zinc-400 hover:text-white hover:bg-zinc-800/60 transition"
+              class="hidden w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-fg-subtle hover:text-fg hover:bg-surface-strong/60 transition"
               title="Включить уведомления"
               aria-label="Включить уведомления"
               aria-pressed="false">
@@ -143,7 +171,7 @@
         </svg>
       </button>
       <form action="/auth/logout" method="post">
-        <button type="submit" class="w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl hover:text-rose-400 hover:bg-rose-500/10 transition" title="Выйти">
+        <button type="submit" class="w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl hover:text-danger-ink hover:bg-danger/10 transition" title="Выйти">
           <span>Выйти</span>
           <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
@@ -167,13 +195,13 @@
   {% if current_user %}
   <!-- Mobile Floating Bottom Navigation Dock (4 buttons: Расписание, ДЗ, Уведомления, Меню) -->
   <nav id="mobile-bottom-nav" class="md:hidden fixed bottom-5 left-0 right-0 z-40 px-4 pointer-events-none select-none flex justify-center pb-[env(safe-area-inset-bottom,0px)]">
-    <div class="pointer-events-auto w-full max-w-[240px] bg-black/90 backdrop-blur-xl border border-zinc-800 rounded-full shadow-2xl shadow-black p-1.5 flex items-center justify-between gap-1">
+    <div class="pointer-events-auto w-full max-w-[240px] bg-surface-card/90 backdrop-blur-xl border border-edge rounded-full shadow-2xl p-1.5 flex items-center justify-between gap-1">
       <!-- 1. Расписание -->
       <a href="/"
          data-nav-dashboard
          data-dock-tab="dashboard"
          class="dock-btn flex-1 h-11 rounded-full flex items-center justify-center transition-all duration-300 ease-in-out
-                {% if active_page == 'dashboard' %}bg-emerald-500 text-white shadow-md shadow-emerald-500/25 font-bold is-active{% else %}text-zinc-400 hover:text-white bg-transparent{% endif %}"
+                {% if active_page == 'dashboard' %}bg-accent text-on-accent shadow-md shadow-accent/25 font-bold is-active{% else %}text-fg-subtle hover:text-fg bg-transparent{% endif %}"
          title="Расписание"
          aria-label="Расписание">
         <svg class="w-6 h-6 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -188,7 +216,7 @@
          data-nav-homework
          data-dock-tab="homework"
          class="dock-btn flex-1 h-11 rounded-full flex items-center justify-center transition-all duration-300 ease-in-out
-                {% if active_page == 'homework' %}bg-emerald-500 text-white shadow-md shadow-emerald-500/25 font-bold is-active{% else %}text-zinc-400 hover:text-white bg-transparent{% endif %}"
+                {% if active_page == 'homework' %}bg-accent text-on-accent shadow-md shadow-accent/25 font-bold is-active{% else %}text-fg-subtle hover:text-fg bg-transparent{% endif %}"
          title="ДЗ"
          aria-label="ДЗ">
         <svg class="w-6 h-6 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -199,7 +227,7 @@
       <!-- 3. Уведомления -->
       <button type="button"
               data-push-toggle
-              class="hidden dock-btn flex-1 h-11 rounded-full flex items-center justify-center transition-all duration-300 ease-in-out text-zinc-400 hover:text-white bg-transparent"
+              class="hidden dock-btn flex-1 h-11 rounded-full flex items-center justify-center transition-all duration-300 ease-in-out text-fg-subtle hover:text-fg bg-transparent"
               title="Включить уведомления"
               aria-label="Включить уведомления"
               aria-pressed="false">
@@ -211,7 +239,7 @@
       <!-- 4. Меню -->
       <button onclick="openModal('mobile-menu-modal')"
               type="button"
-              class="dock-btn flex-1 h-11 rounded-full flex items-center justify-center transition-all duration-300 ease-in-out text-zinc-400 hover:text-white bg-transparent"
+              class="dock-btn flex-1 h-11 rounded-full flex items-center justify-center transition-all duration-300 ease-in-out text-fg-subtle hover:text-fg bg-transparent"
               title="Меню"
               aria-label="Меню">
         <svg class="w-6 h-6 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -226,13 +254,13 @@
     <!-- Backdrop overlay with explicit click close -->
     <div class="fixed inset-0 bg-black/85 backdrop-blur-sm cursor-pointer" onclick="closeModal('mobile-menu-modal')"></div>
 
-    <div class="relative z-10 w-full sm:max-w-sm bg-black border-t sm:border border-zinc-800 rounded-t-3xl sm:rounded-2xl p-5 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
-      <div class="flex items-center justify-between pb-3 border-b border-zinc-800">
+    <div class="relative z-10 w-full sm:max-w-sm bg-surface-card border-t sm:border border-edge rounded-t-3xl sm:rounded-2xl p-5 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
+      <div class="flex items-center justify-between pb-3 border-b border-edge">
         <div>
-          <h3 class="font-bold text-base text-white">Меню</h3>
-          <p class="text-xs text-zinc-400 truncate">{{ current_user.username }}</p>
+          <h3 class="font-bold text-base text-fg">Меню</h3>
+          <p class="text-xs text-fg-subtle truncate">{{ current_user.username }}</p>
         </div>
-        <button onclick="closeModal('mobile-menu-modal')" class="text-zinc-400 hover:text-white p-1 rounded-lg">
+        <button onclick="closeModal('mobile-menu-modal')" class="text-fg-subtle hover:text-fg p-1 rounded-lg">
           <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
           </svg>
@@ -240,52 +268,60 @@
       </div>
 
       <div class="space-y-1 text-sm font-medium">
-        <a href="/subjects" class="flex items-center space-x-3 px-3.5 py-2.5 rounded-xl text-zinc-300 hover:bg-zinc-800 transition">
-          <svg class="w-5 h-5 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <a href="/subjects" class="flex items-center space-x-3 px-3.5 py-2.5 rounded-xl text-fg-muted hover:bg-surface-strong transition">
+          <svg class="w-5 h-5 text-accent-ink" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.5v12m0-12C10.5 5 8 4.5 4.5 4.5v12c3.5 0 6 .5 7.5 2m0-14C13.5 5 16 4.5 19.5 4.5v12c-3.5 0-6 .5-7.5 2" />
           </svg>
           <span>Предметы</span>
         </a>
 
-        <a href="/schedule" class="flex items-center space-x-3 px-3.5 py-2.5 rounded-xl text-zinc-300 hover:bg-zinc-800 transition">
-          <svg class="w-5 h-5 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <a href="/schedule" class="flex items-center space-x-3 px-3.5 py-2.5 rounded-xl text-fg-muted hover:bg-surface-strong transition">
+          <svg class="w-5 h-5 text-accent-ink" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
           </svg>
           <span>Сетка звонков недели</span>
         </a>
 
-        <a href="/duty" class="flex items-center space-x-3 px-3.5 py-2.5 rounded-xl text-zinc-300 hover:bg-zinc-800 transition">
-          <svg class="w-5 h-5 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <a href="/duty" class="flex items-center space-x-3 px-3.5 py-2.5 rounded-xl text-fg-muted hover:bg-surface-strong transition">
+          <svg class="w-5 h-5 text-accent-ink" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
           </svg>
           <span>Дежурные</span>
         </a>
 
         {% if current_user.is_admin %}
-        <a href="/admin/users" class="flex items-center space-x-3 px-3.5 py-2.5 rounded-xl text-zinc-300 hover:bg-zinc-800 transition">
-          <svg class="w-5 h-5 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <a href="/admin/users" class="flex items-center space-x-3 px-3.5 py-2.5 rounded-xl text-fg-muted hover:bg-surface-strong transition">
+          <svg class="w-5 h-5 text-accent-ink" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
           </svg>
           <span>Пользователи</span>
         </a>
-        <a href="/admin/history" class="flex items-center space-x-3 px-3.5 py-2.5 rounded-xl text-zinc-300 hover:bg-zinc-800 transition">
-          <svg class="w-5 h-5 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <a href="/admin/history" class="flex items-center space-x-3 px-3.5 py-2.5 rounded-xl text-fg-muted hover:bg-surface-strong transition">
+          <svg class="w-5 h-5 text-accent-ink" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
           </svg>
           <span>История изменений</span>
         </a>
-        <a href="/admin/api-keys" class="flex items-center space-x-3 px-3.5 py-2.5 rounded-xl text-zinc-300 hover:bg-zinc-800 transition">
-          <svg class="w-5 h-5 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <a href="/admin/api-keys" class="flex items-center space-x-3 px-3.5 py-2.5 rounded-xl text-fg-muted hover:bg-surface-strong transition">
+          <svg class="w-5 h-5 text-accent-ink" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" />
           </svg>
           <span>API-ключи</span>
         </a>
         {% endif %}
+
+        <a href="/settings" class="flex items-center space-x-3 px-3.5 py-2.5 rounded-xl text-fg-muted hover:bg-surface-strong transition">
+          <svg class="w-5 h-5 text-accent-ink" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+          </svg>
+          <span>Настройки</span>
+        </a>
       </div>
 
-      <div class="pt-3 border-t border-zinc-800">
+      <div class="pt-3 border-t border-edge">
         <form action="/auth/logout" method="post">
-          <button type="submit" class="w-full flex items-center justify-center space-x-2 py-2.5 rounded-xl text-sm font-semibold text-rose-400 hover:bg-rose-500/10 transition">
+          <button type="submit" class="w-full flex items-center justify-center space-x-2 py-2.5 rounded-xl text-sm font-semibold text-danger-ink hover:bg-danger/10 transition">
             <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
             </svg>
@@ -306,18 +342,18 @@
   <div id="confirm-modal" data-modal role="alertdialog" aria-modal="true" aria-labelledby="confirm-modal-text"
        class="fixed inset-0 z-50 hidden items-center justify-center p-4">
     <div class="fixed inset-0 bg-black/85 backdrop-blur-sm" onclick="closeModal('confirm-modal')"></div>
-    <div class="relative z-10 w-full max-w-xs bg-[#121214] border border-zinc-800 rounded-2xl p-5 shadow-2xl space-y-4">
-      <p id="confirm-modal-text" data-confirm-text class="text-sm font-semibold text-zinc-100 leading-snug"></p>
+    <div class="relative z-10 w-full max-w-xs bg-surface-subtle border border-edge rounded-2xl p-5 shadow-2xl space-y-4">
+      <p id="confirm-modal-text" data-confirm-text class="text-sm font-semibold text-fg leading-snug"></p>
       <div class="flex items-center justify-end gap-2">
         <button type="button"
                 onclick="resolveConfirm(false)"
-                class="px-3.5 py-1.5 rounded-xl text-xs font-medium text-zinc-300 hover:text-white hover:bg-zinc-800 transition">
+                class="px-3.5 py-1.5 rounded-xl text-xs font-medium text-fg-muted hover:text-fg hover:bg-surface-strong transition">
           Отмена
         </button>
         <button type="button"
                 data-confirm-ok
                 onclick="resolveConfirm(true)"
-                class="px-4 py-1.5 rounded-xl text-xs font-semibold bg-rose-500 hover:bg-rose-600 text-white shadow-md shadow-rose-500/20 transition">
+                class="px-4 py-1.5 rounded-xl text-xs font-semibold bg-danger hover:bg-danger-hover text-on-accent shadow-md shadow-danger/20 transition">
           Удалить
         </button>
       </div>

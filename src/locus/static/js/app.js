@@ -117,8 +117,8 @@ function extractPushSubscriptionData(subscription) {
 
 function setPushState(enabled) {
   document.querySelectorAll('[data-push-toggle]').forEach((button) => {
-    button.classList.toggle('text-emerald-400', enabled);
-    button.classList.toggle('text-zinc-400', !enabled);
+    button.classList.toggle('text-accent-ink', enabled);
+    button.classList.toggle('text-fg-subtle', !enabled);
     button.setAttribute('aria-pressed', enabled ? 'true' : 'false');
     const title = enabled ? 'Уведомления включены' : 'Включить уведомления';
     button.title = title;
@@ -835,7 +835,7 @@ window.addEventListener('click', (e) => {
 let isNavigatingPage = false;
 let lastPagePath = window.location.pathname;
 let lastPageUrl = window.location.pathname + window.location.search;
-const SECTION_PATHS = new Set(['/', '/homework', '/subjects', '/schedule', '/duty', '/admin/users', '/admin/history', '/admin/api-keys']);
+const SECTION_PATHS = new Set(['/', '/homework', '/subjects', '/schedule', '/duty', '/settings', '/admin/users', '/admin/history', '/admin/api-keys']);
 
 // Inline <script> tags inserted via innerHTML never run, so re-create them
 function runScripts(container) {
@@ -1178,8 +1178,8 @@ document.addEventListener('submit', (event) => {
 
 // Highlight the dock button immediately, before the new page arrives
 function setDockActive(pathname) {
-  const activeClasses = ['bg-emerald-500', 'text-white', 'shadow-md', 'shadow-emerald-500/25', 'font-bold', 'is-active'];
-  const idleClasses = ['text-zinc-400', 'hover:text-white', 'bg-transparent'];
+  const activeClasses = ['bg-accent', 'text-on-accent', 'shadow-md', 'shadow-accent/25', 'font-bold', 'is-active'];
+  const idleClasses = ['text-fg-subtle', 'hover:text-fg', 'bg-transparent'];
 
   document.querySelectorAll('#mobile-bottom-nav a[data-dock-tab]').forEach((link) => {
     const linkPath = new URL(link.href, window.location.origin).pathname;
@@ -1446,11 +1446,11 @@ async function navigateDashboardDate(targetUrl, push = true) {
     const tabs = selector.querySelectorAll('a[data-day-tab]');
     tabs.forEach((tab) => {
       if (tab.getAttribute('data-day-tab') === effectiveDate) {
-        tab.classList.remove('bg-transparent', 'hover:bg-[#2b8f50]', 'text-white/90', 'font-extrabold');
-        tab.classList.add('bg-[#2ea35b]', 'text-white', 'font-black', 'shadow-inner');
+        tab.classList.remove('bg-transparent', 'hover:bg-brand-600', 'text-on-accent/90', 'font-extrabold');
+        tab.classList.add('bg-brand-500', 'text-on-accent', 'font-black', 'shadow-inner');
       } else {
-        tab.classList.remove('bg-[#2ea35b]', 'shadow-inner', 'font-black');
-        tab.classList.add('bg-transparent', 'hover:bg-[#2b8f50]', 'text-white/90', 'hover:text-white', 'font-extrabold');
+        tab.classList.remove('bg-brand-500', 'shadow-inner', 'font-black');
+        tab.classList.add('bg-transparent', 'hover:bg-brand-600', 'text-on-accent/90', 'hover:text-on-accent', 'font-extrabold');
       }
     });
 
@@ -2058,15 +2058,15 @@ function setActiveMobileDayTab(dayNum) {
     const label = tab.querySelector('.day-label');
     if (badge && label) {
       if (String(tabDayNum) === String(dayNum)) {
-        badge.classList.remove('text-zinc-400', 'bg-transparent');
-        badge.classList.add('bg-emerald-500', 'text-white', 'shadow-md', 'shadow-emerald-500/25');
-        label.classList.remove('text-zinc-500');
-        label.classList.add('text-emerald-400');
+        badge.classList.remove('text-fg-subtle', 'bg-transparent');
+        badge.classList.add('bg-accent', 'text-on-accent', 'shadow-md', 'shadow-accent/25');
+        label.classList.remove('text-fg-faint');
+        label.classList.add('text-accent-ink');
       } else {
-        badge.classList.remove('bg-emerald-500', 'text-white', 'shadow-md', 'shadow-emerald-500/25');
-        badge.classList.add('text-zinc-400', 'bg-transparent');
-        label.classList.remove('text-emerald-400');
-        label.classList.add('text-zinc-500');
+        badge.classList.remove('bg-accent', 'text-on-accent', 'shadow-md', 'shadow-accent/25');
+        badge.classList.add('text-fg-subtle', 'bg-transparent');
+        label.classList.remove('text-accent-ink');
+        label.classList.add('text-fg-faint');
       }
     }
   });
@@ -2158,33 +2158,33 @@ function updateCurrentLessonBadges() {
 
     if (isNow) {
       if (isMobile) {
-        card.classList.add('border-emerald-500/70', 'shadow-[0_0_20px_rgba(16,185,129,0.2)]');
-        card.classList.remove('border-zinc-800/90', 'shadow-[0_4px_20px_rgba(0,0,0,0.85)]', 'hover:border-zinc-700', 'hover:border-emerald-400');
+        card.classList.add('border-accent-line/70', 'shadow-glow');
+        card.classList.remove('border-edge/90', 'shadow-card', 'hover:border-edge-strong', 'hover:border-accent-line');
       } else {
-        card.classList.add('border-emerald-500/70', 'hover:border-emerald-400', 'shadow-[0_0_20px_rgba(16,185,129,0.2)]', 'hover:shadow-[0_0_25px_rgba(16,185,129,0.35)]');
-        card.classList.remove('border-zinc-800/90', 'hover:border-zinc-700', 'shadow-[0_4px_20px_rgba(0,0,0,0.85)]');
+        card.classList.add('border-accent-line/70', 'hover:border-accent-line', 'shadow-glow', 'hover:shadow-glow-strong');
+        card.classList.remove('border-edge/90', 'hover:border-edge-strong', 'shadow-card');
       }
       if (timeSpan) {
-        timeSpan.classList.add('text-emerald-400', 'font-bold');
-        timeSpan.classList.remove('text-zinc-400');
+        timeSpan.classList.add('text-accent-ink', 'font-bold');
+        timeSpan.classList.remove('text-fg-subtle');
       }
       if (!nowBadge && timeSpan && timeSpan.parentNode) {
         nowBadge = document.createElement('span');
-        nowBadge.className = 'lesson-now-badge text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 leading-none';
+        nowBadge.className = 'lesson-now-badge text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-accent/20 text-accent-ink border border-accent-line/30 leading-none';
         nowBadge.textContent = 'Сейчас';
         timeSpan.parentNode.appendChild(nowBadge);
       }
     } else {
       if (isMobile) {
-        card.classList.remove('border-emerald-500/70', 'shadow-[0_0_20px_rgba(16,185,129,0.2)]', 'hover:border-emerald-400', 'hover:border-zinc-700');
-        card.classList.add('border-zinc-800/90', 'shadow-[0_4px_20px_rgba(0,0,0,0.85)]');
+        card.classList.remove('border-accent-line/70', 'shadow-glow', 'hover:border-accent-line', 'hover:border-edge-strong');
+        card.classList.add('border-edge/90', 'shadow-card');
       } else {
-        card.classList.remove('border-emerald-500/70', 'hover:border-emerald-400', 'shadow-[0_0_20px_rgba(16,185,129,0.2)]', 'hover:shadow-[0_0_25px_rgba(16,185,129,0.35)]');
-        card.classList.add('border-zinc-800/90', 'hover:border-zinc-700', 'shadow-[0_4px_20px_rgba(0,0,0,0.85)]');
+        card.classList.remove('border-accent-line/70', 'hover:border-accent-line', 'shadow-glow', 'hover:shadow-glow-strong');
+        card.classList.add('border-edge/90', 'hover:border-edge-strong', 'shadow-card');
       }
       if (timeSpan) {
-        timeSpan.classList.remove('text-emerald-400', 'font-bold');
-        timeSpan.classList.add('text-zinc-400');
+        timeSpan.classList.remove('text-accent-ink', 'font-bold');
+        timeSpan.classList.add('text-fg-subtle');
       }
       if (nowBadge) {
         nowBadge.remove();
@@ -2251,9 +2251,70 @@ function initPageBehaviour() {
   updateCurrentLessonBadges();
 }
 
+// Theme switching (settings page) and live system-preference updates
+let themeTransitionTimer = null;
+let themeSaveChain = Promise.resolve();
+let persistedThemePref = 'system';
+
+function applyThemePreference(pref) {
+  const root = document.documentElement;
+  const systemLight = window.matchMedia('(prefers-color-scheme: light)').matches;
+  const theme = pref === 'system' ? (systemLight ? 'light' : 'dark') : pref;
+  if (root.dataset.theme !== theme) {
+    root.classList.add('theme-transition');
+    void root.offsetWidth; // apply the transition before the palette changes
+    clearTimeout(themeTransitionTimer);
+    themeTransitionTimer = setTimeout(() => root.classList.remove('theme-transition'), 260);
+  }
+  root.dataset.theme = theme === 'light' ? 'light' : 'dark';
+  root.dataset.themePref = pref;
+  const meta = document.querySelector('meta[name="theme-color"]');
+  if (meta) meta.content = root.dataset.theme === 'light' ? '#f5f5f7' : '#000000';
+  document.querySelectorAll('[data-theme-choice]').forEach((input) => {
+    input.checked = input.value === pref;
+  });
+}
+
+async function saveThemePreference(pref) {
+  try {
+    const response = await fetch('/settings/theme', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ theme: pref }),
+    });
+    // An expired session redirects to /login and still resolves as ok:true
+    if (!response.ok || response.redirected) throw new Error('HTTP ' + response.status);
+    persistedThemePref = pref;
+  } catch (_) {
+    const root = document.documentElement;
+    if (root.dataset.themePref === pref) applyThemePreference(persistedThemePref);
+  }
+}
+
+function initTheme() {
+  const root = document.documentElement;
+  const media = window.matchMedia('(prefers-color-scheme: light)');
+  persistedThemePref = root.dataset.themePref || 'system';
+
+  // Delegated: the settings page also arrives via in-place navigation
+  document.addEventListener('change', (event) => {
+    const input = event.target.closest ? event.target.closest('[data-theme-choice]') : null;
+    if (!input || !input.checked) return;
+    const pref = input.value;
+    applyThemePreference(pref);
+    // Serialized, so a slow earlier save cannot overwrite a later click
+    themeSaveChain = themeSaveChain.then(() => saveThemePreference(pref));
+  });
+
+  media.addEventListener('change', () => {
+    if (root.dataset.themePref === 'system') applyThemePreference('system');
+  });
+}
+
 document.addEventListener('DOMContentLoaded', () => {
   initModals();
   initPageBehaviour();
+  initTheme();
   setInterval(updateCurrentLessonBadges, 30000);
 });
 
@@ -2338,15 +2399,15 @@ async function switchMobileWeek(targetUrl, direction = 'next', pushHistory = tru
       const label = tab.querySelector('.day-label');
       if (badge && label) {
         if (isTarget) {
-          badge.classList.remove('text-zinc-400', 'bg-transparent');
-          badge.classList.add('bg-emerald-500', 'text-white', 'shadow-md', 'shadow-emerald-500/25');
-          label.classList.remove('text-zinc-500');
-          label.classList.add('text-emerald-400');
+          badge.classList.remove('text-fg-subtle', 'bg-transparent');
+          badge.classList.add('bg-accent', 'text-on-accent', 'shadow-md', 'shadow-accent/25');
+          label.classList.remove('text-fg-faint');
+          label.classList.add('text-accent-ink');
         } else {
-          badge.classList.remove('bg-emerald-500', 'text-white', 'shadow-md', 'shadow-emerald-500/25');
-          badge.classList.add('text-zinc-400', 'bg-transparent');
-          label.classList.remove('text-emerald-400');
-          label.classList.add('text-zinc-500');
+          badge.classList.remove('bg-accent', 'text-on-accent', 'shadow-md', 'shadow-accent/25');
+          badge.classList.add('text-fg-subtle', 'bg-transparent');
+          label.classList.remove('text-accent-ink');
+          label.classList.add('text-fg-faint');
         }
       }
     });

@@ -60,7 +60,7 @@ async def test_duty_page_highlights_linked_user_today(
 
     assert res.status_code == 200
     assert '<span class="truncate">Иван И.</span>' in res.text
-    assert "text-emerald-400 font-semibold" in res.text
+    assert "text-accent-ink font-semibold" in res.text
     assert "Пётр П." in res.text
     assert "Сегодня" in res.text
 
@@ -82,7 +82,7 @@ async def test_duty_page_does_not_highlight_other_users(
 
     assert res.status_code == 200
     assert "Мяу" in res.text
-    assert "text-emerald-400 font-semibold" not in res.text
+    assert "text-accent-ink font-semibold" not in res.text
 
 
 @pytest.mark.asyncio

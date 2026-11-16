@@ -15,7 +15,7 @@ This file provides comprehensive guidelines on architecture, technology stack, d
 - **Duty Roster**: `/duty` shows who is on duty for each school weekday (Monday to Saturday). Entries are plain lines of text; `Иван И. (ivan)` binds a line to the user with that login, and the current user's own line is highlighted on today's card. Only administrators can edit the roster. Also available via `GET /api/v1/duty`, editing via `PUT /api/v1/duty/{day_of_week}` (admin only).
 - **Push Notifications (Web Push)**: homework creation, edits, and deletions are pushed to subscribed browsers/PWAs (to all active users except the author, respecting subgroups). Subscriptions are stored in `push_subscriptions`, and VAPID keys are configured via `VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY` (generation: `uv run locus-vapid`). Without keys, push notifications are disabled.
 - **Public API**: REST `/api/v1` with JWT or API key (`Authorization: Bearer lk_…`), documentation: `docs/api.md` (Swagger `/docs` is only available in development). Keys are created by admins at `/admin/api-keys` and act on behalf of the selected user; daily summary is available at `GET /api/v1/summary?date=YYYY-MM-DD`.
-- **PWA & Mobile-First Focus**: responsive UI with pure AMOLED black design (`#000000`), smooth micro-animations, a dynamic floating navigation dock, and a PWA manifest.
+- **PWA & Mobile-First Focus**: responsive UI with dark (pure black) and light themes, smooth micro-animations, a dynamic floating navigation dock, and a PWA manifest. Theme is chosen per user in `/settings` (dark, light, or system).
 - **Hybrid Rendering**: Server-Side Rendering (SSR) via Jinja2 + reactive partial updates via HTMX without requiring heavy SPA frameworks.
 - **Security & Administration**: JWT authentication via secure HTTP-only cookies (for SSR) and `Authorization: Bearer` headers (for REST API). Login is username-based. There is no public registration: users are created and managed (password changes, deletion) by an administrator. The first existing user automatically becomes an admin; for a fresh database, an admin user is seeded from `ADMIN_USERNAME` / `ADMIN_PASSWORD`. Administrators cannot delete their own account.
 
@@ -33,7 +33,7 @@ This file provides comprehensive guidelines on architecture, technology stack, d
 - **Templating & Frontend**:
   - Jinja2 (HTML templates).
   - HTMX (partial DOM AJAX swaps without full-page reloads).
-  - Tailwind CSS (AMOLED dark palette).
+  - Tailwind CSS (themeable semantic palette, dark/light).
   - Vanilla JavaScript (`src/locus/static/js/app.js`) for modals, swipes, and Scroll Spy.
 - **Package Manager**: `uv`.
 - **Testing**: `pytest`, `pytest-asyncio`, `httpx`.
@@ -89,7 +89,7 @@ This file provides comprehensive guidelines on architecture, technology stack, d
 │       │   ├── summary.py        # Daily summary: lessons + associated homework (/api/v1/summary)
 │       │   └── vacations.py      # Vacations
 │       ├── models/               # SQLAlchemy 2.0 models
-│       │   ├── user.py           # User model (id, username, hashed_password, is_admin, is_active)
+│       │   ├── user.py           # User model (id, username, hashed_password, is_admin, is_active, theme)
 │       │   ├── subject.py        # Subject model (id, name, teacher_name, room)
 │       │   ├── lesson.py         # Lesson model (id, subject_id, day_of_week, lesson_number, bell_times...)
 │       │   ├── homework.py       # Homework model (id, subject_id, lesson_id, title, due_date)
@@ -124,6 +124,7 @@ This file provides comprehensive guidelines on architecture, technology stack, d
 │       │   ├── homework/         # Homework management section
 │       │   ├── duty/             # Duty roster per weekday
 │       │   ├── schedule/         # Schedule constructor
+│       │   ├── settings/         # Theme and appearance settings
 │       │   └── subjects/         # Subject list management
 │       └── web/                  # SSR routes (FastAPI + Jinja2 + HTMX)
 │           ├── auth_routes.py
@@ -133,6 +134,7 @@ This file provides comprehensive guidelines on architecture, technology stack, d
 │           ├── push_routes.py    # Web Push subscribe/unsubscribe and VAPID key delivery
 │           ├── duty_routes.py    # Duty roster page and admin editing
 │           ├── schedule_routes.py
+│           ├── settings_routes.py # Settings page, theme preference (POST /settings/theme)
 │           └── subjects_routes.py
 └── tests/                        # Pytest tests
     ├── conftest.py               # Fixtures: async test client, in-memory test database
@@ -147,6 +149,7 @@ This file provides comprehensive guidelines on architecture, technology stack, d
     ├── test_lesson_suggestion.py
     ├── test_push.py
     ├── test_schedule.py
+    ├── test_settings.py
     ├── test_subgroups.py
     └── test_web.py
 ```
@@ -195,11 +198,11 @@ git diff --check
 
 ## 5. Frontend Conventions and HTMX Specifics
 
-### AMOLED Pure Black Palette
-- Primary background of pages and lesson cards: pure black `#000000` (`bg-black`).
-- Cards are separated from the background with a border `border border-zinc-800/90` and contrast shadow `shadow-[0_4px_20px_rgba(0,0,0,0.85)]`.
-- Secondary text, empty states, and lesson captions are styled in gray tones: `text-zinc-400` / `text-zinc-500`.
-- Brand accent color: emerald (`text-emerald-400`, `bg-emerald-500`).
+### Theming and Palette
+- All colors come from semantic Tailwind tokens that map to CSS variables in `app.css`: `surface-*`, `edge-*`, `fg-*`, `accent-*`, `danger-*`, `warning-ink`, `on-accent`; shadows via `shadow-card` / `shadow-glow`.
+- Palettes live in `:root` (dark, pure black `#000000`) and `html[data-theme="light"]`. Do not hard-code `zinc-*` / `emerald-*` / hex colors in templates: use tokens. The fixed green `brand-*` is only for the week ribbon and gradient headers.
+- Theme preference (`dark`, `light`, `system`) is stored in `users.theme` and rendered as `data-theme-pref`; `data-theme` holds the resolved choice (`dark` / `light`) and is applied by an inline script in `base.html` before CSS loads. Guests and new users default to `system`.
+- Switching: radios `[data-theme-choice]` on `/settings` call `applyThemePreference()` (250 ms color transition, no page reload) and persist via `POST /settings/theme` (JSON `{"theme": "..."}`, `204`); failures roll the selection back.
 
 ### Dual-Mode Dashboard (Desktop vs Mobile)
 In `dashboard/index.html`, two sections coexist simultaneously:

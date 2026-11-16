@@ -1,20 +1,107 @@
-/* Locus Clean Dark UI & Mobile Design */
-
+/* Locus theme tokens (dark is the default: pure black) */
 :root {
   color-scheme: dark;
+  --c-surface: 0 0 0;
+  --c-surface-card: 0 0 0;
+  --c-surface-raised: 24 24 27;
+  --c-surface-subtle: 18 18 20;
+  --c-surface-inset: 32 32 35;
+  --c-surface-strong: 39 39 42;
+  --c-surface-active: 63 63 70;
+  --c-edge: 39 39 42;
+  --c-edge-strong: 63 63 70;
+  --c-edge-extra: 82 82 91;
+  --c-fg: 244 244 245;
+  --c-fg-soft: 228 228 231;
+  --c-fg-muted: 212 212 216;
+  --c-fg-subtle: 161 161 170;
+  --c-fg-faint: 113 113 122;
+  --c-fg-ghost: 82 82 91;
+  --c-accent: 46 163 91;
+  --c-accent-hover: 36 124 69;
+  --c-accent-active: 29 101 55;
+  --c-accent-line: 52 181 102;
+  --c-accent-ink: 52 181 102;
+  --c-accent-ink-hover: 134 239 172;
+  --c-accent-contrast: 0 0 0;
+  --c-on-accent: 255 255 255;
+  --c-danger: 244 63 94;
+  --c-danger-hover: 225 29 72;
+  --c-danger-ink: 251 113 133;
+  --c-danger-ink-soft: 253 164 175;
+  --c-danger-soft: 30 3 10;
+  --c-danger-edge: 82 16 34;
+  --c-warning-ink: 251 191 36;
+  --shadow-card: 0 4px 16px rgba(0, 0, 0, 0.8);
+  --shadow-glow: 0 0 20px rgba(16, 185, 129, 0.2);
+  --shadow-glow-strong: 0 0 25px rgba(16, 185, 129, 0.35);
+}
+
+html[data-theme="light"] {
+  color-scheme: light;
+  --c-surface: 245 245 247;
+  --c-surface-card: 255 255 255;
+  --c-surface-raised: 255 255 255;
+  --c-surface-subtle: 244 244 245;
+  --c-surface-inset: 236 236 239;
+  --c-surface-strong: 228 228 231;
+  --c-surface-active: 212 212 216;
+  --c-edge: 228 228 231;
+  --c-edge-strong: 212 212 216;
+  --c-edge-extra: 161 161 170;
+  --c-fg: 24 24 27;
+  --c-fg-soft: 39 39 42;
+  --c-fg-muted: 63 63 70;
+  --c-fg-subtle: 82 82 91;
+  --c-fg-faint: 113 113 122;
+  --c-fg-ghost: 161 161 170;
+  --c-accent: 4 120 87;
+  --c-accent-hover: 6 95 70;
+  --c-accent-active: 6 78 59;
+  --c-accent-line: 5 150 105;
+  --c-accent-ink: 4 120 87;
+  --c-accent-ink-hover: 6 95 70;
+  --c-accent-contrast: 255 255 255;
+  --c-danger: 225 29 72;
+  --c-danger-hover: 190 18 60;
+  --c-danger-ink: 190 18 60;
+  --c-danger-ink-soft: 159 18 57;
+  --c-danger-soft: 255 241 242;
+  --c-danger-edge: 254 205 211;
+  --c-warning-ink: 180 83 9;
+  --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.04), 0 4px 16px rgba(0, 0, 0, 0.06);
+  --shadow-glow: 0 0 20px rgba(5, 150, 105, 0.18);
+  --shadow-glow-strong: 0 0 25px rgba(5, 150, 105, 0.3);
+}
+
+/* Animate palette swaps on theme change (class is added by app.js) */
+html.theme-transition,
+html.theme-transition *,
+html.theme-transition *::before,
+html.theme-transition *::after {
+  transition: background-color 0.25s ease, border-color 0.25s ease, color 0.25s ease, box-shadow 0.25s ease !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html.theme-transition,
+  html.theme-transition *,
+  html.theme-transition *::before,
+  html.theme-transition *::after {
+    transition: none !important;
+  }
 }
 
 html, body {
   overscroll-behavior-y: contain;
   overscroll-behavior-x: none;
   scrollbar-gutter: stable;
-  background-color: #000000;
+  background-color: rgb(var(--c-surface));
 }
 
 body {
   font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-  background-color: #000000;
-  color: #f4f4f5;
+  background-color: rgb(var(--c-surface));
+  color: rgb(var(--c-fg));
   -webkit-tap-highlight-color: transparent;
   margin: 0;
   padding: 0;
@@ -129,16 +216,16 @@ body {
 }
 
 ::-webkit-scrollbar-track {
-  background: #000000;
+  background: rgb(var(--c-surface));
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #27272a;
+  background: rgb(var(--c-surface-strong));
   border-radius: 4px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #3f3f46;
+  background: rgb(var(--c-surface-active));
 }
 
 /* Homework strike-through transition */
@@ -164,20 +251,20 @@ body {
   height: 1rem;
   flex-shrink: 0;
   border-radius: 0.25rem;
-  border: 1px solid #52525b;
-  background-color: #18181b;
+  border: 1px solid rgb(var(--c-edge-extra));
+  background-color: rgb(var(--c-surface-raised));
   cursor: pointer;
   position: relative;
   transition: transform 0.15s ease, background-color 0.15s ease, border-color 0.15s ease;
 }
 
 .hw-checkbox:hover {
-  border-color: #34b566;
+  border-color: rgb(var(--c-accent-line));
 }
 
 .hw-checkbox:checked {
-  background-color: #2ea35b;
-  border-color: #34b566;
+  background-color: rgb(var(--c-accent));
+  border-color: rgb(var(--c-accent-line));
 }
 
 .hw-checkbox::after {
@@ -187,8 +274,8 @@ body {
   top: 50%;
   width: 0.45rem;
   height: 0.25rem;
-  border-left: 2px solid #000;
-  border-bottom: 2px solid #000;
+  border-left: 2px solid rgb(var(--c-accent-contrast));
+  border-bottom: 2px solid rgb(var(--c-accent-contrast));
   transform: translate(-50%, -60%) rotate(-45deg) scale(0);
   transition: transform 0.12s ease;
 }
@@ -249,7 +336,7 @@ body {
   animation: fadeIn 0.15s ease-out;
 }
 
-/* Mobile sticky days ribbon: solid AMOLED black, constant safe-area top padding */
+/* Mobile sticky days ribbon: solid theme surface, constant safe-area top padding */
 .sticky-mobile-days-bar {
   position: -webkit-sticky !important;
   position: sticky !important;
@@ -257,7 +344,7 @@ body {
   margin-top: 0 !important;
   z-index: 40 !important;
   padding-top: calc(env(safe-area-inset-top, 0px) + 1.35rem) !important;
-  background-color: #000000 !important;
+  background-color: rgb(var(--c-surface)) !important;
   backdrop-filter: none !important;
   -webkit-backdrop-filter: none !important;
 }
@@ -467,8 +554,8 @@ body {
    :hover after a tap, which left the icon green until another tap. */
 @media (hover: hover) {
   [data-copy-scope]:hover {
-    color: #34b566;
-    border-color: rgba(46, 163, 91, 0.4);
+    color: rgb(var(--c-accent-ink));
+    border-color: rgb(var(--c-accent-line) / 0.4);
   }
 }
 
@@ -479,14 +566,13 @@ body {
   }
 
   /* Touch browsers keep :hover after a tap: without this the split-button
-     halves and menu rows stay on their darker hover color. Hex values follow
-     the custom emerald palette from base.html. */
+     halves and menu rows stay on their darker hover color. */
   [data-split-menu] [data-split-accent]:hover {
-    background-color: #2ea35b;
+    background-color: rgb(var(--c-accent));
   }
 
   [data-split-menu] [data-split-accent]:active {
-    background-color: #1d6537;
+    background-color: rgb(var(--c-accent-active));
   }
 
   [data-split-menu-panel] button:hover {
@@ -495,6 +581,30 @@ body {
 
   /* Keep pressed feedback that :hover used to provide */
   [data-split-menu-panel] button:active {
-    background-color: #27272a;
+    background-color: rgb(var(--c-surface-strong));
   }
+}
+
+/* Theme picker cards */
+.theme-choice {
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.theme-choice:has(input:checked) {
+  border-color: rgb(var(--c-accent-line));
+  box-shadow: 0 0 0 1px rgb(var(--c-accent-line));
+}
+
+.theme-choice:has(input:focus-visible) {
+  outline: 2px solid rgb(var(--c-accent-line));
+  outline-offset: 2px;
+}
+
+.theme-choice [data-theme-check] {
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+
+.theme-choice:has(input:checked) [data-theme-check] {
+  opacity: 1;
 }

@@ -3,6 +3,7 @@ from typing import TYPE_CHECKING, List, Optional
 from sqlalchemy import Boolean, DateTime, Integer, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
+from locus.constants import DEFAULT_THEME
 from locus.database import Base
 
 if TYPE_CHECKING:
@@ -23,6 +24,9 @@ class User(Base):
     is_admin: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     subgroup: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
     gender_subgroup: Mapped[Optional[str]] = mapped_column(String(20), nullable=True)
+    theme: Mapped[str] = mapped_column(
+        String(20), default=DEFAULT_THEME, server_default=DEFAULT_THEME, nullable=False
+    )
     # Bumped on logout so tokens issued earlier stop working
     token_version: Mapped[int] = mapped_column(Integer, default=0, server_default="0", nullable=False)
     created_at: Mapped[datetime] = mapped_column(

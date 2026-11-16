@@ -18,18 +18,18 @@
     <!-- Desktop Schedule Bar -->
     <div id="desktop-week-selector" class="select-none">
       <div class="flex items-center justify-between px-1 mb-2">
-        <span class="text-xs sm:text-sm font-bold text-emerald-400 tracking-wide">
+        <span class="text-xs sm:text-sm font-bold text-accent-ink tracking-wide">
           {{ month_title }}
         </span>
       </div>
 
-      <div class="flex items-stretch bg-[#247c45] rounded-xl overflow-hidden shadow-md text-white">
+      <div class="flex items-stretch bg-brand-600 rounded-xl overflow-hidden shadow-md text-on-accent">
         <!-- Previous week button -->
         <a href="/?date={{ prev_week_date_iso }}&subgroup={{ active_subgroup or 'all' }}"
            data-date-nav
-           class="flex items-center space-x-1.5 px-3 py-3.5 bg-[#1d6537] hover:bg-[#17522c] border-r border-[#1a5b32] transition shrink-0 group text-xs font-semibold text-white/85 hover:text-white"
+           class="flex items-center space-x-1.5 px-3 py-3.5 bg-brand-700 hover:bg-brand-800 border-r border-brand-800 transition shrink-0 group text-xs font-semibold text-on-accent/85 hover:text-on-accent"
            title="Предыдущая неделя">
-          <svg class="w-3.5 h-3.5 text-emerald-200 group-hover:text-white transition shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <svg class="w-3.5 h-3.5 text-brand-200 group-hover:text-on-accent transition shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M15 19l-7-7 7-7" />
           </svg>
           <span class="hidden xl:inline">Предыдущая неделя</span>
@@ -41,8 +41,8 @@
         <a href="/?date={{ day.date_iso }}&subgroup={{ active_subgroup or 'all' }}"
            data-date-nav
            data-day-tab="{{ day.date_iso }}"
-           class="flex-1 flex items-center justify-center px-2 py-3.5 border-r border-[#1a5b32] uppercase tracking-wider text-center transition text-xs sm:text-sm lg:text-[15px]
-                  {% if day.is_selected %}bg-[#2ea35b] text-white font-black shadow-inner{% else %}bg-transparent hover:bg-[#2b8f50] text-white/90 hover:text-white font-extrabold{% endif %}">
+           class="flex-1 flex items-center justify-center px-2 py-3.5 border-r border-brand-800 uppercase tracking-wider text-center transition text-xs sm:text-sm lg:text-[15px]
+                  {% if day.is_selected %}bg-brand-500 text-on-accent font-black shadow-inner{% else %}bg-transparent hover:bg-brand-600 text-on-accent/90 hover:text-on-accent font-extrabold{% endif %}">
           <span>{{ day.name_upper }}</span>
         </a>
         {% endfor %}
@@ -50,11 +50,11 @@
         <!-- Next week button -->
         <a href="/?date={{ next_week_date_iso }}&subgroup={{ active_subgroup or 'all' }}"
            data-date-nav
-           class="flex items-center space-x-1.5 px-3 py-3.5 bg-[#1d6537] hover:bg-[#17522c] border-l border-[#1a5b32] transition shrink-0 group text-xs font-semibold text-white/85 hover:text-white"
+           class="flex items-center space-x-1.5 px-3 py-3.5 bg-brand-700 hover:bg-brand-800 border-l border-brand-800 transition shrink-0 group text-xs font-semibold text-on-accent/85 hover:text-on-accent"
            title="Следующая неделя">
           <span class="hidden xl:inline">Следующая неделя</span>
           <span class="xl:hidden">След. неделя</span>
-          <svg class="w-3.5 h-3.5 text-emerald-200 group-hover:text-white transition shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <svg class="w-3.5 h-3.5 text-brand-200 group-hover:text-on-accent transition shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 5l7 7-7 7" />
           </svg>
         </a>
@@ -76,47 +76,47 @@
         <div class="flex items-center justify-between pt-1 gap-3 flex-wrap">
           <div>
             <h1 class="text-2xl lg:text-3xl font-bold tracking-tight">
-              <span class="text-white">{{ day.name }}</span>
-              <span class="text-zinc-400 font-medium"> • {{ day.date_text }}</span>
+              <span class="text-fg">{{ day.name }}</span>
+              <span class="text-fg-subtle font-medium"> • {{ day.date_text }}</span>
             </h1>
             {% if day.is_today %}
-            <p class="text-sm text-zinc-400 font-medium mt-0.5">Сегодня</p>
+            <p class="text-sm text-fg-subtle font-medium mt-0.5">Сегодня</p>
             {% endif %}
           </div>
 
           <div class="flex items-center gap-2.5">
             {% if current_user.is_admin or (not current_user.subgroup and not current_user.gender_subgroup) %}
-            <div id="desktop-subgroup-filter-{{ day.date_iso }}" class="desktop-subgroup-filter flex items-center bg-[#18181b] p-1 rounded-xl border border-zinc-800 text-xs">
+            <div id="desktop-subgroup-filter-{{ day.date_iso }}" class="desktop-subgroup-filter flex items-center bg-surface-raised p-1 rounded-xl border border-edge text-xs">
               <a href="/?date={{ day.date_iso }}&subgroup=all"
                  data-subgroup-filter
-                 class="px-2.5 py-1 rounded-lg font-medium transition {% if active_subgroup is none %}bg-emerald-500 text-white font-bold{% else %}text-zinc-400 hover:text-white{% endif %}">
+                 class="px-2.5 py-1 rounded-lg font-medium transition {% if active_subgroup is none %}bg-accent text-on-accent font-bold{% else %}text-fg-subtle hover:text-fg{% endif %}">
                 Все
               </a>
               <a href="/?date={{ day.date_iso }}&subgroup=1"
                  data-subgroup-filter
-                 class="px-2.5 py-1 rounded-lg font-medium transition {% if active_subgroup == '1' %}bg-emerald-500 text-white font-bold{% else %}text-zinc-400 hover:text-white{% endif %}">
+                 class="px-2.5 py-1 rounded-lg font-medium transition {% if active_subgroup == '1' %}bg-accent text-on-accent font-bold{% else %}text-fg-subtle hover:text-fg{% endif %}">
                 1
               </a>
               <a href="/?date={{ day.date_iso }}&subgroup=2"
                  data-subgroup-filter
-                 class="px-2.5 py-1 rounded-lg font-medium transition {% if active_subgroup == '2' %}bg-emerald-500 text-white font-bold{% else %}text-zinc-400 hover:text-white{% endif %}">
+                 class="px-2.5 py-1 rounded-lg font-medium transition {% if active_subgroup == '2' %}bg-accent text-on-accent font-bold{% else %}text-fg-subtle hover:text-fg{% endif %}">
                 2
               </a>
               <a href="/?date={{ day.date_iso }}&subgroup=boys"
                  data-subgroup-filter
-                 class="px-2.5 py-1 rounded-lg font-medium transition {% if active_subgroup == 'boys' %}bg-emerald-500 text-white font-bold{% else %}text-zinc-400 hover:text-white{% endif %}">
+                 class="px-2.5 py-1 rounded-lg font-medium transition {% if active_subgroup == 'boys' %}bg-accent text-on-accent font-bold{% else %}text-fg-subtle hover:text-fg{% endif %}">
                 Мальчики
               </a>
               <a href="/?date={{ day.date_iso }}&subgroup=girls"
                  data-subgroup-filter
-                 class="px-2.5 py-1 rounded-lg font-medium transition {% if active_subgroup == 'girls' %}bg-emerald-500 text-white font-bold{% else %}text-zinc-400 hover:text-white{% endif %}">
+                 class="px-2.5 py-1 rounded-lg font-medium transition {% if active_subgroup == 'girls' %}bg-accent text-on-accent font-bold{% else %}text-fg-subtle hover:text-fg{% endif %}">
                 Девочки
               </a>
             </div>
             {% else %}
             {% if current_user.subgroup %}
             <div class="inline-flex items-center gap-1.5">
-              <div class="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs font-semibold">
+              <div class="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl bg-accent/10 border border-accent-line/20 text-accent-ink text-xs font-semibold">
                 <span>{{ current_user.subgroup }} подгруппа</span>
               </div>
             </div>
@@ -127,21 +127,21 @@
                     onclick="copyDayHomework(this)"
                     data-copy-scope="#desktop-day-pane-{{ day.date_iso }}"
                     data-copy-label="Скопировать домашнее задание"
-                    class="inline-flex items-center justify-center w-9 h-9 shrink-0 rounded-xl bg-[#18181b] border border-zinc-800 text-zinc-400 active:scale-95 transition {% if not day.has_copy %}hidden{% endif %}"
+                    class="inline-flex items-center justify-center w-9 h-9 shrink-0 rounded-xl bg-surface-raised border border-edge text-fg-subtle active:scale-95 transition {% if not day.has_copy %}hidden{% endif %}"
                     title="Скопировать домашнее задание"
                     aria-label="Скопировать домашнее задание">
               <svg data-copy-icon class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 8V6a2 2 0 012-2h6a2 2 0 012 2v6a2 2 0 01-2 2h-2M6 8h6a2 2 0 012 2v6a2 2 0 01-2 2H6a2 2 0 01-2-2v-6a2 2 0 012-2z" />
               </svg>
-              <svg data-copy-done class="w-4 h-4 text-emerald-400 hidden" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <svg data-copy-done class="w-4 h-4 text-accent-ink hidden" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7" />
               </svg>
             </button>
 
             <button onclick="openModal('add-hw-modal')"
-                    class="inline-flex items-center space-x-1.5 bg-black hover:bg-zinc-900 active:scale-95 text-zinc-200 hover:text-white px-4 py-2 rounded-xl border border-zinc-800 text-sm font-semibold transition shadow-md shadow-black"
+                    class="inline-flex items-center space-x-1.5 bg-surface-card hover:bg-surface-subtle active:scale-95 text-fg-soft hover:text-fg px-4 py-2 rounded-xl border border-edge text-sm font-semibold transition shadow-md"
                     title="Записать домашнее задание">
-              <svg class="w-4 h-4 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <svg class="w-4 h-4 text-accent-ink" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4" />
               </svg>
               <span>Записать ДЗ</span>
@@ -153,9 +153,9 @@
         <div id="desktop-day-lessons-{{ day.date_iso }}" class="desktop-day-lessons" data-day-num="{{ day.day_num }}">
         {% if day.vacation %}
         <!-- Compact Vacation Notice (Desktop) -->
-        <div class="py-4 px-4 text-center bg-black border border-zinc-800 rounded-2xl shadow-[0_4px_16px_rgba(0,0,0,0.8)]">
-          <p class="text-sm sm:text-base font-bold text-white">{{ day.vacation.name }}</p>
-          <p class="text-xs text-zinc-400 mt-0.5">{{ day.vacation.start_date.strftime('%d.%m.%Y') }} — {{ day.vacation.end_date.strftime('%d.%m.%Y') }} • уроков нет</p>
+        <div class="py-4 px-4 text-center bg-surface-card border border-edge rounded-2xl shadow-card">
+          <p class="text-sm sm:text-base font-bold text-fg">{{ day.vacation.name }}</p>
+          <p class="text-xs text-fg-subtle mt-0.5">{{ day.vacation.start_date.strftime('%d.%m.%Y') }} — {{ day.vacation.end_date.strftime('%d.%m.%Y') }} • уроков нет</p>
         </div>
         {% elif day.lessons_with_meta %}
         <div class="space-y-1">
@@ -163,7 +163,7 @@
             {% include "dashboard/desktop_lesson_card.html" %}
 
             {% if item.break_text %}
-            <div class="px-2 py-0.5 text-[11px] text-zinc-500 font-medium">
+            <div class="px-2 py-0.5 text-[11px] text-fg-faint font-medium">
               {{ item.break_text }}
             </div>
             {% endif %}
@@ -171,30 +171,30 @@
         </div>
         {% else %}
         <!-- Compact Empty Schedule Notice (Desktop) -->
-        <div class="py-4 px-4 text-center bg-black border border-zinc-800 rounded-2xl shadow-[0_4px_16px_rgba(0,0,0,0.8)]">
-          <p class="text-sm sm:text-base font-bold text-zinc-400">Нет расписания на этот день</p>
+        <div class="py-4 px-4 text-center bg-surface-card border border-edge rounded-2xl shadow-card">
+          <p class="text-sm sm:text-base font-bold text-fg-subtle">Нет расписания на этот день</p>
         </div>
         {% endif %}
 
         <!-- Unassigned homework due on this date (Desktop) -->
         {% if day.unassigned_hw %}
-        <div class="mt-5 pt-4 border-t border-zinc-800/80 space-y-2">
-          <h3 class="text-xs font-bold text-zinc-400 uppercase tracking-wider">{% if day.vacation %}Задания на каникулы{% else %}Другие задания на этот день{% endif %}</h3>
+        <div class="mt-5 pt-4 border-t border-edge/80 space-y-2">
+          <h3 class="text-xs font-bold text-fg-subtle uppercase tracking-wider">{% if day.vacation %}Задания на каникулы{% else %}Другие задания на этот день{% endif %}</h3>
           <div class="space-y-2">
             {% for hw in day.unassigned_hw %}
-            <div data-hw-card="{{ hw.id }}" id="desktop-unassigned-hw-{{ hw.id }}" data-copy-line="{{ hw.subject.name if hw.subject else 'Предмет' }}: {{ hw.title }}" class="bg-black border border-zinc-800/90 rounded-2xl p-3.5 sm:p-4 shadow-[0_4px_16px_rgba(0,0,0,0.8)] flex items-start justify-between gap-3">
+            <div data-hw-card="{{ hw.id }}" id="desktop-unassigned-hw-{{ hw.id }}" data-copy-line="{{ hw.subject.name if hw.subject else 'Предмет' }}: {{ hw.title }}" class="bg-surface-card border border-edge/90 rounded-2xl p-3.5 sm:p-4 shadow-card flex items-start justify-between gap-3">
               <div class="min-w-0 flex-1">
                 <div class="flex items-center space-x-2 mb-1 flex-wrap">
-                  <span class="text-[10px] font-bold px-2 py-0.5 rounded text-black bg-emerald-400">
+                  <span class="text-[10px] font-bold px-2 py-0.5 rounded text-black bg-brand-400">
                     {{ hw.subject.name if hw.subject else 'Предмет' }}
                   </span>
                   {% if hw.subgroup %}
-                  <span class="text-[10px] font-bold px-1.5 py-0.5 rounded text-emerald-400 bg-emerald-500/15 border border-emerald-500/25">
+                  <span class="text-[10px] font-bold px-1.5 py-0.5 rounded text-accent-ink bg-accent/15 border border-accent-line/25">
                     {{ hw.subgroup|subgroup_badge }}
                   </span>
                   {% endif %}
                 </div>
-                <p class="text-xs sm:text-sm text-zinc-400 font-medium break-words leading-tight {% if hw.status == 'DONE' %}hw-done-title{% endif %}">
+                <p class="text-xs sm:text-sm text-fg-subtle font-medium break-words leading-tight {% if hw.status == 'DONE' %}hw-done-title{% endif %}">
                   {{ hw.title }}
                 </p>
               </div>
@@ -207,9 +207,9 @@
                       aria-label="Отметить задание"
                       title="Отметить задание"
                       class="mt-0.5 w-4 h-4 rounded border flex items-center justify-center shrink-0 transition touch-manipulation
-                             {% if hw.status == 'DONE' %}bg-emerald-500 border-emerald-400 text-black{% else %}border-zinc-600 hover:border-emerald-400 bg-zinc-900{% endif %}">
+                             {% if hw.status == 'DONE' %}bg-accent border-accent-line text-accent-contrast{% else %}border-edge-extra hover:border-accent-line bg-surface-subtle{% endif %}">
                 {% if hw.status == 'DONE' %}
-                <svg class="w-3 h-3 text-black font-extrabold" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <svg class="w-3 h-3 text-accent-contrast font-extrabold" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3.5" d="M5 13l4 4L19 7" />
                 </svg>
                 {% endif %}
@@ -234,8 +234,8 @@
        data-is-current-week="{{ 'true' if is_current_week else 'false' }}"
        data-today-day-num="{{ today_day_num }}">
 
-    <!-- 1. Sticky Mobile Day Ribbon (Pinned at top with safe-area spacing and solid pure black) -->
-    <div id="mobile-sticky-days" class="sticky-mobile-days-bar -mx-3.5 px-3.5 pb-2.5 bg-black border-b border-zinc-800/80 select-none">
+    <!-- 1. Sticky Mobile Day Ribbon (Pinned at top with safe-area spacing and solid theme surface) -->
+    <div id="mobile-sticky-days" class="sticky-mobile-days-bar -mx-3.5 px-3.5 pb-2.5 bg-surface-card border-b border-edge/80 select-none">
       <div class="grid grid-cols-7 gap-1 text-center" id="mobile-day-tabs">
         {% set initial_active_day = today_day_num if is_current_week else 1 %}
         {% for day in week_days %}
@@ -246,10 +246,10 @@
                 data-is-today="{{ 'true' if day.is_today else 'false' }}"
                 onclick="scrollToMobileDay({{ day.day_num }})"
                 class="mobile-day-tab flex flex-col items-center justify-center py-1.5 transition rounded-xl gap-1">
-          <span class="day-label text-[11px] font-bold leading-none {% if is_active %}text-emerald-400{% else %}text-zinc-500{% endif %}">
+          <span class="day-label text-[11px] font-bold leading-none {% if is_active %}text-accent-ink{% else %}text-fg-faint{% endif %}">
             {{ day.short_name }}
           </span>
-          <span class="day-badge w-[34px] h-[34px] rounded-xl text-[13px] font-black flex items-center justify-center leading-none transition-all duration-150 {% if is_active %}bg-emerald-500 text-white shadow-md shadow-emerald-500/25{% else %}text-zinc-400 bg-transparent{% endif %}">
+          <span class="day-badge w-[34px] h-[34px] rounded-xl text-[13px] font-black flex items-center justify-center leading-none transition-all duration-150 {% if is_active %}bg-accent text-on-accent shadow-md shadow-accent/25{% else %}text-fg-subtle bg-transparent{% endif %}">
             {{ day.day_number }}
           </span>
         </button>
@@ -259,10 +259,10 @@
 
     <!-- 2. Mobile Week Switcher (19 - 25 октября) - Normal flow, scrolls away with content -->
     <div id="mobile-week-switcher" class="-mx-3.5 px-3.5 pt-2 pb-1 select-none">
-      <div class="flex items-center justify-between px-3 py-1.5 bg-black border border-zinc-800 rounded-2xl shadow-sm">
+      <div class="flex items-center justify-between px-3 py-1.5 bg-surface-card border border-edge rounded-2xl shadow-sm">
         <a href="/?date={{ prev_week_date_iso }}&subgroup={{ active_subgroup or 'all' }}"
            data-swipe-prev
-           class="p-1.5 text-zinc-400 hover:text-white transition rounded-xl hover:bg-zinc-800 active:scale-95"
+           class="p-1.5 text-fg-subtle hover:text-fg transition rounded-xl hover:bg-surface-strong active:scale-95"
            title="Предыдущая неделя">
           <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M15 19l-7-7 7-7" />
@@ -270,13 +270,13 @@
         </a>
 
         <div class="text-center">
-          <span class="text-xs sm:text-sm font-bold text-white block tracking-tight">{{ week_range_title }}</span>
-          <span class="text-[10px] sm:text-[11px] font-semibold text-emerald-400 block">{{ month_title }}</span>
+          <span class="text-xs sm:text-sm font-bold text-fg block tracking-tight">{{ week_range_title }}</span>
+          <span class="text-[10px] sm:text-[11px] font-semibold text-accent-ink block">{{ month_title }}</span>
         </div>
 
         <a href="/?date={{ next_week_date_iso }}&subgroup={{ active_subgroup or 'all' }}"
            data-swipe-next
-           class="p-1.5 text-zinc-400 hover:text-white transition rounded-xl hover:bg-zinc-800 active:scale-95"
+           class="p-1.5 text-fg-subtle hover:text-fg transition rounded-xl hover:bg-surface-strong active:scale-95"
            title="Следующая неделя">
           <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 5l7 7-7 7" />
@@ -288,34 +288,34 @@
       <div id="mobile-subgroup-filter" class="px-1 pt-2 flex items-center justify-center gap-1.5 text-xs flex-wrap">
         <a href="/?date={{ selected_date_iso }}&subgroup=all"
            data-subgroup-filter
-           class="px-2.5 py-1 rounded-xl transition {% if active_subgroup is none %}bg-emerald-500 text-white font-bold{% else %}bg-[#18181b] text-zinc-400 border border-zinc-800{% endif %}">
+           class="px-2.5 py-1 rounded-xl transition {% if active_subgroup is none %}bg-accent text-on-accent font-bold{% else %}bg-surface-raised text-fg-subtle border border-edge{% endif %}">
           Все
         </a>
         <a href="/?date={{ selected_date_iso }}&subgroup=1"
            data-subgroup-filter
-           class="px-2.5 py-1 rounded-xl transition {% if active_subgroup == '1' %}bg-emerald-500 text-white font-bold{% else %}bg-[#18181b] text-zinc-400 border border-zinc-800{% endif %}">
+           class="px-2.5 py-1 rounded-xl transition {% if active_subgroup == '1' %}bg-accent text-on-accent font-bold{% else %}bg-surface-raised text-fg-subtle border border-edge{% endif %}">
           1
         </a>
         <a href="/?date={{ selected_date_iso }}&subgroup=2"
            data-subgroup-filter
-           class="px-2.5 py-1 rounded-xl transition {% if active_subgroup == '2' %}bg-emerald-500 text-white font-bold{% else %}bg-[#18181b] text-zinc-400 border border-zinc-800{% endif %}">
+           class="px-2.5 py-1 rounded-xl transition {% if active_subgroup == '2' %}bg-accent text-on-accent font-bold{% else %}bg-surface-raised text-fg-subtle border border-edge{% endif %}">
           2
         </a>
         <a href="/?date={{ selected_date_iso }}&subgroup=boys"
            data-subgroup-filter
-           class="px-2.5 py-1 rounded-xl transition {% if active_subgroup == 'boys' %}bg-emerald-500 text-white font-bold{% else %}bg-[#18181b] text-zinc-400 border border-zinc-800{% endif %}">
+           class="px-2.5 py-1 rounded-xl transition {% if active_subgroup == 'boys' %}bg-accent text-on-accent font-bold{% else %}bg-surface-raised text-fg-subtle border border-edge{% endif %}">
           М
         </a>
         <a href="/?date={{ selected_date_iso }}&subgroup=girls"
            data-subgroup-filter
-           class="px-2.5 py-1 rounded-xl transition {% if active_subgroup == 'girls' %}bg-emerald-500 text-white font-bold{% else %}bg-[#18181b] text-zinc-400 border border-zinc-800{% endif %}">
+           class="px-2.5 py-1 rounded-xl transition {% if active_subgroup == 'girls' %}bg-accent text-on-accent font-bold{% else %}bg-surface-raised text-fg-subtle border border-edge{% endif %}">
           Д
         </a>
       </div>
       {% else %}
       {% if current_user.subgroup %}
       <div class="pt-2 flex justify-center items-center">
-        <span class="inline-flex items-center gap-1 px-3 py-1 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs font-semibold">
+        <span class="inline-flex items-center gap-1 px-3 py-1 rounded-xl bg-accent/10 border border-accent-line/20 text-accent-ink text-xs font-semibold">
           {{ current_user.subgroup }} подгруппа
         </span>
       </div>
@@ -328,27 +328,27 @@
       {% for day in days_data %}
       <section id="mobile-day-{{ day.day_num }}" data-day-num="{{ day.day_num }}" data-is-today="{{ 'true' if day.is_today else 'false' }}" class="mobile-day-section space-y-2.5 scroll-mt-safe">
         <!-- Day Title Header -->
-        <div class="pb-1.5 border-b border-zinc-800/80 flex items-center justify-between gap-3">
+        <div class="pb-1.5 border-b border-edge/80 flex items-center justify-between gap-3">
           <div>
             <h2 class="text-lg sm:text-xl font-bold tracking-tight leading-tight">
-              <span class="text-white">{{ day.name }}</span>
-              <span class="text-zinc-400 font-medium"> • {{ day.date_text }}</span>
+              <span class="text-fg">{{ day.name }}</span>
+              <span class="text-fg-subtle font-medium"> • {{ day.date_text }}</span>
             </h2>
             {% if day.is_today %}
-            <p class="text-sm text-zinc-400 font-medium leading-none mt-0.5">Сегодня</p>
+            <p class="text-sm text-fg-subtle font-medium leading-none mt-0.5">Сегодня</p>
             {% endif %}
           </div>
           <button type="button"
                   onclick="copyDayHomework(this)"
                   data-copy-scope="#mobile-day-{{ day.day_num }}"
                   data-copy-label="Скопировать домашнее задание"
-                  class="shrink-0 inline-flex items-center justify-center w-6 h-6 rounded-lg bg-[#18181b] border border-zinc-800 text-zinc-400 active:scale-95 transition touch-manipulation {% if not day.has_copy %}hidden{% endif %}"
+                  class="shrink-0 inline-flex items-center justify-center w-6 h-6 rounded-lg bg-surface-raised border border-edge text-fg-subtle active:scale-95 transition touch-manipulation {% if not day.has_copy %}hidden{% endif %}"
                   title="Скопировать домашнее задание"
                   aria-label="Скопировать домашнее задание">
             <svg data-copy-icon class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 8V6a2 2 0 012-2h6a2 2 0 012 2v6a2 2 0 01-2 2h-2M6 8h6a2 2 0 012 2v6a2 2 0 01-2 2H6a2 2 0 01-2-2v-6a2 2 0 012-2z" />
             </svg>
-            <svg data-copy-done class="w-3.5 h-3.5 text-emerald-400 hidden" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <svg data-copy-done class="w-3.5 h-3.5 text-accent-ink hidden" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7" />
             </svg>
           </button>
@@ -358,9 +358,9 @@
         <div class="mobile-day-lessons space-y-2.5" data-day-num="{{ day.day_num }}">
         {% if day.vacation %}
         <!-- Compact Vacation Notice (Mobile) -->
-        <div class="py-4 px-4 text-center bg-black border border-zinc-800 rounded-2xl shadow-[0_4px_16px_rgba(0,0,0,0.8)]">
-          <p class="text-sm sm:text-base font-bold text-white">{{ day.vacation.name }}</p>
-          <p class="text-xs text-zinc-400 mt-0.5">{{ day.vacation.start_date.strftime('%d.%m.%Y') }} — {{ day.vacation.end_date.strftime('%d.%m.%Y') }} • уроков нет</p>
+        <div class="py-4 px-4 text-center bg-surface-card border border-edge rounded-2xl shadow-card">
+          <p class="text-sm sm:text-base font-bold text-fg">{{ day.vacation.name }}</p>
+          <p class="text-xs text-fg-subtle mt-0.5">{{ day.vacation.start_date.strftime('%d.%m.%Y') }} — {{ day.vacation.end_date.strftime('%d.%m.%Y') }} • уроков нет</p>
         </div>
         {% elif day.lessons_with_meta %}
         <div class="space-y-1">
@@ -368,7 +368,7 @@
             {% include "dashboard/mobile_lesson_card.html" %}
 
             {% if item.break_text %}
-            <div class="px-2 py-0.5 text-[11px] text-zinc-500 font-medium">
+            <div class="px-2 py-0.5 text-[11px] text-fg-faint font-medium">
               {{ item.break_text }}
             </div>
             {% endif %}
@@ -376,30 +376,30 @@
         </div>
         {% else %}
         <!-- Compact Empty Schedule Notice -->
-        <div class="py-4 px-4 text-center bg-black border border-zinc-800 rounded-2xl shadow-[0_4px_16px_rgba(0,0,0,0.8)]">
-          <p class="text-sm sm:text-base font-bold text-zinc-400">Нет расписания на этот день</p>
+        <div class="py-4 px-4 text-center bg-surface-card border border-edge rounded-2xl shadow-card">
+          <p class="text-sm sm:text-base font-bold text-fg-subtle">Нет расписания на этот день</p>
         </div>
         {% endif %}
 
         <!-- Unassigned homework due on this day -->
         {% if day.unassigned_hw %}
-        <div class="mt-2 pt-2 border-t border-zinc-800/60 space-y-2">
-          <h3 class="text-xs font-bold text-zinc-400 uppercase tracking-wider">{% if day.vacation %}Задания на каникулы{% else %}Другие задания{% endif %}</h3>
+        <div class="mt-2 pt-2 border-t border-edge/60 space-y-2">
+          <h3 class="text-xs font-bold text-fg-subtle uppercase tracking-wider">{% if day.vacation %}Задания на каникулы{% else %}Другие задания{% endif %}</h3>
           <div class="space-y-2">
             {% for hw in day.unassigned_hw %}
-            <div data-hw-card="{{ hw.id }}" id="mobile-unassigned-hw-{{ hw.id }}-{{ day.day_num }}" data-copy-line="{{ hw.subject.name if hw.subject else 'Предмет' }}: {{ hw.title }}" class="bg-black border border-zinc-800/90 rounded-2xl p-3.5 sm:p-4 shadow-[0_4px_16px_rgba(0,0,0,0.8)] flex items-start justify-between gap-3">
+            <div data-hw-card="{{ hw.id }}" id="mobile-unassigned-hw-{{ hw.id }}-{{ day.day_num }}" data-copy-line="{{ hw.subject.name if hw.subject else 'Предмет' }}: {{ hw.title }}" class="bg-surface-card border border-edge/90 rounded-2xl p-3.5 sm:p-4 shadow-card flex items-start justify-between gap-3">
               <div class="min-w-0 flex-1">
                 <div class="flex items-center space-x-2 mb-1 flex-wrap">
-                  <span class="text-[10px] font-bold px-2 py-0.5 rounded text-black bg-emerald-400">
+                  <span class="text-[10px] font-bold px-2 py-0.5 rounded text-black bg-brand-400">
                     {{ hw.subject.name if hw.subject else 'Предмет' }}
                   </span>
                   {% if hw.subgroup %}
-                  <span class="text-[10px] font-bold px-1.5 py-0.5 rounded text-emerald-400 bg-emerald-500/15 border border-emerald-500/25">
+                  <span class="text-[10px] font-bold px-1.5 py-0.5 rounded text-accent-ink bg-accent/15 border border-accent-line/25">
                     {{ hw.subgroup|subgroup_badge }}
                   </span>
                   {% endif %}
                 </div>
-                <p class="text-xs sm:text-sm text-zinc-400 font-medium break-words leading-tight {% if hw.status == 'DONE' %}hw-done-title{% endif %}">
+                <p class="text-xs sm:text-sm text-fg-subtle font-medium break-words leading-tight {% if hw.status == 'DONE' %}hw-done-title{% endif %}">
                   {{ hw.title }}
                 </p>
               </div>
@@ -412,9 +412,9 @@
                       aria-label="Отметить задание"
                       title="Отметить задание"
                       class="mt-0.5 w-4 h-4 rounded border flex items-center justify-center shrink-0 transition touch-manipulation
-                             {% if hw.status == 'DONE' %}bg-emerald-500 border-emerald-400 text-black{% else %}border-zinc-600 hover:border-emerald-400 bg-zinc-900{% endif %}">
+                             {% if hw.status == 'DONE' %}bg-accent border-accent-line text-accent-contrast{% else %}border-edge-extra hover:border-accent-line bg-surface-subtle{% endif %}">
                 {% if hw.status == 'DONE' %}
-                <svg class="w-3 h-3 text-black font-extrabold" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <svg class="w-3 h-3 text-accent-contrast font-extrabold" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3.5" d="M5 13l4 4L19 7" />
                 </svg>
                 {% endif %}

@@ -10,7 +10,7 @@
 
 **Locus** is a fast self-hosted online school diary with a shared lesson schedule, bell times and a flexible homework tracker with per-student completion statuses.
 
-It combines a school-wide schedule and a single homework pool with individual progress tracking for every student. Built on FastAPI and async SQLAlchemy 2.0, rendered server-side with Jinja2 and HTMX, styled in pure AMOLED black, with PWA and Web Push support.
+It combines a school-wide schedule and a single homework pool with individual progress tracking for every student. Built on FastAPI and async SQLAlchemy 2.0, rendered server-side with Jinja2 and HTMX, and styled in a minimalist design with dark and light themes, with PWA and Web Push notifications support.
 
 > [!IMPORTANT]
 > **The interface is Russian only.** The code and these docs are in English, but the UI strings and date formats are hardcoded in Russian — there is no i18n layer yet. Documentation under `docs/` is also Russian for now.
@@ -28,7 +28,8 @@ It combines a school-wide schedule and a single homework pool with individual pr
 - 📜 **Change history (audit log)**: a transparent trail of homework edits with the author, timestamp and changed fields (`homework_events`). The last editor is shown in the lesson modal, and the full feed is at `/admin/history`.
 - 💡 **Smart defaults**: when adding homework, the next date and the matching lesson are preselected.
 - 🧹 **Automatic cleanup**: old assignments are rotated out after a configurable retention period (`HOMEWORK_RETENTION_DAYS`).
-- 📱 **PWA and AMOLED design**: a responsive ultra-dark interface, installable to the home screen, with a floating navigation dock and iOS standalone tweaks.
+- 📱 **PWA and themes**: Black theme by default, a light theme and system-preference tracking, installable to the home screen, with a floating navigation dock and iOS standalone tweaks.
+- 🎨 **Settings**: choose the theme in `/settings` (dark, light or system); it applies instantly and is stored in the user profile.
 - ⚡ **Reactive UI without an SPA**: instant feedback and partial DOM updates through HTMX, no heavy client-side framework.
 - 🔑 **Public REST API**: a full `/api/v1` with a daily summary (`/summary`), personal API keys (`lk_...`) and JWT, ready for bots and third-party integrations.
 - 🛡️ **Security and administration**: an admin panel (`/admin`), user management, password changes, API key issuing, and no public registration.
@@ -39,7 +40,7 @@ It combines a school-wide schedule and a single homework pool with individual pr
 |---|---|---|
 | `Web app and API` | FastAPI, Pydantic v2, Uvicorn | One async server serving both SSR routes and the `/api/v1` REST API, authenticated with session JWTs and long-lived API keys (`lk_...`). |
 | `Database and ORM` | PostgreSQL / SQLite, SQLAlchemy 2.0, Alembic | Strictly async access (`AsyncSession`). PostgreSQL (`asyncpg`) in production, SQLite (`aiosqlite`) for local tests. |
-| `Frontend` | Jinja2, HTMX, Tailwind CSS, vanilla JS | Server-side rendering with partial DOM swaps via HTMX, pure AMOLED palette (`#000000`), separate optimized layouts for desktop and mobile. |
+| `Frontend` | Jinja2, HTMX, Tailwind CSS, vanilla JS | Server-side rendering with partial DOM swaps via HTMX, pure black (`#000000`) and light themes, separate optimized layouts for desktop and mobile. |
 | `Notifications and PWA` | Web Push (VAPID), Service Worker, pywebpush | Push delivery to browsers and PWAs on homework changes, plus a PWA manifest and standalone mode. |
 
 ## Quick start

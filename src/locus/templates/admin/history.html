@@ -5,39 +5,39 @@
 {% block content %}
 <div class="space-y-5">
   <div>
-    <h1 class="text-xl sm:text-2xl md:text-3xl font-extrabold tracking-tight text-white">История изменений</h1>
-    <p class="text-xs sm:text-sm text-zinc-400 mt-0.5">Кто и как менял домашние задания (последние 200 записей)</p>
+    <h1 class="text-xl sm:text-2xl md:text-3xl font-extrabold tracking-tight text-fg">История изменений</h1>
+    <p class="text-xs sm:text-sm text-fg-subtle mt-0.5">Кто и как менял домашние задания (последние 200 записей)</p>
   </div>
 
   {% if not rows %}
-  <div class="p-4 text-center bg-black border border-zinc-800 rounded-2xl shadow-[0_4px_16px_rgba(0,0,0,0.8)]">
-    <p class="text-sm font-bold text-zinc-400">Пока изменений нет</p>
+  <div class="p-4 text-center bg-surface-card border border-edge rounded-2xl shadow-card">
+    <p class="text-sm font-bold text-fg-subtle">Пока изменений нет</p>
   </div>
   {% else %}
   <div class="space-y-2">
     {% for row in rows %}
-    <div class="p-3.5 rounded-2xl bg-black border border-zinc-800/90 shadow-[0_4px_16px_rgba(0,0,0,0.8)]">
+    <div class="p-3.5 rounded-2xl bg-surface-card border border-edge/90 shadow-card">
       <div class="flex items-center justify-between gap-3 flex-wrap">
         <span class="text-[11px] font-bold uppercase tracking-wider px-2 py-0.5 rounded border
-                     {% if row.action == 'Удалил' %}bg-rose-500/10 text-rose-300 border-rose-500/25{% else %}bg-emerald-500/15 text-emerald-400 border-emerald-500/25{% endif %}">
+                     {% if row.action == 'Удалил' %}bg-danger/10 text-danger-ink-soft border-danger/25{% else %}bg-accent/15 text-accent-ink border-accent-line/25{% endif %}">
           {{ row.action }}
         </span>
-        <span class="text-[11px] text-zinc-500">{{ row.actor }}{% if row.key %} ({{ row.key }}){% endif %} • {{ row.when }}</span>
+        <span class="text-[11px] text-fg-faint">{{ row.actor }}{% if row.key %} ({{ row.key }}){% endif %} • {{ row.when }}</span>
       </div>
       <div class="mt-2 space-y-1">
         {% for change in row.changes %}
-        <p class="text-xs text-zinc-300 break-words">
-          <span class="text-zinc-500">{{ change.label }}:</span>
+        <p class="text-xs text-fg-muted break-words">
+          <span class="text-fg-faint">{{ change.label }}:</span>
           {% if change.old != '—' and change.new != '—' and change.old != change.new %}
-          <span class="text-zinc-500 line-through">{{ change.old }}</span>
-          <span class="mx-0.5 text-emerald-400 font-bold">→</span>
-          <span class="text-zinc-100">{{ change.new }}</span>
+          <span class="text-fg-faint line-through">{{ change.old }}</span>
+          <span class="mx-0.5 text-accent-ink font-bold">→</span>
+          <span class="text-fg">{{ change.new }}</span>
           {% elif change.old != '—' and change.new != '—' and change.old == change.new %}
-          <span class="text-zinc-100">{{ change.new }}</span>
+          <span class="text-fg">{{ change.new }}</span>
           {% elif change.old != '—' %}
-          <span class="text-rose-300/80 line-through">{{ change.old }}</span>
+          <span class="text-danger-ink-soft/80 line-through">{{ change.old }}</span>
           {% else %}
-          <span class="text-zinc-100">{{ change.new }}</span>
+          <span class="text-fg">{{ change.new }}</span>
           {% endif %}
         </p>
         {% endfor %}

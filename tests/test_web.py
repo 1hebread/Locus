@@ -210,9 +210,9 @@ async def test_homework_page_filter_counts_and_due_labels(
     assert "Сегодня" in res.text
     assert "Завтра" in res.text
 
-    assert due_meta(today, today) == ("Сегодня", "text-emerald-400 font-semibold")
-    assert due_meta(today + timedelta(days=1), today) == ("Завтра", "text-zinc-300")
-    assert due_meta(today - timedelta(days=1), today) == ("Просрочено", "text-rose-400")
+    assert due_meta(today, today) == ("Сегодня", "text-accent-ink font-semibold")
+    assert due_meta(today + timedelta(days=1), today) == ("Завтра", "text-fg-muted")
+    assert due_meta(today - timedelta(days=1), today) == ("Просрочено", "text-danger-ink")
 
     # Toggling refreshes the counters in place via htmx OOB swaps
     toggled = await client.post(f"/homework/{todo.id}/toggle")

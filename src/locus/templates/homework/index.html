@@ -8,12 +8,12 @@
   <!-- Header & Actions -->
   <div class="flex items-center justify-between">
     <div>
-      <h1 class="text-xl sm:text-2xl md:text-3xl font-extrabold tracking-tight text-white">Домашние задания</h1>
-      <p class="text-xs sm:text-sm text-zinc-400 mt-0.5">Список заданий и сроки сдачи</p>
+      <h1 class="text-xl sm:text-2xl md:text-3xl font-extrabold tracking-tight text-fg">Домашние задания</h1>
+      <p class="text-xs sm:text-sm text-fg-subtle mt-0.5">Список заданий и сроки сдачи</p>
     </div>
 
     <button onclick="openModal('add-hw-modal')"
-            class="inline-flex items-center space-x-2 bg-emerald-500 hover:bg-emerald-600 active:scale-95 text-white px-4 py-2 rounded-xl font-bold text-xs sm:text-sm shadow-md shadow-emerald-500/20 transition">
+            class="inline-flex items-center space-x-2 bg-accent hover:bg-accent-hover active:scale-95 text-on-accent px-4 py-2 rounded-xl font-bold text-xs sm:text-sm shadow-md shadow-accent/20 transition">
       <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4" />
       </svg>
@@ -26,53 +26,53 @@
     <div id="hw-filters" class="flex items-center space-x-2 overflow-x-auto pb-1 text-xs sm:text-sm">
       <a href="/homework{% if active_subgroup %}?subgroup={{ active_subgroup }}{% endif %}"
          data-hw-filter
-         class="px-3.5 py-1.5 rounded-xl font-medium whitespace-nowrap transition {% if not current_filter %}bg-emerald-500 text-white font-bold shadow-md shadow-emerald-500/25{% else %}bg-black border border-zinc-800 text-zinc-400 hover:text-white{% endif %}">
+         class="px-3.5 py-1.5 rounded-xl font-medium whitespace-nowrap transition {% if not current_filter %}bg-accent text-on-accent font-bold shadow-md shadow-accent/25{% else %}bg-surface-card border border-edge text-fg-subtle hover:text-fg{% endif %}">
         Все <span id="hw-count-all" class="font-bold opacity-60">{{ counts.all }}</span>
       </a>
       <a href="/homework?filter=todo{% if active_subgroup %}&subgroup={{ active_subgroup }}{% endif %}"
          data-hw-filter
-         class="px-3.5 py-1.5 rounded-xl font-medium whitespace-nowrap transition {% if current_filter == 'todo' %}bg-emerald-500 text-white font-bold shadow-md shadow-emerald-500/25{% else %}bg-black border border-zinc-800 text-zinc-400 hover:text-white{% endif %}">
+         class="px-3.5 py-1.5 rounded-xl font-medium whitespace-nowrap transition {% if current_filter == 'todo' %}bg-accent text-on-accent font-bold shadow-md shadow-accent/25{% else %}bg-surface-card border border-edge text-fg-subtle hover:text-fg{% endif %}">
         К сдаче <span id="hw-count-todo" class="font-bold opacity-60">{{ counts.todo }}</span>
       </a>
       <a href="/homework?filter=done{% if active_subgroup %}&subgroup={{ active_subgroup }}{% endif %}"
          data-hw-filter
-         class="px-3.5 py-1.5 rounded-xl font-medium whitespace-nowrap transition {% if current_filter == 'done' %}bg-emerald-500 text-white font-bold shadow-md shadow-emerald-500/25{% else %}bg-black border border-zinc-800 text-zinc-400 hover:text-white{% endif %}">
+         class="px-3.5 py-1.5 rounded-xl font-medium whitespace-nowrap transition {% if current_filter == 'done' %}bg-accent text-on-accent font-bold shadow-md shadow-accent/25{% else %}bg-surface-card border border-edge text-fg-subtle hover:text-fg{% endif %}">
         Выполненные <span id="hw-count-done" class="font-bold opacity-60">{{ counts.done }}</span>
       </a>
     </div>
 
     {% if current_user.is_admin or (not current_user.subgroup and not current_user.gender_subgroup) %}
-    <div id="hw-subgroup-filters" class="flex items-center bg-[#18181b] p-1 rounded-xl border border-zinc-800 text-xs flex-wrap gap-1">
+    <div id="hw-subgroup-filters" class="flex items-center bg-surface-raised p-1 rounded-xl border border-edge text-xs flex-wrap gap-1">
       <a href="/homework{% if current_filter %}?filter={{ current_filter }}&subgroup=all{% else %}?subgroup=all{% endif %}"
          data-subgroup-filter
-         class="px-2.5 py-1 rounded-lg font-medium transition {% if active_subgroup is none %}bg-emerald-500 text-white font-bold{% else %}text-zinc-400 hover:text-white{% endif %}">
+         class="px-2.5 py-1 rounded-lg font-medium transition {% if active_subgroup is none %}bg-accent text-on-accent font-bold{% else %}text-fg-subtle hover:text-fg{% endif %}">
         Все
       </a>
       <a href="/homework{% if current_filter %}?filter={{ current_filter }}&subgroup=1{% else %}?subgroup=1{% endif %}"
          data-subgroup-filter
-         class="px-2.5 py-1 rounded-lg font-medium transition {% if active_subgroup == '1' %}bg-emerald-500 text-white font-bold{% else %}text-zinc-400 hover:text-white{% endif %}">
+         class="px-2.5 py-1 rounded-lg font-medium transition {% if active_subgroup == '1' %}bg-accent text-on-accent font-bold{% else %}text-fg-subtle hover:text-fg{% endif %}">
         1
       </a>
       <a href="/homework{% if current_filter %}?filter={{ current_filter }}&subgroup=2{% else %}?subgroup=2{% endif %}"
          data-subgroup-filter
-         class="px-2.5 py-1 rounded-lg font-medium transition {% if active_subgroup == '2' %}bg-emerald-500 text-white font-bold{% else %}text-zinc-400 hover:text-white{% endif %}">
+         class="px-2.5 py-1 rounded-lg font-medium transition {% if active_subgroup == '2' %}bg-accent text-on-accent font-bold{% else %}text-fg-subtle hover:text-fg{% endif %}">
         2
       </a>
       <a href="/homework{% if current_filter %}?filter={{ current_filter }}&subgroup=boys{% else %}?subgroup=boys{% endif %}"
          data-subgroup-filter
-         class="px-2.5 py-1 rounded-lg font-medium transition {% if active_subgroup == 'boys' %}bg-emerald-500 text-white font-bold{% else %}text-zinc-400 hover:text-white{% endif %}">
+         class="px-2.5 py-1 rounded-lg font-medium transition {% if active_subgroup == 'boys' %}bg-accent text-on-accent font-bold{% else %}text-fg-subtle hover:text-fg{% endif %}">
         Мальчики
       </a>
       <a href="/homework{% if current_filter %}?filter={{ current_filter }}&subgroup=girls{% else %}?subgroup=girls{% endif %}"
          data-subgroup-filter
-         class="px-2.5 py-1 rounded-lg font-medium transition {% if active_subgroup == 'girls' %}bg-emerald-500 text-white font-bold{% else %}text-zinc-400 hover:text-white{% endif %}">
+         class="px-2.5 py-1 rounded-lg font-medium transition {% if active_subgroup == 'girls' %}bg-accent text-on-accent font-bold{% else %}text-fg-subtle hover:text-fg{% endif %}">
         Девочки
       </a>
     </div>
     {% else %}
     {% if current_user.subgroup %}
     <div class="inline-flex items-center">
-      <span class="inline-flex items-center gap-1 px-3 py-1 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs font-semibold">
+      <span class="inline-flex items-center gap-1 px-3 py-1 rounded-xl bg-accent/10 border border-accent-line/20 text-accent-ink text-xs font-semibold">
         {{ current_user.subgroup }} подгруппа
       </span>
     </div>

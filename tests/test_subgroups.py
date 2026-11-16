@@ -1149,7 +1149,7 @@ async def test_subject_card_subgroup_badges_and_empty_divider(
     assert "2 подгруппа" in html1
 
     # In user 1's view, Subgroup 1 badge has emerald border, Subgroup 2 badge has transparent border
-    assert 'border-emerald-500/25 text-[10px] font-semibold">1 подгруппа / Мальчики</span>' in html1
+    assert 'border-accent-line/25 text-[10px] font-semibold">1 подгруппа / Мальчики</span>' in html1
     assert 'border-transparent text-[10px] font-semibold">2 подгруппа / Девочки</span>' in html1
 
     # Fetch page as user in subgroup 2
@@ -1159,16 +1159,16 @@ async def test_subject_card_subgroup_badges_and_empty_divider(
 
     # In user 2's view, Subgroup 2 badge has emerald border, Subgroup 1 badge has transparent border
     assert 'border-transparent text-[10px] font-semibold">1 подгруппа / Мальчики</span>' in html2
-    assert 'border-emerald-500/25 text-[10px] font-semibold">2 подгруппа / Девочки</span>' in html2
+    assert 'border-accent-line/25 text-[10px] font-semibold">2 подгруппа / Девочки</span>' in html2
 
-    # Verify empty subject "Мяу" has no divider border-t border-zinc-800/70 inside its card
+    # Verify empty subject "Мяу" has no divider border-t border-edge/70 inside its card
     # Find card content around "Мяу"
     idx_myau = html1.find("Мяу")
     assert idx_myau != -1
     # Next card or end of grid
-    next_card = html1.find("bg-[#18181b] border border-zinc-800/80 rounded-2xl", idx_myau)
+    next_card = html1.find("bg-surface-raised border border-edge/80 rounded-2xl", idx_myau)
     myau_card = html1[idx_myau:next_card if next_card != -1 else idx_myau + 500]
-    assert "border-t border-zinc-800/70" not in myau_card
+    assert "border-t border-edge/70" not in myau_card
 
     # Create subject with only subgroup 2 info
     subj_only_sub2 = Subject(name="Информатика спец", teacher2_name="Сидоров")

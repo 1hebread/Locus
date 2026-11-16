@@ -18,6 +18,8 @@ class HomeworkStatus(str, Enum):
     DONE = "DONE"
 
 
+DEFAULT_THEME = "system"
+
 VALID_SUBGROUPS = ("1", "2", "boys", "girls")
 ACADEMIC_SUBGROUPS = ("1", "2")
 GENDER_SUBGROUPS = ("boys", "girls")

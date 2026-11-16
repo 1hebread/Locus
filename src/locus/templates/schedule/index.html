@@ -8,13 +8,13 @@
   <!-- Header & Action Bar -->
   <div class="flex items-center justify-between">
     <div>
-      <h1 class="text-xl sm:text-2xl md:text-3xl font-extrabold tracking-tight text-white">Сетка звонков и уроков</h1>
-      <p class="text-xs sm:text-sm text-zinc-400 mt-0.5">Шаблон расписания по дням недели</p>
+      <h1 class="text-xl sm:text-2xl md:text-3xl font-extrabold tracking-tight text-fg">Сетка звонков и уроков</h1>
+      <p class="text-xs sm:text-sm text-fg-subtle mt-0.5">Шаблон расписания по дням недели</p>
     </div>
 
     {% if current_user.is_admin %}
     <button onclick="openAddLessonModal()"
-            class="inline-flex items-center space-x-2 bg-emerald-500 hover:bg-emerald-600 active:scale-95 text-white px-4 py-2 rounded-xl font-bold text-xs sm:text-sm shadow-md shadow-emerald-500/20 transition">
+            class="inline-flex items-center space-x-2 bg-accent hover:bg-accent-hover active:scale-95 text-on-accent px-4 py-2 rounded-xl font-bold text-xs sm:text-sm shadow-md shadow-accent/20 transition">
       <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4" />
       </svg>
@@ -29,7 +29,7 @@
     <button onclick="switchMobileDay({{ d_num }})"
             id="tab-day-{{ d_num }}"
             class="day-tab px-3.5 py-1.5 rounded-xl border text-xs font-semibold whitespace-nowrap transition
-                   {% if d_num == active_day %}bg-emerald-500 border-emerald-400 text-white font-bold shadow-md shadow-emerald-500/25{% else %}bg-[#18181b] border-zinc-800 text-zinc-400 hover:text-white{% endif %}">
+                   {% if d_num == active_day %}bg-accent border-accent-line text-on-accent font-bold shadow-md shadow-accent/25{% else %}bg-surface-raised border-edge text-fg-subtle hover:text-fg{% endif %}">
       {{ day_names[d_num] }}
     </button>
     {% endfor %}
@@ -39,20 +39,20 @@
   <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5">
     {% for d_num in range(1, 7) %}
     <div id="day-column-{{ d_num }}"
-         class="day-column {% if d_num != active_day %}hidden md:flex{% else %}flex{% endif %} flex-col bg-[#141416] border border-zinc-800/80 rounded-2xl p-4 space-y-3">
+         class="day-column {% if d_num != active_day %}hidden md:flex{% else %}flex{% endif %} flex-col bg-surface-raised border border-edge/80 rounded-2xl p-4 space-y-3">
       <!-- Day Header -->
-      <div class="flex items-center justify-between gap-2 pb-2.5 border-b border-zinc-800">
-        <h3 class="font-bold text-sm text-zinc-200">
+      <div class="flex items-center justify-between gap-2 pb-2.5 border-b border-edge">
+        <h3 class="font-bold text-sm text-fg-soft">
           {{ day_names[d_num] }}
         </h3>
         <div class="flex items-center gap-1 shrink-0">
-          <span id="day-counter-{{ d_num }}" class="text-xs text-zinc-500 font-medium">
+          <span id="day-counter-{{ d_num }}" class="text-xs text-fg-faint font-medium">
             {{ schedule_by_day[d_num]|length }} ур.
           </span>
           {% if current_user.is_admin %}
           <button type="button"
                   onclick="openAddLessonModal({{ d_num }})"
-                  class="text-zinc-500 hover:text-emerald-400 active:scale-95 p-1 transition"
+                  class="text-fg-faint hover:text-accent-ink active:scale-95 p-1 transition"
                   title="Добавить урок в {{ day_names[d_num] }}"
                   aria-label="Добавить урок в {{ day_names[d_num] }}">
             <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -72,21 +72,21 @@
   </div>
 
   <!-- Vacations Section -->
-  <div class="bg-[#141416] border border-zinc-800/80 rounded-2xl p-4 sm:p-5 space-y-3.5">
-    <div class="flex items-center justify-between pb-3 border-b border-zinc-800">
+  <div class="bg-surface-raised border border-edge/80 rounded-2xl p-4 sm:p-5 space-y-3.5">
+    <div class="flex items-center justify-between pb-3 border-b border-edge">
       <div>
-        <h2 class="font-bold text-base sm:text-lg text-white flex items-center gap-2">
-          <svg class="w-5 h-5 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <h2 class="font-bold text-base sm:text-lg text-fg flex items-center gap-2">
+          <svg class="w-5 h-5 text-accent-ink" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
           </svg>
           <span>Школьные каникулы</span>
         </h2>
-        <p class="text-xs text-zinc-400 mt-0.5">В дни каникул уроки не отображаются в дневнике</p>
+        <p class="text-xs text-fg-subtle mt-0.5">В дни каникул уроки не отображаются в дневнике</p>
       </div>
 
       {% if current_user.is_admin %}
       <button onclick="openModal('add-vacation-modal')"
-              class="inline-flex items-center space-x-2 bg-emerald-500 hover:bg-emerald-600 active:scale-95 text-white px-3.5 py-1.5 rounded-xl font-bold text-xs sm:text-sm shadow-md shadow-emerald-500/20 transition">
+              class="inline-flex items-center space-x-2 bg-accent hover:bg-accent-hover active:scale-95 text-on-accent px-3.5 py-1.5 rounded-xl font-bold text-xs sm:text-sm shadow-md shadow-accent/20 transition">
         <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4" />
         </svg>
@@ -98,13 +98,13 @@
     {% if vacations %}
     <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
       {% for vac in vacations %}
-      <div id="vacation-card-{{ vac.id }}" class="p-3.5 rounded-xl bg-[#18181b] border border-zinc-800/90 shadow-xs relative group hover:border-zinc-700 transition flex items-start justify-between gap-3">
+      <div id="vacation-card-{{ vac.id }}" class="p-3.5 rounded-xl bg-surface-raised border border-edge/90 shadow-card relative group hover:border-edge-strong transition flex items-start justify-between gap-3">
         <div class="min-w-0 flex-1">
           <div class="flex items-center space-x-2 mb-1">
-            <span class="w-2 h-2 rounded-full shrink-0 bg-emerald-400"></span>
-            <h4 class="text-xs sm:text-sm font-bold text-white truncate">{{ vac.name }}</h4>
+            <span class="w-2 h-2 rounded-full shrink-0 bg-brand-400"></span>
+            <h4 class="text-xs sm:text-sm font-bold text-fg truncate">{{ vac.name }}</h4>
           </div>
-          <p class="text-xs text-zinc-400 font-medium">
+          <p class="text-xs text-fg-subtle font-medium">
             {{ vac.start_date.strftime('%d.%m.%Y') }} — {{ vac.end_date.strftime('%d.%m.%Y') }}
           </p>
         </div>
@@ -117,7 +117,7 @@
                   data-start-date="{{ vac.start_date.isoformat() }}"
                   data-end-date="{{ vac.end_date.isoformat() }}"
                   onclick="openEditVacationModal(this)"
-                  class="text-zinc-400 hover:text-white p-1 rounded-lg transition"
+                  class="text-fg-subtle hover:text-fg p-1 rounded-lg transition"
                   title="Редактировать каникулы">
             <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
@@ -127,7 +127,7 @@
                   hx-target="#vacation-card-{{ vac.id }}"
                   hx-swap="outerHTML"
                   hx-confirm="Удалить эти каникулы?"
-                  class="text-zinc-500 hover:text-rose-400 p-1 transition"
+                  class="text-fg-faint hover:text-danger-ink p-1 transition"
                   title="Удалить каникулы">
             <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
@@ -139,7 +139,7 @@
       {% endfor %}
     </div>
     {% else %}
-    <div class="py-6 text-center text-zinc-600 text-xs sm:text-sm">
+    <div class="py-6 text-center text-fg-ghost text-xs sm:text-sm">
       Каникулы пока не запланированы
     </div>
     {% endif %}
@@ -162,13 +162,13 @@
       target.classList.add('flex');
     }
     document.querySelectorAll('.day-tab').forEach(tab => {
-      tab.classList.remove('bg-emerald-500', 'border-emerald-400', 'text-white', 'shadow-md', 'font-bold');
-      tab.classList.add('bg-[#18181b]', 'border-zinc-800', 'text-zinc-400');
+      tab.classList.remove('bg-accent', 'border-accent-line', 'text-on-accent', 'shadow-md', 'font-bold');
+      tab.classList.add('bg-surface-raised', 'border-edge', 'text-fg-subtle');
     });
     const activeTab = document.getElementById('tab-day-' + dayNum);
     if (activeTab) {
-      activeTab.classList.remove('bg-[#18181b]', 'border-zinc-800', 'text-zinc-400');
-      activeTab.classList.add('bg-emerald-500', 'border-emerald-400', 'text-white', 'shadow-md', 'font-bold');
+      activeTab.classList.remove('bg-surface-raised', 'border-edge', 'text-fg-subtle');
+      activeTab.classList.add('bg-accent', 'border-accent-line', 'text-on-accent', 'shadow-md', 'font-bold');
     }
     const daySelect = document.getElementById('day_of_week');
     if (daySelect) {
@@ -728,7 +728,7 @@
 
     if (container) {
       if (count === 0) {
-        container.innerHTML = '<div class="py-8 text-center text-zinc-600 text-xs">Нет уроков</div>';
+        container.innerHTML = '<div class="py-8 text-center text-fg-ghost text-xs">Нет уроков</div>';
       }
     }
   }
@@ -906,10 +906,10 @@
   <!-- Backdrop overlay with explicit close click -->
   <div class="fixed inset-0 bg-black/75 backdrop-blur-sm cursor-pointer" onclick="closeModal('add-lesson-modal')"></div>
 
-  <div class="relative z-10 w-full sm:max-w-md bg-[#161618] border-t sm:border border-zinc-800 rounded-t-3xl sm:rounded-2xl p-5 sm:p-6 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
-    <div class="flex items-center justify-between pb-3 border-b border-zinc-800">
-      <h3 class="font-bold text-base sm:text-lg text-white">Добавить урок в расписание</h3>
-      <button onclick="closeModal('add-lesson-modal')" class="text-zinc-400 hover:text-white p-1 rounded-lg">
+  <div class="relative z-10 w-full sm:max-w-md bg-surface-raised border-t sm:border border-edge rounded-t-3xl sm:rounded-2xl p-5 sm:p-6 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
+    <div class="flex items-center justify-between pb-3 border-b border-edge">
+      <h3 class="font-bold text-base sm:text-lg text-fg">Добавить урок в расписание</h3>
+      <button onclick="closeModal('add-lesson-modal')" class="text-fg-subtle hover:text-fg p-1 rounded-lg">
         <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
         </svg>
@@ -917,26 +917,26 @@
     </div>
 
     <form id="add-lesson-form" method="post" action="/schedule" class="space-y-3.5">
-      <div id="add-lesson-error" class="hidden p-3 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-400 text-xs font-medium"></div>
+      <div id="add-lesson-error" class="hidden p-3 rounded-xl bg-danger/10 border border-danger/30 text-danger-ink text-xs font-medium"></div>
 
       <div>
-        <label for="modal_subject_id" class="block text-xs font-medium text-zinc-300 mb-1">Предмет *</label>
+        <label for="modal_subject_id" class="block text-xs font-medium text-fg-muted mb-1">Предмет *</label>
         <select id="modal_subject_id" name="subject_id" required
-                class="w-full bg-[#121214] border border-zinc-700/80 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:ring-1 focus:ring-emerald-500">
+                class="w-full bg-surface-subtle border border-edge-strong/80 rounded-xl px-3 py-2 text-sm text-fg focus:outline-none focus:ring-1 focus:ring-accent-line">
           {% for sub in subjects %}
           <option value="{{ sub.id }}">{{ sub.name }}</option>
           {% endfor %}
         </select>
         {% if not subjects %}
-        <p class="text-xs text-amber-400 mt-1">Сначала добавьте предметы в разделе «Предметы»</p>
+        <p class="text-xs text-warning-ink mt-1">Сначала добавьте предметы в разделе «Предметы»</p>
         {% endif %}
       </div>
 
       <div class="grid grid-cols-2 gap-3">
         <div>
-          <label for="day_of_week" class="block text-xs font-medium text-zinc-300 mb-1">День недели *</label>
+          <label for="day_of_week" class="block text-xs font-medium text-fg-muted mb-1">День недели *</label>
           <select id="day_of_week" name="day_of_week" required onchange="onDayOfWeekChange(this.value)"
-                  class="w-full bg-[#121214] border border-zinc-700/80 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:ring-1 focus:ring-emerald-500">
+                  class="w-full bg-surface-subtle border border-edge-strong/80 rounded-xl px-3 py-2 text-sm text-fg focus:outline-none focus:ring-1 focus:ring-accent-line">
             {% for d_num in range(1, 7) %}
             <option value="{{ d_num }}" {% if d_num == active_day %}selected{% endif %}>{{ day_names[d_num] }}</option>
             {% endfor %}
@@ -944,9 +944,9 @@
         </div>
 
         <div>
-          <label for="lesson_number" class="block text-xs font-medium text-zinc-300 mb-1">Номер урока *</label>
+          <label for="lesson_number" class="block text-xs font-medium text-fg-muted mb-1">Номер урока *</label>
           <select id="lesson_number" name="lesson_number" required onchange="onLessonNumberChange(this.value)"
-                  class="w-full bg-[#121214] border border-zinc-700/80 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:ring-1 focus:ring-emerald-500">
+                  class="w-full bg-surface-subtle border border-edge-strong/80 rounded-xl px-3 py-2 text-sm text-fg focus:outline-none focus:ring-1 focus:ring-accent-line">
             {% for num in range(1, 9) %}
             <option value="{{ num }}">{{ num }}-й урок</option>
             {% endfor %}
@@ -956,22 +956,22 @@
 
       <div class="grid grid-cols-2 gap-3">
         <div>
-          <label for="start_time" class="block text-xs font-medium text-zinc-300 mb-1">Начало</label>
+          <label for="start_time" class="block text-xs font-medium text-fg-muted mb-1">Начало</label>
           <input type="time" id="start_time" name="start_time" value="08:00" required oninput="onTimeInputChange()"
-                 class="w-full bg-[#121214] border border-zinc-700/80 rounded-xl px-3 py-1.5 text-sm text-white focus:outline-none focus:ring-1 focus:ring-emerald-500">
+                 class="w-full bg-surface-subtle border border-edge-strong/80 rounded-xl px-3 py-1.5 text-sm text-fg focus:outline-none focus:ring-1 focus:ring-accent-line">
         </div>
 
         <div>
-          <label for="end_time" class="block text-xs font-medium text-zinc-300 mb-1">Конец</label>
+          <label for="end_time" class="block text-xs font-medium text-fg-muted mb-1">Конец</label>
           <input type="time" id="end_time" name="end_time" value="08:45" required oninput="onTimeInputChange()"
-                 class="w-full bg-[#121214] border border-zinc-700/80 rounded-xl px-3 py-1.5 text-sm text-white focus:outline-none focus:ring-1 focus:ring-emerald-500">
+                 class="w-full bg-surface-subtle border border-edge-strong/80 rounded-xl px-3 py-1.5 text-sm text-fg focus:outline-none focus:ring-1 focus:ring-accent-line">
         </div>
       </div>
 
       <div>
-        <label for="subgroup" class="block text-xs font-medium text-zinc-300 mb-1">Подгруппа</label>
+        <label for="subgroup" class="block text-xs font-medium text-fg-muted mb-1">Подгруппа</label>
         <select id="subgroup" name="subgroup" onchange="onSubgroupChange(this.value)"
-                class="w-full bg-[#121214] border border-zinc-700/80 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:ring-1 focus:ring-emerald-500">
+                class="w-full bg-surface-subtle border border-edge-strong/80 rounded-xl px-3 py-2 text-sm text-fg focus:outline-none focus:ring-1 focus:ring-accent-line">
           <option value="">Весь класс (общий урок)</option>
           <option value="1">1-я подгруппа</option>
           <option value="2">2-я подгруппа</option>
@@ -980,30 +980,30 @@
         </select>
       </div>
 
-      <div id="time-conflict-warning" class="hidden text-xs text-rose-400 font-medium"></div>
+      <div id="time-conflict-warning" class="hidden text-xs text-danger-ink font-medium"></div>
 
       <div>
-        <label for="room" class="block text-xs font-medium text-zinc-300 mb-1">Кабинет (если отличается)</label>
+        <label for="room" class="block text-xs font-medium text-fg-muted mb-1">Кабинет (если отличается)</label>
         <input type="text" id="room" name="room" maxlength="50"
-               class="w-full bg-[#121214] border border-zinc-700/80 rounded-xl px-3 py-1.5 text-sm text-white focus:outline-none focus:ring-1 focus:ring-emerald-500 placeholder-zinc-500"
+               class="w-full bg-surface-subtle border border-edge-strong/80 rounded-xl px-3 py-1.5 text-sm text-fg focus:outline-none focus:ring-1 focus:ring-accent-line placeholder-fg-faint"
                placeholder="Например, 304">
       </div>
 
       <div>
-        <label for="note" class="block text-xs font-medium text-zinc-300 mb-1">Примечание (заметка к уроку)</label>
+        <label for="note" class="block text-xs font-medium text-fg-muted mb-1">Примечание (заметка к уроку)</label>
         <input type="text" id="note" name="note" maxlength="255"
-               class="w-full bg-[#121214] border border-zinc-700/80 rounded-xl px-3 py-1.5 text-sm text-white focus:outline-none focus:ring-1 focus:ring-emerald-500 placeholder-zinc-500"
+               class="w-full bg-surface-subtle border border-edge-strong/80 rounded-xl px-3 py-1.5 text-sm text-fg focus:outline-none focus:ring-1 focus:ring-accent-line placeholder-fg-faint"
                placeholder="Например, Четная неделя / В актовом зале">
       </div>
 
 
-      <div class="flex items-center justify-end space-x-2.5 pt-3 border-t border-zinc-800">
+      <div class="flex items-center justify-end space-x-2.5 pt-3 border-t border-edge">
         <button type="button" onclick="closeModal('add-lesson-modal')"
-                class="px-3.5 py-1.5 rounded-xl text-xs font-medium text-zinc-300 hover:text-white hover:bg-zinc-800 transition">
+                class="px-3.5 py-1.5 rounded-xl text-xs font-medium text-fg-muted hover:text-fg hover:bg-surface-strong transition">
           Отмена
         </button>
         <button type="submit" id="add-lesson-submit-btn"
-                class="px-4 py-1.5 rounded-xl text-xs sm:text-sm font-semibold bg-emerald-500 hover:bg-emerald-600 disabled:opacity-50 disabled:cursor-not-allowed text-white shadow-md shadow-emerald-500/20 transition">
+                class="px-4 py-1.5 rounded-xl text-xs sm:text-sm font-semibold bg-accent hover:bg-accent-hover disabled:opacity-50 disabled:cursor-not-allowed text-on-accent shadow-md shadow-accent/20 transition">
           Добавить
         </button>
       </div>
@@ -1015,18 +1015,18 @@
 <div id="edit-lesson-modal" data-modal class="fixed inset-0 z-50 hidden items-end sm:items-center justify-center p-0 sm:p-4">
   <div class="fixed inset-0 bg-black/75 backdrop-blur-sm cursor-pointer" onclick="closeModal('edit-lesson-modal')"></div>
 
-  <div class="relative z-10 w-full sm:max-w-md bg-[#161618] border-t sm:border border-zinc-800 rounded-t-3xl sm:rounded-2xl p-5 sm:p-6 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
-    <div class="flex items-center justify-between pb-3 border-b border-zinc-800">
+  <div class="relative z-10 w-full sm:max-w-md bg-surface-raised border-t sm:border border-edge rounded-t-3xl sm:rounded-2xl p-5 sm:p-6 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
+    <div class="flex items-center justify-between pb-3 border-b border-edge">
       <div class="flex items-center gap-2">
-        <div class="w-7 h-7 rounded-lg bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400">
+        <div class="w-7 h-7 rounded-lg bg-accent/10 border border-accent-line/20 flex items-center justify-center text-accent-ink">
           <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
           </svg>
         </div>
-        <h3 class="font-bold text-base sm:text-lg text-white">Настройки урока</h3>
+        <h3 class="font-bold text-base sm:text-lg text-fg">Настройки урока</h3>
       </div>
-      <button onclick="closeModal('edit-lesson-modal')" class="text-zinc-400 hover:text-white p-1 rounded-lg">
+      <button onclick="closeModal('edit-lesson-modal')" class="text-fg-subtle hover:text-fg p-1 rounded-lg">
         <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
         </svg>
@@ -1034,12 +1034,12 @@
     </div>
 
     <form id="edit-lesson-form" method="post" action="/schedule/0/edit" class="space-y-3.5">
-      <div id="edit-lesson-error" class="hidden p-3 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-400 text-xs font-medium"></div>
+      <div id="edit-lesson-error" class="hidden p-3 rounded-xl bg-danger/10 border border-danger/30 text-danger-ink text-xs font-medium"></div>
 
       <div>
-        <label for="edit_modal_subject_id" class="block text-xs font-medium text-zinc-300 mb-1">Предмет *</label>
+        <label for="edit_modal_subject_id" class="block text-xs font-medium text-fg-muted mb-1">Предмет *</label>
         <select id="edit_modal_subject_id" name="subject_id" required
-                class="w-full bg-[#121214] border border-zinc-700/80 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:ring-1 focus:ring-emerald-500">
+                class="w-full bg-surface-subtle border border-edge-strong/80 rounded-xl px-3 py-2 text-sm text-fg focus:outline-none focus:ring-1 focus:ring-accent-line">
           {% for sub in subjects %}
           <option value="{{ sub.id }}">{{ sub.name }}</option>
           {% endfor %}
@@ -1048,9 +1048,9 @@
 
       <div class="grid grid-cols-2 gap-3">
         <div>
-          <label for="edit_day_of_week" class="block text-xs font-medium text-zinc-300 mb-1">День недели *</label>
+          <label for="edit_day_of_week" class="block text-xs font-medium text-fg-muted mb-1">День недели *</label>
           <select id="edit_day_of_week" name="day_of_week" required onchange="onEditDayOfWeekChange(this.value)"
-                  class="w-full bg-[#121214] border border-zinc-700/80 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:ring-1 focus:ring-emerald-500">
+                  class="w-full bg-surface-subtle border border-edge-strong/80 rounded-xl px-3 py-2 text-sm text-fg focus:outline-none focus:ring-1 focus:ring-accent-line">
             {% for d_num in range(1, 7) %}
             <option value="{{ d_num }}">{{ day_names[d_num] }}</option>
             {% endfor %}
@@ -1058,9 +1058,9 @@
         </div>
 
         <div>
-          <label for="edit_lesson_number" class="block text-xs font-medium text-zinc-300 mb-1">Номер урока *</label>
+          <label for="edit_lesson_number" class="block text-xs font-medium text-fg-muted mb-1">Номер урока *</label>
           <select id="edit_lesson_number" name="lesson_number" required onchange="onEditLessonNumberChange(this.value, true)"
-                  class="w-full bg-[#121214] border border-zinc-700/80 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:ring-1 focus:ring-emerald-500">
+                  class="w-full bg-surface-subtle border border-edge-strong/80 rounded-xl px-3 py-2 text-sm text-fg focus:outline-none focus:ring-1 focus:ring-accent-line">
             {% for num in range(1, 9) %}
             <option value="{{ num }}">{{ num }}-й урок</option>
             {% endfor %}
@@ -1070,22 +1070,22 @@
 
       <div class="grid grid-cols-2 gap-3">
         <div>
-          <label for="edit_start_time" class="block text-xs font-medium text-zinc-300 mb-1">Начало</label>
+          <label for="edit_start_time" class="block text-xs font-medium text-fg-muted mb-1">Начало</label>
           <input type="time" id="edit_start_time" name="start_time" required oninput="onEditTimeInputChange()"
-                 class="w-full bg-[#121214] border border-zinc-700/80 rounded-xl px-3 py-1.5 text-sm text-white focus:outline-none focus:ring-1 focus:ring-emerald-500">
+                 class="w-full bg-surface-subtle border border-edge-strong/80 rounded-xl px-3 py-1.5 text-sm text-fg focus:outline-none focus:ring-1 focus:ring-accent-line">
         </div>
 
         <div>
-          <label for="edit_end_time" class="block text-xs font-medium text-zinc-300 mb-1">Конец</label>
+          <label for="edit_end_time" class="block text-xs font-medium text-fg-muted mb-1">Конец</label>
           <input type="time" id="edit_end_time" name="end_time" required oninput="onEditTimeInputChange()"
-                 class="w-full bg-[#121214] border border-zinc-700/80 rounded-xl px-3 py-1.5 text-sm text-white focus:outline-none focus:ring-1 focus:ring-emerald-500">
+                 class="w-full bg-surface-subtle border border-edge-strong/80 rounded-xl px-3 py-1.5 text-sm text-fg focus:outline-none focus:ring-1 focus:ring-accent-line">
         </div>
       </div>
 
       <div>
-        <label for="edit_subgroup" class="block text-xs font-medium text-zinc-300 mb-1">Подгруппа</label>
+        <label for="edit_subgroup" class="block text-xs font-medium text-fg-muted mb-1">Подгруппа</label>
         <select id="edit_subgroup" name="subgroup" onchange="onEditSubgroupChange(this.value)"
-                class="w-full bg-[#121214] border border-zinc-700/80 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:ring-1 focus:ring-emerald-500">
+                class="w-full bg-surface-subtle border border-edge-strong/80 rounded-xl px-3 py-2 text-sm text-fg focus:outline-none focus:ring-1 focus:ring-accent-line">
           <option value="">Весь класс (общий урок)</option>
           <option value="1">1-я подгруппа</option>
           <option value="2">2-я подгруппа</option>
@@ -1094,26 +1094,26 @@
         </select>
       </div>
 
-      <div id="edit-time-conflict-warning" class="hidden text-xs text-rose-400 font-medium"></div>
+      <div id="edit-time-conflict-warning" class="hidden text-xs text-danger-ink font-medium"></div>
 
       <div>
-        <label for="edit_room" class="block text-xs font-medium text-zinc-300 mb-1">Кабинет (если отличается)</label>
+        <label for="edit_room" class="block text-xs font-medium text-fg-muted mb-1">Кабинет (если отличается)</label>
         <input type="text" id="edit_room" name="room" maxlength="50"
-               class="w-full bg-[#121214] border border-zinc-700/80 rounded-xl px-3 py-1.5 text-sm text-white focus:outline-none focus:ring-1 focus:ring-emerald-500 placeholder-zinc-500"
+               class="w-full bg-surface-subtle border border-edge-strong/80 rounded-xl px-3 py-1.5 text-sm text-fg focus:outline-none focus:ring-1 focus:ring-accent-line placeholder-fg-faint"
                placeholder="Например, 304">
       </div>
 
       <div>
-        <label for="edit_note" class="block text-xs font-medium text-zinc-300 mb-1">Примечание (заметка к уроку)</label>
+        <label for="edit_note" class="block text-xs font-medium text-fg-muted mb-1">Примечание (заметка к уроку)</label>
         <input type="text" id="edit_note" name="note" maxlength="255"
-               class="w-full bg-[#121214] border border-zinc-700/80 rounded-xl px-3 py-1.5 text-sm text-white focus:outline-none focus:ring-1 focus:ring-emerald-500 placeholder-zinc-500"
+               class="w-full bg-surface-subtle border border-edge-strong/80 rounded-xl px-3 py-1.5 text-sm text-fg focus:outline-none focus:ring-1 focus:ring-accent-line placeholder-fg-faint"
                placeholder="Например, Четная неделя / В актовом зале">
       </div>
 
-      <div class="flex items-center justify-between pt-3 border-t border-zinc-800">
+      <div class="flex items-center justify-between pt-3 border-t border-edge">
         <div class="flex items-center space-x-2">
           <button type="button" id="edit-lesson-delete-btn" onclick="deleteCurrentEditingLesson()"
-                  class="inline-flex items-center gap-1.5 text-xs font-medium text-rose-400 hover:text-rose-300 transition py-1 px-2 rounded-lg hover:bg-rose-500/10">
+                  class="inline-flex items-center gap-1.5 text-xs font-medium text-danger-ink hover:text-danger-ink-soft transition py-1 px-2 rounded-lg hover:bg-danger/10">
             <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
             </svg>
@@ -1123,11 +1123,11 @@
 
         <div class="flex items-center space-x-2.5">
           <button type="button" onclick="closeModal('edit-lesson-modal')"
-                  class="px-3.5 py-1.5 rounded-xl text-xs font-medium text-zinc-300 hover:text-white hover:bg-zinc-800 transition">
+                  class="px-3.5 py-1.5 rounded-xl text-xs font-medium text-fg-muted hover:text-fg hover:bg-surface-strong transition">
             Отмена
           </button>
           <button type="submit" id="edit-lesson-submit-btn"
-                  class="px-4 py-1.5 rounded-xl text-xs sm:text-sm font-semibold bg-emerald-500 hover:bg-emerald-600 disabled:opacity-50 disabled:cursor-not-allowed text-white shadow-md shadow-emerald-500/20 transition">
+                  class="px-4 py-1.5 rounded-xl text-xs sm:text-sm font-semibold bg-accent hover:bg-accent-hover disabled:opacity-50 disabled:cursor-not-allowed text-on-accent shadow-md shadow-accent/20 transition">
             Сохранить
           </button>
         </div>
@@ -1140,10 +1140,10 @@
 <div id="add-vacation-modal" data-modal class="fixed inset-0 z-50 hidden items-end sm:items-center justify-center p-0 sm:p-4">
   <div class="fixed inset-0 bg-black/75 backdrop-blur-sm cursor-pointer" onclick="closeModal('add-vacation-modal')"></div>
 
-  <div class="relative z-10 w-full sm:max-w-md bg-[#161618] border-t sm:border border-zinc-800 rounded-t-3xl sm:rounded-2xl p-5 sm:p-6 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
-    <div class="flex items-center justify-between pb-3 border-b border-zinc-800">
-      <h3 class="font-bold text-base sm:text-lg text-white">Добавить период каникул</h3>
-      <button onclick="closeModal('add-vacation-modal')" class="text-zinc-400 hover:text-white p-1 rounded-lg">
+  <div class="relative z-10 w-full sm:max-w-md bg-surface-raised border-t sm:border border-edge rounded-t-3xl sm:rounded-2xl p-5 sm:p-6 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
+    <div class="flex items-center justify-between pb-3 border-b border-edge">
+      <h3 class="font-bold text-base sm:text-lg text-fg">Добавить период каникул</h3>
+      <button onclick="closeModal('add-vacation-modal')" class="text-fg-subtle hover:text-fg p-1 rounded-lg">
         <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
         </svg>
@@ -1152,33 +1152,33 @@
 
     <form method="post" action="/schedule/vacations" class="space-y-3.5">
       <div>
-        <label for="add_vac_name" class="block text-xs font-medium text-zinc-300 mb-1">Название каникул *</label>
+        <label for="add_vac_name" class="block text-xs font-medium text-fg-muted mb-1">Название каникул *</label>
         <input type="text" id="add_vac_name" name="name" required maxlength="100"
-               class="w-full bg-[#121214] border border-zinc-700/80 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:ring-1 focus:ring-emerald-500 placeholder-zinc-500"
+               class="w-full bg-surface-subtle border border-edge-strong/80 rounded-xl px-3 py-2 text-sm text-fg focus:outline-none focus:ring-1 focus:ring-accent-line placeholder-fg-faint"
                placeholder="Например, Осенние каникулы">
       </div>
 
       <div class="grid grid-cols-2 gap-3">
         <div>
-          <label for="add_vac_start_date" class="block text-xs font-medium text-zinc-300 mb-1">Дата начала *</label>
+          <label for="add_vac_start_date" class="block text-xs font-medium text-fg-muted mb-1">Дата начала *</label>
           <input type="date" id="add_vac_start_date" name="start_date" required
-                 class="w-full bg-[#121214] border border-zinc-700/80 rounded-xl px-3 py-1.5 text-sm text-white focus:outline-none focus:ring-1 focus:ring-emerald-500">
+                 class="w-full bg-surface-subtle border border-edge-strong/80 rounded-xl px-3 py-1.5 text-sm text-fg focus:outline-none focus:ring-1 focus:ring-accent-line">
         </div>
 
         <div>
-          <label for="add_vac_end_date" class="block text-xs font-medium text-zinc-300 mb-1">Дата окончания *</label>
+          <label for="add_vac_end_date" class="block text-xs font-medium text-fg-muted mb-1">Дата окончания *</label>
           <input type="date" id="add_vac_end_date" name="end_date" required
-                 class="w-full bg-[#121214] border border-zinc-700/80 rounded-xl px-3 py-1.5 text-sm text-white focus:outline-none focus:ring-1 focus:ring-emerald-500">
+                 class="w-full bg-surface-subtle border border-edge-strong/80 rounded-xl px-3 py-1.5 text-sm text-fg focus:outline-none focus:ring-1 focus:ring-accent-line">
         </div>
       </div>
 
-      <div class="flex items-center justify-end space-x-2.5 pt-3 border-t border-zinc-800">
+      <div class="flex items-center justify-end space-x-2.5 pt-3 border-t border-edge">
         <button type="button" onclick="closeModal('add-vacation-modal')"
-                class="px-3.5 py-1.5 rounded-xl text-xs font-medium text-zinc-300 hover:text-white hover:bg-zinc-800 transition">
+                class="px-3.5 py-1.5 rounded-xl text-xs font-medium text-fg-muted hover:text-fg hover:bg-surface-strong transition">
           Отмена
         </button>
         <button type="submit"
-                class="px-4 py-1.5 rounded-xl text-xs sm:text-sm font-semibold bg-emerald-500 hover:bg-emerald-600 text-white shadow-md shadow-emerald-500/20 transition">
+                class="px-4 py-1.5 rounded-xl text-xs sm:text-sm font-semibold bg-accent hover:bg-accent-hover text-on-accent shadow-md shadow-accent/20 transition">
           Добавить
         </button>
       </div>
@@ -1190,10 +1190,10 @@
 <div id="edit-vacation-modal" data-modal class="fixed inset-0 z-50 hidden items-end sm:items-center justify-center p-0 sm:p-4">
   <div class="fixed inset-0 bg-black/75 backdrop-blur-sm cursor-pointer" onclick="closeModal('edit-vacation-modal')"></div>
 
-  <div class="relative z-10 w-full sm:max-w-md bg-[#161618] border-t sm:border border-zinc-800 rounded-t-3xl sm:rounded-2xl p-5 sm:p-6 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
-    <div class="flex items-center justify-between pb-3 border-b border-zinc-800">
-      <h3 class="font-bold text-base sm:text-lg text-white">Редактировать каникулы</h3>
-      <button onclick="closeModal('edit-vacation-modal')" class="text-zinc-400 hover:text-white p-1 rounded-lg">
+  <div class="relative z-10 w-full sm:max-w-md bg-surface-raised border-t sm:border border-edge rounded-t-3xl sm:rounded-2xl p-5 sm:p-6 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
+    <div class="flex items-center justify-between pb-3 border-b border-edge">
+      <h3 class="font-bold text-base sm:text-lg text-fg">Редактировать каникулы</h3>
+      <button onclick="closeModal('edit-vacation-modal')" class="text-fg-subtle hover:text-fg p-1 rounded-lg">
         <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
         </svg>
@@ -1202,32 +1202,32 @@
 
     <form id="edit-vacation-form" method="post" action="/schedule/vacations/0/edit" class="space-y-3.5">
       <div>
-        <label for="edit_vac_name" class="block text-xs font-medium text-zinc-300 mb-1">Название каникул *</label>
+        <label for="edit_vac_name" class="block text-xs font-medium text-fg-muted mb-1">Название каникул *</label>
         <input type="text" id="edit_vac_name" name="name" required maxlength="100"
-               class="w-full bg-[#121214] border border-zinc-700/80 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:ring-1 focus:ring-emerald-500 placeholder-zinc-500">
+               class="w-full bg-surface-subtle border border-edge-strong/80 rounded-xl px-3 py-2 text-sm text-fg focus:outline-none focus:ring-1 focus:ring-accent-line placeholder-fg-faint">
       </div>
 
       <div class="grid grid-cols-2 gap-3">
         <div>
-          <label for="edit_vac_start_date" class="block text-xs font-medium text-zinc-300 mb-1">Дата начала *</label>
+          <label for="edit_vac_start_date" class="block text-xs font-medium text-fg-muted mb-1">Дата начала *</label>
           <input type="date" id="edit_vac_start_date" name="start_date" required
-                 class="w-full bg-[#121214] border border-zinc-700/80 rounded-xl px-3 py-1.5 text-sm text-white focus:outline-none focus:ring-1 focus:ring-emerald-500">
+                 class="w-full bg-surface-subtle border border-edge-strong/80 rounded-xl px-3 py-1.5 text-sm text-fg focus:outline-none focus:ring-1 focus:ring-accent-line">
         </div>
 
         <div>
-          <label for="edit_vac_end_date" class="block text-xs font-medium text-zinc-300 mb-1">Дата окончания *</label>
+          <label for="edit_vac_end_date" class="block text-xs font-medium text-fg-muted mb-1">Дата окончания *</label>
           <input type="date" id="edit_vac_end_date" name="end_date" required
-                 class="w-full bg-[#121214] border border-zinc-700/80 rounded-xl px-3 py-1.5 text-sm text-white focus:outline-none focus:ring-1 focus:ring-emerald-500">
+                 class="w-full bg-surface-subtle border border-edge-strong/80 rounded-xl px-3 py-1.5 text-sm text-fg focus:outline-none focus:ring-1 focus:ring-accent-line">
         </div>
       </div>
 
-      <div class="flex items-center justify-end space-x-2.5 pt-3 border-t border-zinc-800">
+      <div class="flex items-center justify-end space-x-2.5 pt-3 border-t border-edge">
         <button type="button" onclick="closeModal('edit-vacation-modal')"
-                class="px-3.5 py-1.5 rounded-xl text-xs font-medium text-zinc-300 hover:text-white hover:bg-zinc-800 transition">
+                class="px-3.5 py-1.5 rounded-xl text-xs font-medium text-fg-muted hover:text-fg hover:bg-surface-strong transition">
           Отмена
         </button>
         <button type="submit"
-                class="px-4 py-1.5 rounded-xl text-xs sm:text-sm font-semibold bg-emerald-500 hover:bg-emerald-600 text-white shadow-md shadow-emerald-500/20 transition">
+                class="px-4 py-1.5 rounded-xl text-xs sm:text-sm font-semibold bg-accent hover:bg-accent-hover text-on-accent shadow-md shadow-accent/20 transition">
           Сохранить
         </button>
       </div>

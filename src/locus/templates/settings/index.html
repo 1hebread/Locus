@@ -1,0 +1,94 @@
+{% extends "base.html" %}
+
+{% block title %}Настройки - Locus{% endblock %}
+
+{% block content %}
+<div class="space-y-5 max-w-3xl">
+
+  <!-- Header -->
+  <div>
+    <h1 class="text-xl sm:text-2xl md:text-3xl font-extrabold tracking-tight text-fg">Настройки</h1>
+    <p class="text-xs sm:text-sm text-fg-subtle mt-0.5">Оформление и поведение дневника</p>
+  </div>
+
+  <!-- Appearance -->
+  <section class="p-4 sm:p-5 rounded-2xl bg-surface-card border border-edge shadow-card">
+    <div>
+      <h2 class="font-bold text-sm sm:text-base text-fg">Тема оформления</h2>
+      <p class="text-[11px] sm:text-xs text-fg-subtle mt-0.5">
+        Выбор сохраняется в профиле и применяется на всех устройствах.
+      </p>
+    </div>
+
+    <div class="mt-4 grid grid-cols-1 sm:grid-cols-3 gap-3" role="radiogroup" aria-label="Тема оформления">
+      <!-- Dark -->
+      <label class="theme-choice block text-left rounded-2xl border border-edge bg-surface-card p-3 cursor-pointer">
+        <input type="radio" name="theme" value="dark" class="sr-only" data-theme-choice
+               {% if theme == 'dark' %}checked{% endif %}>
+        <span class="block h-20 rounded-xl bg-[#0a0a0b] border border-[#1f1f22] p-2.5 space-y-1.5" aria-hidden="true">
+          <span class="block h-1.5 w-1/2 rounded-full bg-[#3f3f46]"></span>
+          <span class="block h-1.5 w-4/5 rounded-full bg-[#27272a]"></span>
+          <span class="block h-1.5 w-2/3 rounded-full bg-[#27272a]"></span>
+          <span class="block h-1.5 w-8 rounded-full bg-[#2ea35b]"></span>
+        </span>
+        <span class="mt-3 flex items-center justify-between gap-2">
+          <span class="text-sm font-semibold text-fg">Тёмная</span>
+          <span data-theme-check class="w-5 h-5 rounded-full bg-accent text-on-accent flex items-center justify-center shrink-0">
+            <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7" />
+            </svg>
+          </span>
+        </span>
+        <span class="block text-[11px] text-fg-subtle mt-0.5">Чистый чёрный цвет</span>
+      </label>
+
+      <!-- Light -->
+      <label class="theme-choice block text-left rounded-2xl border border-edge bg-surface-card p-3 cursor-pointer">
+        <input type="radio" name="theme" value="light" class="sr-only" data-theme-choice
+               {% if theme == 'light' %}checked{% endif %}>
+        <span class="block h-20 rounded-xl bg-[#f5f5f7] border border-[#e4e4e7] p-2.5 space-y-1.5" aria-hidden="true">
+          <span class="block h-1.5 w-1/2 rounded-full bg-[#a1a1aa]"></span>
+          <span class="block h-1.5 w-4/5 rounded-full bg-[#d4d4d8]"></span>
+          <span class="block h-1.5 w-2/3 rounded-full bg-[#d4d4d8]"></span>
+          <span class="block h-1.5 w-8 rounded-full bg-[#047857]"></span>
+        </span>
+        <span class="mt-3 flex items-center justify-between gap-2">
+          <span class="text-sm font-semibold text-fg">Светлая</span>
+          <span data-theme-check class="w-5 h-5 rounded-full bg-accent text-on-accent flex items-center justify-center shrink-0">
+            <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7" />
+            </svg>
+          </span>
+        </span>
+        <span class="block text-[11px] text-fg-subtle mt-0.5">Мягкий светлый интерфейс</span>
+      </label>
+
+      <!-- System -->
+      <label class="theme-choice block text-left rounded-2xl border border-edge bg-surface-card p-3 cursor-pointer">
+        <input type="radio" name="theme" value="system" class="sr-only" data-theme-choice
+               {% if theme == 'system' %}checked{% endif %}>
+        <span class="relative block h-20 rounded-xl overflow-hidden border border-edge" aria-hidden="true">
+          <span class="absolute inset-0 bg-[linear-gradient(135deg,#0a0a0b_50%,#f5f5f7_50%)]"></span>
+          <span class="absolute inset-0 flex items-center justify-center">
+            <span class="w-8 h-8 rounded-full bg-surface-card border border-edge flex items-center justify-center shadow-card">
+              <svg class="w-4 h-4 text-fg-subtle" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+              </svg>
+            </span>
+          </span>
+        </span>
+        <span class="mt-3 flex items-center justify-between gap-2">
+          <span class="text-sm font-semibold text-fg">Системная</span>
+          <span data-theme-check class="w-5 h-5 rounded-full bg-accent text-on-accent flex items-center justify-center shrink-0">
+            <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7" />
+            </svg>
+          </span>
+        </span>
+        <span class="block text-[11px] text-fg-subtle mt-0.5">Как в настройках устройства</span>
+      </label>
+    </div>
+  </section>
+
+</div>
+{% endblock %}
