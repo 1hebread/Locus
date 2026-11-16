@@ -2266,10 +2266,12 @@ function applyThemePreference(pref) {
     clearTimeout(themeTransitionTimer);
     themeTransitionTimer = setTimeout(() => root.classList.remove('theme-transition'), 260);
   }
-  root.dataset.theme = theme === 'light' ? 'light' : 'dark';
+  root.dataset.theme = theme;
   root.dataset.themePref = pref;
   const meta = document.querySelector('meta[name="theme-color"]');
-  if (meta) meta.content = root.dataset.theme === 'light' ? '#f5f5f7' : '#000000';
+  // Every palette sets --c-surface to the page background, so no second color map
+  const surface = getComputedStyle(root).getPropertyValue('--c-surface').trim();
+  if (meta) meta.content = surface ? `rgb(${surface.split(/\s+/).join(', ')})` : '#000000';
   document.querySelectorAll('[data-theme-choice]').forEach((input) => {
     input.checked = input.value === pref;
   });

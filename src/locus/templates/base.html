@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 {% set theme = (current_user.theme if current_user else 'system') or 'system' %}
-{% set theme = theme if theme in ('dark', 'light', 'system') else 'system' %}
+{% set theme = theme if theme in ('dark', 'light', 'system', 'pixel-dark', 'pixel-light') else 'system' %}
 <html lang="ru" data-theme="{{ theme }}" data-theme-pref="{{ theme }}">
 <head>
   <meta charset="UTF-8">
@@ -16,14 +16,17 @@
       if (root.dataset.theme === 'system') {
         root.dataset.theme = window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
       }
+      var colors = { 'dark': '#000000', 'light': '#f5f5f7', 'pixel-dark': '#171b2c', 'pixel-light': '#ece9dc' };
       var meta = document.querySelector('meta[name="theme-color"]');
-      if (meta) meta.content = root.dataset.theme === 'light' ? '#f5f5f7' : '#000000';
+      if (meta) meta.content = colors[root.dataset.theme] || '#000000';
     })();
   </script>
   <style>
     /* Paint the correct backdrop before app.css is parsed */
     html { background-color: #000000; }
     html[data-theme="light"] { background-color: #f5f5f7; }
+    html[data-theme="pixel-dark"] { background-color: #171b2c; }
+    html[data-theme="pixel-light"] { background-color: #ece9dc; }
   </style>
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">

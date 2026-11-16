@@ -74,6 +74,186 @@ html[data-theme="light"] {
   --shadow-glow-strong: 0 0 25px rgba(5, 150, 105, 0.3);
 }
 
+/* Pixel dark: navy arcade surfaces with a bright green accent */
+html[data-theme="pixel-dark"] {
+  color-scheme: dark;
+  --c-surface: 23 27 44;
+  --c-surface-card: 30 35 56;
+  --c-surface-raised: 38 45 71;
+  --c-surface-subtle: 27 32 51;
+  --c-surface-inset: 16 20 35;
+  --c-surface-strong: 45 53 81;
+  --c-surface-active: 59 69 104;
+  --c-edge: 74 85 123;
+  --c-edge-strong: 92 103 143;
+  --c-edge-extra: 116 127 159;
+  --c-fg: 238 242 255;
+  --c-fg-soft: 217 224 244;
+  --c-fg-muted: 188 198 224;
+  --c-fg-subtle: 152 163 195;
+  --c-fg-faint: 140 151 184;
+  --c-fg-ghost: 88 98 128;
+  --c-accent: 95 207 78;
+  --c-accent-hover: 78 186 62;
+  --c-accent-active: 62 157 49;
+  --c-accent-line: 137 232 118;
+  --c-accent-ink: 137 232 118;
+  --c-accent-ink-hover: 178 246 163;
+  --c-accent-contrast: 10 15 24;
+  --c-on-accent: 10 15 24;
+  --c-danger: 240 86 110;
+  --c-danger-hover: 214 61 86;
+  --c-danger-ink: 255 138 158;
+  --c-danger-ink-soft: 255 179 192;
+  --c-danger-soft: 42 16 24;
+  --c-danger-edge: 110 35 53;
+  --c-warning-ink: 255 210 63;
+  --c-pixel-edge: 92 103 143;
+  /* 12x12 stepped frame: 4px border with two-step pixel corners */
+  --pixel-frame: url("data:image/svg+xml,%3Csvg%20xmlns%3D%27http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%27%20width%3D%2712%27%20height%3D%2712%27%20viewBox%3D%270%200%2012%2012%27%3E%3Cpath%20fill%3D%27%235c678f%27%20fill-rule%3D%27evenodd%27%20d%3D%27M4%200H8V2H10V4H12V8H10V10H8V12H4V10H2V8H0V4H2V2H4Z%20M4%204H8V8H4Z%27%2F%3E%3C%2Fsvg%3E");
+  --pixel-frame-accent: url("data:image/svg+xml,%3Csvg%20xmlns%3D%27http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%27%20width%3D%2712%27%20height%3D%2712%27%20viewBox%3D%270%200%2012%2012%27%3E%3Cpath%20fill%3D%27%2389e876%27%20fill-rule%3D%27evenodd%27%20d%3D%27M4%200H8V2H10V4H12V8H10V10H8V12H4V10H2V8H0V4H2V2H4Z%20M4%204H8V8H4Z%27%2F%3E%3C%2Fsvg%3E");
+}
+
+/* Pixel light: warm paper surfaces with the same arcade accent */
+html[data-theme="pixel-light"] {
+  color-scheme: light;
+  --c-surface: 236 233 220;
+  --c-surface-card: 251 249 239;
+  --c-surface-raised: 255 253 246;
+  --c-surface-subtle: 230 226 210;
+  --c-surface-inset: 221 217 199;
+  --c-surface-strong: 213 208 189;
+  --c-surface-active: 200 194 173;
+  --c-edge: 32 38 60;
+  --c-edge-strong: 18 23 40;
+  --c-edge-extra: 107 111 126;
+  --c-fg: 26 32 51;
+  --c-fg-soft: 42 49 71;
+  --c-fg-muted: 63 71 96;
+  --c-fg-subtle: 90 97 120;
+  --c-fg-faint: 96 103 124;
+  --c-fg-ghost: 164 169 184;
+  --c-accent: 88 201 70;
+  --c-accent-hover: 70 171 54;
+  --c-accent-active: 53 140 43;
+  --c-accent-line: 37 125 36;
+  --c-accent-ink: 32 108 25;
+  --c-accent-ink-hover: 22 82 17;
+  --c-accent-contrast: 14 21 36;
+  --c-on-accent: 14 21 36;
+  --c-danger: 201 47 74;
+  --c-danger-hover: 168 36 60;
+  --c-danger-ink: 168 36 60;
+  --c-danger-ink-soft: 134 28 49;
+  --c-danger-soft: 251 228 232;
+  --c-danger-edge: 239 180 191;
+  --c-warning-ink: 138 90 0;
+  --c-pixel-edge: 18 23 40;
+  --pixel-frame: url("data:image/svg+xml,%3Csvg%20xmlns%3D%27http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%27%20width%3D%2712%27%20height%3D%2712%27%20viewBox%3D%270%200%2012%2012%27%3E%3Cpath%20fill%3D%27%23121728%27%20fill-rule%3D%27evenodd%27%20d%3D%27M4%200H8V2H10V4H12V8H10V10H8V12H4V10H2V8H0V4H2V2H4Z%20M4%204H8V8H4Z%27%2F%3E%3C%2Fsvg%3E");
+  --pixel-frame-accent: url("data:image/svg+xml,%3Csvg%20xmlns%3D%27http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%27%20width%3D%2712%27%20height%3D%2712%27%20viewBox%3D%270%200%2012%2012%27%3E%3Cpath%20fill%3D%27%23257d24%27%20fill-rule%3D%27evenodd%27%20d%3D%27M4%200H8V2H10V4H12V8H10V10H8V12H4V10H2V8H0V4H2V2H4Z%20M4%204H8V8H4Z%27%2F%3E%3C%2Fsvg%3E");
+}
+
+/* Pixel chrome: square geometry, hard offset shadows, chunky frames */
+html[data-theme^="pixel-"] {
+  --shadow-card: 3px 3px 0 0 rgb(var(--c-pixel-edge) / 0.9);
+  --shadow-glow: 0 0 0 2px rgb(var(--c-accent) / 0.4);
+  --shadow-glow-strong: 0 0 0 3px rgb(var(--c-accent) / 0.55);
+  --pixel-corner-clip: polygon(
+    0 4px, 2px 4px, 2px 2px, 4px 2px, 4px 0, calc(100% - 4px) 0,
+    calc(100% - 4px) 2px, calc(100% - 2px) 2px, calc(100% - 2px) 4px, 100% 4px,
+    100% calc(100% - 4px), calc(100% - 2px) calc(100% - 4px), calc(100% - 2px) calc(100% - 2px),
+    calc(100% - 4px) calc(100% - 2px), calc(100% - 4px) 100%, 4px 100%,
+    4px calc(100% - 2px), 2px calc(100% - 2px), 2px calc(100% - 4px), 0 calc(100% - 4px)
+  );
+}
+
+html[data-theme^="pixel-"] *,
+html[data-theme^="pixel-"] *::before,
+html[data-theme^="pixel-"] *::after {
+  border-radius: 0;
+}
+
+/* Artwork keeps its own shape: a hard offset shadow prints a slab around it */
+html[data-theme^="pixel-"] :is(.shadow-sm, .shadow, .shadow-md, .shadow-lg, .shadow-xl, .shadow-2xl):not(img) {
+  box-shadow: 3px 3px 0 0 rgb(var(--c-pixel-edge) / 0.9);
+}
+
+/* Stepped card frames: the background stays inside the 4px border image */
+html[data-theme^="pixel-"] :is(.shadow-card, .shadow-2xl, .shadow-glow) {
+  border: 4px solid transparent;
+  border-image: var(--pixel-frame) 4 / 4px;
+  background-clip: padding-box;
+}
+
+html[data-theme^="pixel-"] :is(.shadow-glow) {
+  border-image: var(--pixel-frame-accent) 4 / 4px;
+}
+
+/* Accent surfaces get a chunky inset frame and stepped pixel corners.
+   Split-button halves stay square so their shared edge does not get a gap. */
+html[data-theme^="pixel-"] :is(.bg-accent, .bg-brand-gradient) {
+  box-shadow: inset 0 0 0 2px rgb(var(--c-pixel-edge));
+}
+
+html[data-theme^="pixel-"] :is(.bg-accent, .bg-brand-gradient):not([data-split-accent]):not([data-hw-toggle]):not(.hw-checkbox) {
+  clip-path: var(--pixel-corner-clip);
+}
+
+/* The week ribbon and modal headers are fixed green brand surfaces, not the
+   accent token, so they keep white text in pixel themes. */
+html[data-theme^="pixel-"] :is(.bg-brand-600, .bg-brand-gradient) {
+  --c-on-accent: 255 255 255;
+}
+
+/* No inset frame here: an opaque active tab would cover it and look taller. */
+html[data-theme^="pixel-"] .bg-brand-600 {
+  position: relative;
+  clip-path: var(--pixel-corner-clip);
+}
+
+/* Painted above the tabs so the opaque active tab cannot cover the frame */
+html[data-theme^="pixel-"] .bg-brand-600::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  box-shadow: inset 0 0 0 2px rgb(var(--c-pixel-edge));
+}
+
+html[data-theme^="pixel-"] [data-day-tab] {
+  box-shadow: none;
+}
+
+html[data-theme^="pixel-"] [data-day-tab]:focus-visible {
+  outline: 2px solid rgb(var(--c-fg));
+  outline-offset: -4px;
+}
+
+/* Clipped corners hide the outer focus ring; keep focus visible inside */
+html[data-theme^="pixel-"] :is(.bg-accent, .bg-brand-gradient):focus-visible {
+  outline: 2px solid rgb(var(--c-fg));
+  outline-offset: -4px;
+}
+
+html[data-theme^="pixel-"] :is(
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"]),
+  select,
+  textarea
+) {
+  border-width: 2px;
+  border-style: solid;
+  border-color: rgb(var(--c-pixel-edge));
+}
+
+/* Stepped pixel corners for decorative previews */
+.pixel-step {
+  clip-path: polygon(
+    0 4px, 4px 4px, 4px 0, calc(100% - 4px) 0, calc(100% - 4px) 4px, 100% 4px,
+    100% calc(100% - 4px), calc(100% - 4px) calc(100% - 4px), calc(100% - 4px) 100%,
+    4px 100%, 4px calc(100% - 4px), 0 calc(100% - 4px)
+  );
+}
+
 /* Animate palette swaps on theme change (class is added by app.js) */
 html.theme-transition,
 html.theme-transition *,
@@ -607,4 +787,16 @@ body {
 
 .theme-choice:has(input:checked) [data-theme-check] {
   opacity: 1;
+}
+
+/* Theme picker cards follow the same stepped frames in pixel themes */
+html[data-theme^="pixel-"] .theme-choice {
+  border: 4px solid transparent;
+  border-image: var(--pixel-frame) 4 / 4px;
+  background-clip: padding-box;
+  box-shadow: 3px 3px 0 0 rgb(var(--c-pixel-edge) / 0.9);
+}
+
+html[data-theme^="pixel-"] .theme-choice:has(input:checked) {
+  border-image-source: var(--pixel-frame-accent);
 }

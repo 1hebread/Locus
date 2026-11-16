@@ -19,6 +19,7 @@ class HomeworkStatus(str, Enum):
 
 
 DEFAULT_THEME = "system"
+VALID_THEMES = ("dark", "light", "system", "pixel-dark", "pixel-light")
 
 VALID_SUBGROUPS = ("1", "2", "boys", "girls")
 ACADEMIC_SUBGROUPS = ("1", "2")

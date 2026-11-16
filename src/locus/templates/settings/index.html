@@ -20,7 +20,7 @@
       </p>
     </div>
 
-    <div class="mt-4 grid grid-cols-1 sm:grid-cols-3 gap-3" role="radiogroup" aria-label="Тема оформления">
+    <div class="mt-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3" role="radiogroup" aria-label="Тема оформления">
       <!-- Dark -->
       <label class="theme-choice block text-left rounded-2xl border border-edge bg-surface-card p-3 cursor-pointer">
         <input type="radio" name="theme" value="dark" class="sr-only" data-theme-choice
@@ -61,6 +61,50 @@
           </span>
         </span>
         <span class="block text-[11px] text-fg-subtle mt-0.5">Мягкий светлый интерфейс</span>
+      </label>
+
+      <!-- Pixel dark -->
+      <label class="theme-choice block text-left rounded-2xl border border-edge bg-surface-card p-3 cursor-pointer">
+        <input type="radio" name="theme" value="pixel-dark" class="sr-only" data-theme-choice
+               {% if theme == 'pixel-dark' %}checked{% endif %}>
+        <span class="block h-20 bg-[#171b2c] border-2 border-[#05070e] p-2.5" aria-hidden="true">
+          <span class="block h-1.5 w-1/2 bg-[#3b4568]"></span>
+          <span class="mt-1.5 block h-1.5 w-4/5 bg-[#2d3551]"></span>
+          <span class="mt-1.5 inline-block bg-[#05070e] p-[2px] pixel-step">
+            <span class="block h-4 w-14 bg-[#5fcf4e]"></span>
+          </span>
+        </span>
+        <span class="mt-3 flex items-center justify-between gap-2">
+          <span class="text-sm font-semibold text-fg">Пиксельная тёмная</span>
+          <span data-theme-check class="w-5 h-5 rounded-full bg-accent text-on-accent flex items-center justify-center shrink-0">
+            <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7" />
+            </svg>
+          </span>
+        </span>
+        <span class="block text-[11px] text-fg-subtle mt-0.5">Пиксельная аркада на тёмном фоне</span>
+      </label>
+
+      <!-- Pixel light -->
+      <label class="theme-choice block text-left rounded-2xl border border-edge bg-surface-card p-3 cursor-pointer">
+        <input type="radio" name="theme" value="pixel-light" class="sr-only" data-theme-choice
+               {% if theme == 'pixel-light' %}checked{% endif %}>
+        <span class="block h-20 bg-[#ece9dc] border-2 border-[#20263c] p-2.5" aria-hidden="true">
+          <span class="block h-1.5 w-1/2 bg-[#c8c2ad]"></span>
+          <span class="mt-1.5 block h-1.5 w-4/5 bg-[#d5d0bd]"></span>
+          <span class="mt-1.5 inline-block bg-[#121728] p-[2px] pixel-step">
+            <span class="block h-4 w-14 bg-[#58c946]"></span>
+          </span>
+        </span>
+        <span class="mt-3 flex items-center justify-between gap-2">
+          <span class="text-sm font-semibold text-fg">Пиксельная светлая</span>
+          <span data-theme-check class="w-5 h-5 rounded-full bg-accent text-on-accent flex items-center justify-center shrink-0">
+            <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7" />
+            </svg>
+          </span>
+        </span>
+        <span class="block text-[11px] text-fg-subtle mt-0.5">Пиксельная аркада на светлой бумаге</span>
       </label>
 
       <!-- System -->

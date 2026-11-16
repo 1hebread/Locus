@@ -6,7 +6,7 @@ from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from locus.api.deps import get_current_user_web
-from locus.constants import DEFAULT_THEME
+from locus.constants import DEFAULT_THEME, VALID_THEMES
 from locus.database import get_db
 from locus.models.user import User
 from locus.templates_config import templates
@@ -15,7 +15,7 @@ router = APIRouter(prefix="/settings", tags=["Web Settings"])
 
 
 class ThemeUpdate(BaseModel):
-    theme: Literal["dark", "light", "system"]
+    theme: Literal[*VALID_THEMES]
 
 
 @router.get("", response_class=HTMLResponse)
@@ -23,7 +23,7 @@ async def settings_page(
     request: Request,
     current_user: User = Depends(get_current_user_web),
 ):
-    theme = current_user.theme if current_user.theme in ("dark", "light", "system") else DEFAULT_THEME
+    theme = current_user.theme if current_user.theme in VALID_THEMES else DEFAULT_THEME
     return templates.TemplateResponse(
         request=request,
         name="settings/index.html",

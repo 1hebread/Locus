@@ -11,7 +11,7 @@ settings = get_settings()
 
 
 def checked_theme(html: str) -> str | None:
-    match = re.search(r'value="(\w+)" class="sr-only" data-theme-choice\s+checked', html)
+    match = re.search(r'value="([\w-]+)" class="sr-only" data-theme-choice\s+checked', html)
     return match.group(1) if match else None
 
 
@@ -33,7 +33,7 @@ async def test_settings_page_shows_theme_choices(
     res = await client.get("/settings")
 
     assert res.status_code == 200
-    for value in ("dark", "light", "system"):
+    for value in ("dark", "light", "system", "pixel-dark", "pixel-light"):
         assert f'value="{value}"' in res.text
     # New users follow the device theme by default
     assert 'data-theme="system"' in res.text
@@ -57,26 +57,28 @@ async def test_unknown_stored_theme_falls_back_to_system(
     assert checked_theme(res.text) == "system"
 
 
+@pytest.mark.parametrize("theme", ["light", "pixel-dark", "pixel-light"])
 @pytest.mark.asyncio
 async def test_theme_update_persists(
     client: AsyncClient,
     test_user: User,
     auth_token: str,
     db_session: AsyncSession,
+    theme: str,
 ):
     client.cookies.set(settings.COOKIE_NAME, auth_token)
 
-    res = await client.post("/settings/theme", json={"theme": "light"})
+    res = await client.post("/settings/theme", json={"theme": theme})
     assert res.status_code == 204
     assert "locus_theme" not in res.cookies
 
     await db_session.refresh(test_user)
-    assert test_user.theme == "light"
+    assert test_user.theme == theme
 
     page = await client.get("/settings")
-    assert 'data-theme="light"' in page.text
-    assert 'data-theme-pref="light"' in page.text
-    assert checked_theme(page.text) == "light"
+    assert f'data-theme="{theme}"' in page.text
+    assert f'data-theme-pref="{theme}"' in page.text
+    assert checked_theme(page.text) == theme
 
 
 @pytest.mark.asyncio
