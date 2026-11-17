@@ -40,7 +40,7 @@ async def load_duty_days(db: AsyncSession, current_user: User) -> List[Dict[str,
     (that user is the one viewing the roster).
     """
     rows = (await db.execute(select(DutyDay))).scalars().all()
-    texts = {row.day_of_week: row.text for row in rows}
+    texts = {row.day_of_week: row.text or "" for row in rows}
     today = get_current_date().isoweekday()
 
     days = [

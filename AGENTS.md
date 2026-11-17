@@ -12,7 +12,7 @@ This file provides comprehensive guidelines on architecture, technology stack, d
 - **Unified Diary and Schedule**: view lessons by day of the week, bell times, classrooms, teacher names, and recess intervals. The schedule and subjects are shared across all users in a school/class and managed by an administrator (`is_admin`).
 - **Shared Homework Pool & Personal Tracking**: assignments are shared across all users (anyone can add, edit, or delete them), while completion statuses (`TODO` / `DONE`) are tracked individually per user in the `homework_completions` table.
 - **Homework Audit Log**: assignment creation, edits, and deletions are logged in `homework_events` (who, when, and which fields changed). Lesson modals display the last editor, and the full history is accessible to admins at `/admin/history`.
-- **Duty Roster**: `/duty` shows who is on duty for each school weekday (Monday to Saturday). Entries are plain lines of text; `Иван И. (ivan)` binds a line to the user with that login, and the current user's own line is highlighted on today's card. Only administrators can edit the roster. Also available via `GET /api/v1/duty`, editing via `PUT /api/v1/duty/{day_of_week}` (admin only).
+- **Duty Roster**: `/duty` shows who is on duty for each school weekday (Monday to Saturday). Entries are plain lines of text; `Иван И. (ivan)` binds a line to the user with that login, and the current user's own line is highlighted on today's card. The roster text is encrypted at rest with Fernet, like teacher names and phones. Only administrators can edit the roster. Also available via `GET /api/v1/duty`, editing via `PUT /api/v1/duty/{day_of_week}` (admin only).
 - **Push Notifications (Web Push)**: homework creation, edits, and deletions are pushed to subscribed browsers/PWAs (to all active users except the author, respecting subgroups). Subscriptions are stored in `push_subscriptions`, and VAPID keys are configured via `VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY` (generation: `uv run locus-vapid`). Without keys, push notifications are disabled.
 - **Public API**: REST `/api/v1` with JWT or API key (`Authorization: Bearer lk_…`), documentation: `docs/api.md` (Swagger `/docs` is only available in development). Keys are created by admins at `/admin/api-keys` and act on behalf of the selected user; daily summary is available at `GET /api/v1/summary?date=YYYY-MM-DD`.
 - **PWA & Mobile-First Focus**: responsive UI with dark (pure black), light and two pixel-art themes, smooth micro-animations, a dynamic floating navigation dock, and a PWA manifest. Theme is chosen per user in `/settings` (dark, light, system, pixel dark, pixel light).
@@ -64,7 +64,7 @@ This file provides comprehensive guidelines on architecture, technology stack, d
 │       ├── config.py             # Pydantic Settings configuration (.env)
 │       ├── constants.py          # Constants (default bell schedule, etc.)
 │       ├── database.py           # AsyncEngine, async_sessionmaker, Base
-│       ├── crypto.py             # Fernet encryption for teacher names/phones
+│       ├── crypto.py             # Fernet encryption for teacher names/phones and duty roster text
 │       ├── rate_limiter.py       # Login and API rate limiting
 │       ├── schedule_service.py   # Lesson cloning and schedule helpers
 │       ├── schedule_validation.py # Lesson payload validation
@@ -98,7 +98,7 @@ This file provides comprehensive guidelines on architecture, technology stack, d
 │       │   ├── push_subscription.py # PushSubscription model (browser/PWA subscription)
 │       │   ├── api_key.py        # ApiKey model (key hash, bound to a user)
 │       │   ├── vacation.py       # Vacation periods
-│       │   └── duty_day.py       # DutyDay model (duty roster text per weekday)
+│       │   └── duty_day.py       # DutyDay model (encrypted duty roster text per weekday)
 │       ├── schemas/              # Pydantic request and response schemas
 │       │   ├── auth.py
 │       │   ├── duty.py

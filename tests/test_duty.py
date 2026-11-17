@@ -2,7 +2,7 @@ from datetime import date
 
 import pytest
 from httpx import AsyncClient
-from sqlalchemy import select
+from sqlalchemy import select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from locus.config import get_settings
@@ -141,6 +141,31 @@ async def test_admin_saves_duty(
 
 
 @pytest.mark.asyncio
+async def test_duty_text_is_encrypted_at_rest(
+    client: AsyncClient,
+    test_user: User,
+    auth_token: str,
+    db_session: AsyncSession,
+):
+    client.cookies.set(settings.COOKIE_NAME, auth_token)
+    await client.post(
+        "/duty",
+        data={"day_1": "Иван И. (student)"},
+        follow_redirects=False,
+    )
+
+    raw = await db_session.execute(text("SELECT text FROM duty_days WHERE day_of_week = 1"))
+    ciphertext = raw.scalar_one()
+    assert ciphertext.startswith("gAAAAA")
+    assert "Иван И." not in ciphertext
+
+    # Drop the in-memory copy: get() must re-read and decrypt the row.
+    db_session.expire_all()
+    row = await db_session.get(DutyDay, 1)
+    assert row.text == "Иван И. (student)"
+
+
+@pytest.mark.asyncio
 async def test_api_duty_requires_auth(client: AsyncClient):
     res = await client.get("/api/v1/duty")
 
@@ -209,7 +234,7 @@ async def test_api_admin_replaces_duty_day(
     assert again.json()["entries"] == []
 
     rows = (await db_session.execute(select(DutyDay))).scalars().all()
-    assert [(row.day_of_week, row.text) for row in rows] == [(3, "")]
+    assert [(row.day_of_week, row.text) for row in rows] == [(3, None)]
 
 
 @pytest.mark.asyncio
