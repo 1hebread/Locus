@@ -201,7 +201,7 @@ git diff --check
 ### Theming and Palette
 - All colors come from semantic Tailwind tokens that map to CSS variables in `app.css`: `surface-*`, `edge-*`, `fg-*`, `accent-*`, `danger-*`, `warning-ink`, `on-accent`; shadows via `shadow-card` / `shadow-glow`.
 - Palettes live in `:root` (dark, pure black `#000000`), `html[data-theme="light"]`, `html[data-theme="pixel-dark"]` and `html[data-theme="pixel-light"]`. Do not hard-code `zinc-*` / `emerald-*` / hex colors in templates: use tokens. The fixed green `brand-*` is only for the week ribbon and gradient headers.
-- Pixel themes keep the same tokens but add hard chrome via `html[data-theme^="pixel-"]`: square corners, chunky input borders, stepped 4px `border-image` frames on cards/modals, inset frames on accent surfaces and hard offset shadows.
+- Pixel themes keep the same tokens but add hard chrome via `html[data-theme^="pixel-"]`: square corners, chunky input borders, stepped 4px `border-image` frames on cards/modals and hard offset shadows.
 - Theme preference (`dark`, `light`, `system`, `pixel-dark`, `pixel-light`) is stored in `users.theme` and rendered as `data-theme-pref`; `data-theme` holds the resolved choice (`dark` / `light` / pixel values) and is applied by an inline script in `base.html` before CSS loads. Guests and new users default to `system`.
 - Switching: radios `[data-theme-choice]` on `/settings` call `applyThemePreference()` (250 ms color transition, no page reload) and persist via `POST /settings/theme` (JSON `{"theme": "..."}`, `204`); failures roll the selection back.
 
