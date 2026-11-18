@@ -60,6 +60,45 @@ async def test_admin_creates_user(
 
 
 @pytest.mark.asyncio
+async def test_admin_toggles_headman(
+    client: AsyncClient,
+    test_user: User,
+    auth_token: str,
+    regular_user: User,
+    regular_token: str,
+    db_session: AsyncSession,
+):
+    client.cookies.set(settings.COOKIE_NAME, auth_token)
+
+    res = await client.post(
+        f"/admin/users/{regular_user.id}/headman",
+        data={"is_headman": "1"},
+        follow_redirects=False,
+    )
+    assert res.status_code == 303
+    assert res.headers["Location"] == "/admin/users?headman_changed=1"
+
+    await db_session.refresh(regular_user)
+    assert regular_user.is_headman is True
+
+    me_res = await client.get(
+        "/api/v1/auth/me",
+        headers={"Authorization": f"Bearer {regular_token}"},
+    )
+    assert me_res.status_code == 200
+    assert me_res.json()["is_headman"] is True
+
+    res = await client.post(
+        f"/admin/users/{regular_user.id}/headman",
+        follow_redirects=False,
+    )
+    assert res.status_code == 303
+
+    await db_session.refresh(regular_user)
+    assert regular_user.is_headman is False
+
+
+@pytest.mark.asyncio
 async def test_regular_user_cannot_access_admin(
     client: AsyncClient,
     db_session,
@@ -84,6 +123,15 @@ async def test_regular_user_cannot_access_admin(
 
     res = await client.get("/admin/users")
     assert res.status_code == 403
+
+    res = await client.post(
+        f"/admin/users/{user.id}/headman",
+        data={"is_headman": "1"},
+    )
+    assert res.status_code == 403
+
+    await db_session.refresh(user)
+    assert user.is_headman is False
 
 
 @pytest.mark.asyncio

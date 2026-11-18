@@ -46,6 +46,7 @@ async def _render_users(
     username_changed: bool = False,
     subgroup_changed: bool = False,
     gender_subgroup_changed: bool = False,
+    headman_changed: bool = False,
     status_code: int = status.HTTP_200_OK,
 ):
     result = await db.execute(select(User).order_by(User.id))
@@ -65,6 +66,7 @@ async def _render_users(
             "username_changed": username_changed,
             "subgroup_changed": subgroup_changed,
             "gender_subgroup_changed": gender_subgroup_changed,
+            "headman_changed": headman_changed,
             "min_password_length": MIN_PASSWORD_LENGTH if get_settings().is_production else 1,
         },
         status_code=status_code,
@@ -88,6 +90,7 @@ async def users_page(
         username_changed=request.query_params.get("username_changed") == "1",
         subgroup_changed=request.query_params.get("subgroup_changed") == "1",
         gender_subgroup_changed=request.query_params.get("gender_subgroup_changed") == "1",
+        headman_changed=request.query_params.get("headman_changed") == "1",
     )
 
 
@@ -319,6 +322,37 @@ async def change_gender_subgroup(
     await db.commit()
     return RedirectResponse(
         url="/admin/users?gender_subgroup_changed=1",
+        status_code=status.HTTP_303_SEE_OTHER,
+    )
+
+
+@router.get("/users/{user_id}/headman")
+async def get_change_headman_redirect(user_id: int):
+    return RedirectResponse(url="/admin/users", status_code=status.HTTP_303_SEE_OTHER)
+
+
+@router.post("/users/{user_id}/headman")
+async def change_headman(
+    request: Request,
+    user_id: int,
+    is_headman: str | None = Form(default=None),
+    current_user: User = Depends(get_current_admin_web),
+    db: AsyncSession = Depends(get_db),
+):
+    user = await db.get(User, user_id)
+    if not user:
+        return await _render_users(
+            request,
+            db,
+            current_user,
+            error="Пользователь не найден",
+            status_code=status.HTTP_404_NOT_FOUND,
+        )
+
+    user.is_headman = is_headman == "1"
+    await db.commit()
+    return RedirectResponse(
+        url="/admin/users?headman_changed=1",
         status_code=status.HTTP_303_SEE_OTHER,
     )
 

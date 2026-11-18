@@ -89,7 +89,7 @@ This file provides comprehensive guidelines on architecture, technology stack, d
 │       │   ├── summary.py        # Daily summary: lessons + associated homework (/api/v1/summary)
 │       │   └── vacations.py      # Vacations
 │       ├── models/               # SQLAlchemy 2.0 models
-│       │   ├── user.py           # User model (id, username, hashed_password, is_admin, is_active, theme)
+│       │   ├── user.py           # User model (id, username, hashed_password, is_admin, is_headman, is_active, theme)
 │       │   ├── subject.py        # Subject model (id, name, teacher_name, room)
 │       │   ├── lesson.py         # Lesson model (id, subject_id, day_of_week, lesson_number, bell_times...)
 │       │   ├── homework.py       # Homework model (id, subject_id, lesson_id, title, due_date)
@@ -240,6 +240,7 @@ Due to both desktop and mobile DOM trees coexisting on the same page:
 4. **Access Control & Security**:
    - `get_current_user` / `get_current_user_web` — base user authentication.
    - `get_current_admin` / `get_current_admin_web` — administrator privileges check (`is_admin=True`). Non-admin users cannot create, update, or delete subjects and schedule lessons, nor access the admin user management panel (`/admin/users`).
+   - `users.is_headman` is the class-representative flag. It is toggled by an administrator on `/admin/users` and is exposed in `GET /api/v1/auth/me`; it intentionally grants no extra permissions yet (reserved for future headman-only features).
    - Administrators cannot delete their own account.
    - Authentication checks the `Authorization: Bearer <token>` header first; if absent, it extracts the token from a secure cookie (`locus_session` by default).
    - Passwords are hashed using `bcrypt`.

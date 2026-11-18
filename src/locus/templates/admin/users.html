@@ -51,6 +51,12 @@
   </div>
   {% endif %}
 
+  {% if headman_changed %}
+  <div class="p-3.5 rounded-xl bg-accent/10 border border-accent/20 text-accent-ink-hover text-xs sm:text-sm">
+    Роль старосты обновлена.
+  </div>
+  {% endif %}
+
   <form method="post" action="/admin/users" class="p-4 sm:p-5 rounded-2xl bg-surface-raised border border-edge/90 shadow-card space-y-3.5">
     <h2 class="font-bold text-fg text-sm sm:text-base">Новый аккаунт</h2>
 
@@ -110,6 +116,9 @@
             {% if user.is_admin %}
             <span class="px-2.5 py-0.5 rounded-lg bg-accent/15 text-accent-ink-hover text-[10px] font-bold uppercase tracking-wide">Админ</span>
             {% endif %}
+            {% if user.is_headman %}
+            <span class="px-2.5 py-0.5 rounded-lg bg-surface-strong text-fg-soft border border-edge-strong text-[10px] font-bold uppercase tracking-wide">Староста</span>
+            {% endif %}
             {% if user.subgroup %}
             <span class="px-2.5 py-0.5 rounded-lg bg-accent/15 text-accent-ink border border-accent-line/25 text-[10px] font-bold uppercase tracking-wide">{{ user.subgroup }} подгруппа</span>
             {% endif %}
@@ -155,6 +164,18 @@
           <button type="submit"
                   class="w-full sm:w-40 h-10 shrink-0 inline-flex items-center justify-center px-4 rounded-xl text-xs sm:text-sm font-semibold bg-surface-strong hover:bg-surface-active active:scale-95 text-fg-soft transition whitespace-nowrap">
             Сменить логин
+          </button>
+        </form>
+
+        <!-- Headman Role -->
+        <form method="post" action="/admin/users/{{ user.id }}/headman" class="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+          <label class="flex flex-1 min-w-0 items-center gap-2.5 h-10 px-3.5 rounded-xl bg-surface-card border border-edge-strong/80 text-xs sm:text-sm text-fg cursor-pointer select-none">
+            <input type="checkbox" name="is_headman" value="1" {% if user.is_headman %}checked{% endif %} aria-label="Староста для {{ user.username }}" class="hw-checkbox">
+            <span>Староста</span>
+          </label>
+          <button type="submit"
+                  class="w-full sm:w-40 h-10 shrink-0 inline-flex items-center justify-center px-4 rounded-xl text-xs sm:text-sm font-semibold bg-surface-strong hover:bg-surface-active active:scale-95 text-fg-soft transition whitespace-nowrap">
+            Сохранить роль
           </button>
         </form>
 

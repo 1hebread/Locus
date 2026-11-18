@@ -32,7 +32,7 @@ It combines a school-wide schedule and a single homework pool with individual pr
 - 🎨 **Settings**: choose the theme in `/settings` (dark, light, system, pixel dark or pixel light); it applies instantly and is stored in the user profile.
 - ⚡ **Reactive UI without an SPA**: instant feedback and partial DOM updates through HTMX, no heavy client-side framework.
 - 🔑 **Public REST API**: a full `/api/v1` with a daily summary (`/summary`), personal API keys (`lk_...`) and JWT, ready for bots and third-party integrations.
-- 🛡️ **Security and administration**: an admin panel (`/admin`), user management, password changes, API key issuing, and no public registration.
+- 🛡️ **Security and administration**: an admin panel (`/admin`), user management, headman assignment, password changes, API key issuing, and no public registration.
 
 ### Tech stack
 

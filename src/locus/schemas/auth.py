@@ -17,6 +17,7 @@ class UserOut(BaseModel):
     username: str
     is_active: bool
     is_admin: bool
+    is_headman: bool
     subgroup: int | None = None
     gender_subgroup: str | None = None
     created_at: datetime

@@ -62,6 +62,7 @@ curl -H "Authorization: Bearer $KEY" "https://example.com/api/v1/schedule?day_of
   "username": "root",
   "is_active": true,
   "is_admin": true,
+  "is_headman": false,
   "subgroup": null,
   "created_at": "2026-10-01T12:00:00Z"
 }
