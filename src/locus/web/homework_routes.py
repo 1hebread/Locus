@@ -52,12 +52,23 @@ async def _load_visible_homework(
     today: date,
 ) -> list[Homework]:
     """All non-archived homework this user can see, with personal statuses attached."""
+    now_hm = get_current_datetime().strftime("%H:%M")
+    ended_today_lessons = select(Lesson.id).where(
+        Lesson.day_of_week == today.isoweekday(),
+        Lesson.end_time < now_hm,
+    )
     stmt = (
         select(Homework)
         .options(selectinload(Homework.subject))
         .where(
             # Past-due homework is archived: keep only today and upcoming tasks
             Homework.due_date >= today,
+            # Homework for a lesson that already ended today is no longer actionable
+            or_(
+                Homework.due_date > today,
+                Homework.lesson_id.is_(None),
+                Homework.lesson_id.not_in(ended_today_lessons),
+            ),
         )
     )
 

@@ -168,6 +168,87 @@ async def test_homework_page_hides_past_due_tasks(
 
 
 @pytest.mark.asyncio
+async def test_homework_page_hides_homework_for_lessons_already_passed(
+    client: AsyncClient,
+    test_user: User,
+    auth_token: str,
+    test_subject: Subject,
+    db_session,
+    monkeypatch,
+):
+    """Homework tied to a lesson that already ended today disappears from the homework tab."""
+    from datetime import datetime, timedelta
+    from zoneinfo import ZoneInfo
+
+    from locus.config import get_settings
+
+    settings = get_settings()
+    client.cookies.set(settings.COOKIE_NAME, auth_token)
+
+    fixed_now = datetime(2026, 10, 22, 12, 0, tzinfo=ZoneInfo("Asia/Almaty"))
+    today = fixed_now.date()
+    monkeypatch.setattr("locus.web.homework_routes.get_current_datetime", lambda: fixed_now)
+
+    ended = Lesson(
+        subject_id=test_subject.id,
+        day_of_week=today.isoweekday(),
+        lesson_number=1,
+        start_time="08:00",
+        end_time="11:00",
+    )
+    upcoming = Lesson(
+        subject_id=test_subject.id,
+        day_of_week=today.isoweekday(),
+        lesson_number=2,
+        start_time="12:30",
+        end_time="13:15",
+    )
+    db_session.add_all([ended, upcoming])
+    await db_session.commit()
+    await db_session.refresh(ended)
+    await db_session.refresh(upcoming)
+
+    await add_homework(
+        db_session,
+        test_user,
+        subject_id=test_subject.id,
+        title="ДЗ прошедшего урока",
+        due_date=today,
+        lesson_id=ended.id,
+    )
+    await add_homework(
+        db_session,
+        test_user,
+        subject_id=test_subject.id,
+        title="ДЗ будущего урока",
+        due_date=today,
+        lesson_id=upcoming.id,
+    )
+    await add_homework(
+        db_session,
+        test_user,
+        subject_id=test_subject.id,
+        title="Задание без урока",
+        due_date=today,
+    )
+    await add_homework(
+        db_session,
+        test_user,
+        subject_id=test_subject.id,
+        title="Отложенное ДЗ к прошедшему уроку",
+        due_date=today + timedelta(days=1),
+        lesson_id=ended.id,
+    )
+
+    res = await client.get("/homework")
+    assert res.status_code == 200
+    assert "ДЗ прошедшего урока" not in res.text
+    assert "ДЗ будущего урока" in res.text
+    assert "Задание без урока" in res.text
+    assert "Отложенное ДЗ к прошедшему уроку" in res.text
+
+
+@pytest.mark.asyncio
 async def test_homework_page_filter_counts_and_due_labels(
     client: AsyncClient,
     test_user: User,
