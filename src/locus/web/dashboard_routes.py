@@ -97,7 +97,7 @@ async def dashboard_index(
     day_weekday = selected_date.isoweekday()  # 1 = Mon .. 7 = Sun
 
     # Days ribbon for the week
-    week_days = get_week_days_data(selected_date)
+    week_days = get_week_days_data(selected_date, today)
     start_monday = week_days[0]["date"]
     end_sunday = week_days[-1]["date"]
     prev_week_date = selected_date - timedelta(days=7)
@@ -278,6 +278,7 @@ async def dashboard_index(
             "date_iso": day["date_iso"],
             "date_text": date_text,
             "is_today": day["is_today"],
+            "relative_label": day["relative_label"],
             "is_selected": day["is_selected"],
             "day_title": day_title_text,
             "lessons_with_meta": day_lessons_with_meta,

@@ -1,10 +1,11 @@
 import re
+from datetime import timedelta
 from typing import Any, Dict, List, Optional
 
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from locus.constants import DAY_NAMES, get_current_date
+from locus.constants import DAY_NAMES, get_current_date, relative_day_label
 from locus.models.duty_day import DutyDay
 from locus.models.user import User
 
@@ -41,18 +42,23 @@ async def load_duty_days(db: AsyncSession, current_user: User) -> List[Dict[str,
     """
     rows = (await db.execute(select(DutyDay))).scalars().all()
     texts = {row.day_of_week: row.text or "" for row in rows}
-    today = get_current_date().isoweekday()
+    today = get_current_date()
+    today_num = today.isoweekday()
 
-    days = [
-        {
-            "day_of_week": day_num,
-            "name": DAY_NAMES[day_num],
-            "text": texts.get(day_num, ""),
-            "entries": parse_duty_day(texts.get(day_num, "")),
-            "is_today": day_num == today,
-        }
-        for day_num in range(1, 7)
-    ]
+    days = []
+    for day_num in range(1, 7):
+        # The roster repeats every week: label relative to the nearest occurrence.
+        delta = (day_num - today_num + 3) % 7 - 3
+        days.append(
+            {
+                "day_of_week": day_num,
+                "name": DAY_NAMES[day_num],
+                "text": texts.get(day_num, ""),
+                "entries": parse_duty_day(texts.get(day_num, "")),
+                "is_today": day_num == today_num,
+                "relative_label": relative_day_label(today + timedelta(days=delta), today),
+            }
+        )
 
     logins = {
         entry["login"].lower() for day in days for entry in day["entries"] if entry["login"]

@@ -79,8 +79,8 @@
               <span class="text-fg">{{ day.name }}</span>
               <span class="text-fg-subtle font-medium"> • {{ day.date_text }}</span>
             </h1>
-            {% if day.is_today %}
-            <p class="text-sm text-fg-subtle font-medium mt-0.5">Сегодня</p>
+            {% if day.relative_label %}
+            <p class="text-sm text-fg-subtle font-medium mt-0.5">{{ day.relative_label }}</p>
             {% endif %}
           </div>
 
@@ -334,8 +334,8 @@
               <span class="text-fg">{{ day.name }}</span>
               <span class="text-fg-subtle font-medium"> • {{ day.date_text }}</span>
             </h2>
-            {% if day.is_today %}
-            <p class="text-sm text-fg-subtle font-medium leading-none mt-0.5">Сегодня</p>
+            {% if day.relative_label %}
+            <p class="text-sm text-fg-subtle font-medium leading-none mt-0.5">{{ day.relative_label }}</p>
             {% endif %}
           </div>
           <button type="button"

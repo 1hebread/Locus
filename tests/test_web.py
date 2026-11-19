@@ -57,6 +57,57 @@ async def test_authenticated_dashboard(
 
 
 @pytest.mark.asyncio
+async def test_dashboard_labels_yesterday_today_tomorrow(
+    client: AsyncClient,
+    test_user: User,
+    auth_token: str,
+    monkeypatch,
+):
+    """Day headers read 'Вчера' / 'Сегодня' / 'Завтра' around the current date."""
+    from datetime import date
+
+    from locus.config import get_settings
+
+    settings = get_settings()
+    client.cookies.set(settings.COOKIE_NAME, auth_token)
+
+    fixed = date(2026, 10, 22)  # Thursday
+    monkeypatch.setattr("locus.web.dashboard_routes.get_current_date", lambda: fixed)
+
+    res = await client.get("/")
+    assert res.status_code == 200
+    assert "Вчера" in res.text
+    assert "Сегодня" in res.text
+    assert "Завтра" in res.text
+    # Both the desktop and mobile day headers carry the label.
+    assert res.text.count("Сегодня") == 2
+
+    adjacent_day = await client.get("/?date=2026-10-21")
+    assert adjacent_day.status_code == 200
+    assert adjacent_day.text.count("Вчера") == 2
+
+    # A different week has no neighboring days relative to today.
+    other_week = await client.get("/?date=2026-11-05")
+    assert other_week.status_code == 200
+    assert "Вчера" not in other_week.text
+    assert "Сегодня" not in other_week.text
+    assert "Завтра" not in other_week.text
+
+
+def test_relative_day_label_only_for_neighbors():
+    from datetime import date, timedelta
+
+    from locus.constants import relative_day_label
+
+    today = date(2026, 10, 22)
+    assert relative_day_label(today - timedelta(days=1), today) == "Вчера"
+    assert relative_day_label(today, today) == "Сегодня"
+    assert relative_day_label(today + timedelta(days=1), today) == "Завтра"
+    assert relative_day_label(today - timedelta(days=2), today) == ""
+    assert relative_day_label(today + timedelta(days=2), today) == ""
+
+
+@pytest.mark.asyncio
 async def test_dashboard_copy_homework_text(
     client: AsyncClient,
     test_user: User,

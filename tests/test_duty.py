@@ -63,6 +63,29 @@ async def test_duty_page_highlights_linked_user_today(
     assert "text-accent-ink font-semibold" in res.text
     assert "Пётр П." in res.text
     assert "Сегодня" in res.text
+    assert "Вчера" in res.text
+    assert "Завтра" in res.text
+
+
+@pytest.mark.asyncio
+async def test_duty_labels_on_sunday_point_to_the_coming_week(
+    client: AsyncClient,
+    test_user: User,
+    auth_token: str,
+    monkeypatch,
+):
+    """The recurring roster labels the nearest Monday as 'Завтра' on Sunday."""
+    monkeypatch.setattr("locus.duty.get_current_date", lambda: date(2026, 10, 25))
+
+    client.cookies.set(settings.COOKIE_NAME, auth_token)
+    res = await client.get("/duty")
+
+    assert res.status_code == 200
+    assert "Сегодня" not in res.text
+
+    monday_card = res.text.split("Понедельник", 1)[1].split("Вторник", 1)[0]
+    assert "Завтра" in monday_card
+    assert "Вчера" in res.text.split("Суббота", 1)[1]
 
 
 @pytest.mark.asyncio

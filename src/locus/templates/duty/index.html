@@ -29,8 +29,8 @@
     <div class="p-4 sm:p-5 rounded-2xl bg-surface-raised border {% if day.is_today %}border-accent-line/60{% else %}border-edge/90{% endif %}">
       <div class="flex items-center justify-between pb-2.5 border-b border-edge">
         <h2 class="font-bold text-sm text-fg-soft">{{ day.name }}</h2>
-        {% if day.is_today %}
-        <span class="inline-flex items-center px-2 py-0.5 rounded-full bg-accent/15 text-accent-ink border border-accent-line/30 text-[10px] font-semibold">Сегодня</span>
+        {% if day.relative_label %}
+        <span class="inline-flex items-center px-2 py-0.5 rounded-full border text-[10px] font-semibold {% if day.is_today %}bg-accent/15 text-accent-ink border-accent-line/30{% else %}bg-surface-card text-fg-subtle border-edge{% endif %}">{{ day.relative_label }}</span>
         {% endif %}
       </div>
 

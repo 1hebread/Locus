@@ -191,9 +191,15 @@ def is_lesson_now(lesson_date: date, start_time: str, end_time: str) -> bool:
     return start_time <= current_time_str <= end_time
 
 
-def get_week_days_data(selected_date: date) -> List[Dict[str, Any]]:
+def relative_day_label(day_date: date, today: date | None = None) -> str:
+    """'Вчера' / 'Сегодня' / 'Завтра' for neighboring days, empty otherwise."""
+    delta = (day_date - (today or get_current_date())).days
+    return {-1: "Вчера", 0: "Сегодня", 1: "Завтра"}.get(delta, "")
+
+
+def get_week_days_data(selected_date: date, today: date | None = None) -> List[Dict[str, Any]]:
     """Return day list for the week containing selected_date."""
-    today = get_current_date()
+    today = today or get_current_date()
     # Monday of the current week (weekday() is 0 for Monday)
     start_monday = selected_date - timedelta(days=selected_date.weekday())
     result = []
@@ -209,6 +215,7 @@ def get_week_days_data(selected_date: date) -> List[Dict[str, Any]]:
             "date": day_date,
             "date_iso": day_date.isoformat(),
             "is_today": (day_date == today),
+            "relative_label": relative_day_label(day_date, today),
             "is_selected": (day_date == selected_date),
         })
     return result
