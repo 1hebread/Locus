@@ -1,4 +1,4 @@
-<div id="hw-card-{{ hw.id }}" class="hw-card p-3.5 rounded-2xl bg-surface-card border border-edge/90 shadow-card relative group hover:border-edge-strong transition">
+<div id="hw-card-{{ hw.id }}" data-copy-line="{{ hw.subject.name if hw.subject else 'Предмет' }}: {{ hw.title }}" data-copy-title="{{ hw.title }}" class="hw-card p-3.5 rounded-2xl bg-surface-card border border-edge/90 shadow-card relative group hover:border-edge-strong transition">
   <div class="flex items-start justify-between gap-2.5">
     <!-- Status toggle checkbox -->
     <div class="flex items-start space-x-2.5 min-w-0 flex-1">

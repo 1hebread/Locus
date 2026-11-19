@@ -182,7 +182,7 @@
           <h3 class="text-xs font-bold text-fg-subtle uppercase tracking-wider">{% if day.vacation %}Задания на каникулы{% else %}Другие задания на этот день{% endif %}</h3>
           <div class="space-y-2">
             {% for hw in day.unassigned_hw %}
-            <div data-hw-card="{{ hw.id }}" id="desktop-unassigned-hw-{{ hw.id }}" data-copy-line="{{ hw.subject.name if hw.subject else 'Предмет' }}: {{ hw.title }}" class="bg-surface-card border border-edge/90 rounded-2xl p-3.5 sm:p-4 shadow-card flex items-start justify-between gap-3">
+            <div data-hw-card="{{ hw.id }}" id="desktop-unassigned-hw-{{ hw.id }}" data-copy-line="{{ hw.subject.name if hw.subject else 'Предмет' }}: {{ hw.title }}" data-copy-title="{{ hw.title }}" class="bg-surface-card border border-edge/90 rounded-2xl p-3.5 sm:p-4 shadow-card flex items-start justify-between gap-3">
               <div class="min-w-0 flex-1">
                 <div class="flex items-center space-x-2 mb-1 flex-wrap">
                   <span class="text-[10px] font-bold px-2 py-0.5 rounded text-black bg-brand-400">
@@ -387,7 +387,7 @@
           <h3 class="text-xs font-bold text-fg-subtle uppercase tracking-wider">{% if day.vacation %}Задания на каникулы{% else %}Другие задания{% endif %}</h3>
           <div class="space-y-2">
             {% for hw in day.unassigned_hw %}
-            <div data-hw-card="{{ hw.id }}" id="mobile-unassigned-hw-{{ hw.id }}-{{ day.day_num }}" data-copy-line="{{ hw.subject.name if hw.subject else 'Предмет' }}: {{ hw.title }}" class="bg-surface-card border border-edge/90 rounded-2xl p-3.5 sm:p-4 shadow-card flex items-start justify-between gap-3">
+            <div data-hw-card="{{ hw.id }}" id="mobile-unassigned-hw-{{ hw.id }}-{{ day.day_num }}" data-copy-line="{{ hw.subject.name if hw.subject else 'Предмет' }}: {{ hw.title }}" data-copy-title="{{ hw.title }}" class="bg-surface-card border border-edge/90 rounded-2xl p-3.5 sm:p-4 shadow-card flex items-start justify-between gap-3">
               <div class="min-w-0 flex-1">
                 <div class="flex items-center space-x-2 mb-1 flex-wrap">
                   <span class="text-[10px] font-bold px-2 py-0.5 rounded text-black bg-brand-400">

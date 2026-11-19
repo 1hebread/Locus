@@ -156,6 +156,8 @@ async def test_dashboard_copy_homework_text(
     assert 'data-copy-scope="#mobile-day-1"' in res.text
     assert 'data-copy-line="Алгебра: Решить 3 уравнения с котами"' in res.text
     assert 'data-copy-line="Алгебра: Дополнительное задание"' in res.text
+    assert 'data-copy-title="Решить 3 уравнения с котами"' in res.text
+    assert 'data-copy-title="Дополнительное задание"' in res.text
 
 
 @pytest.mark.asyncio
@@ -339,6 +341,8 @@ async def test_homework_page_filter_counts_and_due_labels(
     assert 'id="hw-count-all" class="font-bold opacity-60">2</span>' in res.text
     assert 'id="hw-count-todo" class="font-bold opacity-60">1</span>' in res.text
     assert 'id="hw-count-done" class="font-bold opacity-60">1</span>' in res.text
+    assert 'data-copy-line="Алгебра: Задача на сегодня"' in res.text
+    assert 'data-copy-title="Задача на сегодня"' in res.text
     assert "Сегодня" in res.text
     assert "Завтра" in res.text
 

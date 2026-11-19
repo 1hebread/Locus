@@ -482,6 +482,53 @@ body {
   }
 }
 
+/* Long-press copy: no native selection/callout on touch screens */
+@media (hover: none) {
+  [data-copy-line] {
+    -webkit-user-select: none;
+    user-select: none;
+    -webkit-touch-callout: none;
+  }
+}
+
+/* Long-press copy feedback */
+#toast-container {
+  top: calc(env(safe-area-inset-top, 0px) + 1.25rem);
+  right: calc(env(safe-area-inset-right, 0px) + 1.25rem);
+}
+
+.toast {
+  background-color: rgb(var(--c-surface-raised));
+  border: 1px solid rgb(var(--c-edge-strong));
+  border-radius: 0.75rem;
+  padding: 0.625rem 0.875rem;
+  color: rgb(var(--c-fg));
+  font-size: 0.75rem;
+  font-weight: 600;
+  line-height: 1.25;
+  box-shadow: var(--shadow-card);
+  animation: toast-in 0.16s ease-out;
+  transition: opacity 0.2s ease;
+}
+
+.toast.is-leaving {
+  opacity: 0;
+}
+
+@keyframes toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .toast {
+    animation: none;
+    transition: none;
+  }
+}
+
 /* Clean Modal Backdrop */
 .modal-backdrop {
   background-color: rgba(0, 0, 0, 0.75);

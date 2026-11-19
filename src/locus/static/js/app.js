@@ -719,9 +719,21 @@ function endPress(el) {
 }
 
 document.addEventListener('pointerdown', (e) => {
+  pendingLongPressClick = null;
+  resetLongPress();
+
   const toggle = e.target.closest('[data-hw-toggle]');
   if (toggle) {
     startPress(toggle);
+    return;
+  }
+
+  const copyLine = e.target.closest('[data-copy-line]');
+  if (copyLine && e.button === 0 && e.isPrimary
+      && !e.target.closest('button, a, input, select, textarea, label')) {
+    const pressCard = copyLine.closest('[data-pressable-card]');
+    if (pressCard) startPress(pressCard);
+    beginLongPress(copyLine, e);
     return;
   }
 
@@ -923,21 +935,134 @@ function updateCopyButtons() {
 document.addEventListener('htmx:load', updateCopyButtons);
 updateCopyButtons();
 
-async function copyDayHomework(button) {
-  const text = dayCopyText(button);
-  if (!text) return;
-
-  let copied = false;
+async function copyToClipboard(text, allowFallback = true) {
   try {
     if (navigator.clipboard && navigator.clipboard.writeText) {
       await navigator.clipboard.writeText(text);
-      copied = true;
+      return true;
     }
   } catch (_) {}
-  if (!copied) copied = copyTextFallback(text);
-
-  showCopyFeedback(button, copied);
+  return allowFallback ? copyTextFallback(text) : false;
 }
+
+async function copyDayHomework(button) {
+  const text = dayCopyText(button);
+  if (!text) return;
+  showCopyFeedback(button, await copyToClipboard(text));
+}
+
+function showToast(message) {
+  const container = document.getElementById('toast-container');
+  if (!container) return;
+  const toast = document.createElement('div');
+  toast.className = 'toast';
+  toast.textContent = message;
+  container.appendChild(toast);
+  setTimeout(() => {
+    toast.classList.add('is-leaving');
+    setTimeout(() => toast.remove(), 220);
+  }, 1600);
+}
+
+// Holding a homework line copies just that line. The first write happens as
+// soon as the long press arms; if the browser refuses writes from a timer
+// (Safari may), the gesture end retries synchronously.
+const LONG_PRESS_MS = 450;
+const LONG_PRESS_MOVE_PX = 10;
+let longPressTimer = null;
+let longPress = null;
+let pendingLongPressClick = null;
+
+function resetLongPress() {
+  clearTimeout(longPressTimer);
+  longPressTimer = null;
+  longPress = null;
+}
+
+function copyHomeworkLine(press, allowFallback = true) {
+  if (press.copied) return;
+  const text = (press.card.dataset.copyTitle || press.card.dataset.copyLine || '')
+    .replace(/\s+/g, ' ')
+    .trim();
+  if (!text) return;
+  press.pendingCopies += 1;
+  copyToClipboard(text, allowFallback).then((copied) => {
+    press.pendingCopies -= 1;
+    if (copied) {
+      if (press.copied) return;
+      press.copied = true;
+      showToast('Домашнее задание скопировано');
+    } else if (press.released && press.pendingCopies === 0 && !press.copied) {
+      showToast('Не удалось скопировать');
+    }
+  });
+}
+
+function beginLongPress(card, event) {
+  longPress = {
+    card,
+    pointerId: event.pointerId,
+    x: event.clientX,
+    y: event.clientY,
+    armed: false,
+    copied: false,
+    pendingCopies: 0,
+    released: false,
+  };
+  longPressTimer = setTimeout(() => {
+    longPressTimer = null;
+    if (!longPress) return;
+    longPress.armed = true;
+    // No execCommand fallback here: a hidden textarea selection outside a
+    // gesture can flash on mobile. The release retry covers it.
+    copyHomeworkLine(longPress, false);
+  }, LONG_PRESS_MS);
+}
+
+document.addEventListener('pointermove', (e) => {
+  if (!longPress || e.pointerId !== longPress.pointerId || longPress.armed) return;
+  if (Math.hypot(e.clientX - longPress.x, e.clientY - longPress.y) > LONG_PRESS_MOVE_PX) {
+    resetLongPress();
+  }
+}, { passive: true });
+
+document.addEventListener('pointerup', (e) => {
+  if (!longPress || e.pointerId !== longPress.pointerId) return;
+  const press = longPress;
+  resetLongPress();
+  if (!press.armed) return;
+  // Keep the click from opening the lesson modal and retry a refused timer
+  // write while the gesture is still active.
+  press.released = true;
+  pendingLongPressClick = press;
+  copyHomeworkLine(press);
+  setTimeout(() => {
+    if (pendingLongPressClick === press) pendingLongPressClick = null;
+  }, 700);
+}, { passive: true });
+
+document.addEventListener('pointercancel', (e) => {
+  if (longPress && e.pointerId === longPress.pointerId) resetLongPress();
+}, { passive: true });
+
+document.addEventListener('contextmenu', (e) => {
+  if ((longPress || pendingLongPressClick) && e.target.closest('[data-copy-line]')) {
+    e.preventDefault();
+  }
+});
+
+document.addEventListener('click', (e) => {
+  const press = pendingLongPressClick;
+  if (!press) return;
+  pendingLongPressClick = null;
+  // Only swallow the click produced by this gesture, not a later keyboard or
+  // assistive-tech click that happens to land within the timeout.
+  const scope = press.card.closest('[data-pressable-card]') || press.card;
+  if (!scope.contains(e.target)) return;
+  e.preventDefault();
+  e.stopPropagation();
+  e.stopImmediatePropagation();
+}, true);
 
 // iOS renders <input type="date"> with a localized, oversized native label
 // ("23 окт. 2026 г."). Show a consistent DD.MM.YYYY value above it instead,
