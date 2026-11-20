@@ -112,6 +112,7 @@ This file provides comprehensive guidelines on architecture, technology stack, d
 │       │   ├── css/tailwind.css  # Compiled Tailwind build (committed)
 │       │   ├── css/tailwind.src.css # Tailwind source compiled by npm
 │       │   ├── icons/            # PWA icons (SVG + PNG, C2PA metadata stripped)
+│       │   ├── fonts/            # Pixeloid Sans Bold woff2 (OFL 1.1) for the pixel themes
 │       │   ├── js/app.js         # Modals, mobile week swipe, Scroll Spy
 │       │   ├── js/htmx.min.js    # Vendored HTMX 2.0.4 (0BSD)
 │       │   ├── manifest.json     # PWA manifest

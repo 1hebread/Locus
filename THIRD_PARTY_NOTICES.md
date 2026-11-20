@@ -10,6 +10,7 @@ This list is provided for convenience and may be incomplete or outdated. It is n
 |---|---|---|---|
 | [HTMX](https://htmx.org) | 2.0.4 | 0BSD | `src/locus/static/js/htmx.min.js` |
 | [Tailwind CSS](https://tailwindcss.com) | build-time only | MIT | `src/locus/static/css/tailwind.css` (compiled output) |
+| [Pixeloid Sans](https://ggbot.itch.io/pixeloid-font) | Bold | SIL OFL 1.1 | `src/locus/static/fonts/PixeloidSans-Bold.woff2` |
 
 ## Python runtime dependencies
 

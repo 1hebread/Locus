@@ -1,3 +1,12 @@
+/* Pixeloid Sans Bold (SIL OFL 1.1) — only used by the pixel themes */
+@font-face {
+  font-family: "Pixeloid Sans";
+  src: url("/static/fonts/PixeloidSans-Bold.woff2") format("woff2");
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
 /* Locus theme tokens (dark is the default: pure black) */
 :root {
   color-scheme: dark;
@@ -270,6 +279,11 @@ body {
   -webkit-tap-highlight-color: transparent;
   margin: 0;
   padding: 0;
+}
+
+/* Pixel themes wear the chunky Pixeloid Sans everywhere */
+html[data-theme^="pixel-"] body {
+  font-family: "Pixeloid Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
 }
 
 /* Touch action for week ribbon to allow vertical scrolling while handling custom swipe */
