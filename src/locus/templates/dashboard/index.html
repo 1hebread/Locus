@@ -104,13 +104,17 @@
               </a>
               <a href="/?date={{ day.date_iso }}&subgroup=boys"
                  data-subgroup-filter
+                 title="Мальчики"
+                 aria-label="Мальчики"
                  class="px-2.5 py-1 rounded-lg font-medium transition {% if active_subgroup == 'boys' %}bg-accent text-on-accent font-bold{% else %}text-fg-subtle hover:text-fg{% endif %}">
-                Мальчики
+                М
               </a>
               <a href="/?date={{ day.date_iso }}&subgroup=girls"
                  data-subgroup-filter
+                 title="Девочки"
+                 aria-label="Девочки"
                  class="px-2.5 py-1 rounded-lg font-medium transition {% if active_subgroup == 'girls' %}bg-accent text-on-accent font-bold{% else %}text-fg-subtle hover:text-fg{% endif %}">
-                Девочки
+                Д
               </a>
             </div>
             {% else %}
