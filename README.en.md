@@ -31,6 +31,7 @@ It combines a school-wide schedule and a single homework pool with individual pr
 - 📱 **PWA and themes**: Black theme by default, a light theme, two pixel-art themes and system-preference tracking, installable to the home screen, with a floating navigation dock and iOS standalone tweaks.
 - 🎨 **Settings**: choose the theme in `/settings` (dark, light, system, pixel dark or pixel light); it applies instantly and is stored in the user profile.
 - ⚡ **Reactive UI without an SPA**: instant feedback and partial DOM updates through HTMX, no heavy client-side framework.
+- 💻 **Official CLI**: A console client, [LocusCLI](https://github.com/1hebread/LocusCLI) (written in Go), to view schedules and manage homework directly from the terminal.
 - 🔑 **Public REST API**: a full `/api/v1` with a daily summary (`/summary`), personal API keys (`lk_...`) and JWT, ready for bots and third-party integrations.
 - 🛡️ **Security and administration**: an admin panel (`/admin`), user management, headman assignment, password changes, API key issuing, and no public registration.
 
@@ -176,6 +177,12 @@ Locus exposes a REST API at `/api/v1` for external services, Telegram bots and a
 > [!NOTE]
 > The full request and response reference is in [docs/api.md](docs/api.md) (Russian). Interactive Swagger UI is available at `/docs` when `ENVIRONMENT=development`.
 
+## Official CLI
+
+For terminal users, an official command-line client is available: [LocusCLI](https://github.com/1hebread/LocusCLI) (written in Go).
+
+It communicates with Locus via the REST API using a personal API key and allows you to view daily summaries, schedules, bell times, subjects, vacations, duty rosters, as well as create, edit, complete, and delete homework assignments directly from the command line.
+
 ## Data and privacy
 
 Locus contains no analytics and sends no data to the author of the project: everything stays in the database of your own instance.
@@ -193,6 +200,6 @@ What is stored, who can see it, for how long and how it is deleted is described 
 
 ## License
 
-Distributed under the [MIT License](LICENSE).
+Distributed under the [MIT License](LICENSE). Details are available in the [LICENSE](LICENSE) file.
 
 Third-party components and their licenses are listed in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
