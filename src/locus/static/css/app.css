@@ -123,7 +123,7 @@ html[data-theme="pixel-dark"] {
   --pixel-frame-accent: url("data:image/svg+xml,%3Csvg%20xmlns%3D%27http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%27%20width%3D%2712%27%20height%3D%2712%27%20viewBox%3D%270%200%2012%2012%27%3E%3Cpath%20fill%3D%27%2389e876%27%20fill-rule%3D%27evenodd%27%20d%3D%27M4%200H8V2H10V4H12V8H10V10H8V12H4V10H2V8H0V4H2V2H4Z%20M4%204H8V8H4Z%27%2F%3E%3C%2Fsvg%3E");
 }
 
-/* Pixel light: warm paper surfaces with the same arcade accent */
+/* Pixel light: warm paper surfaces with blue blueprint chrome */
 html[data-theme="pixel-light"] {
   color-scheme: light;
   --c-surface: 236 233 220;
@@ -133,9 +133,9 @@ html[data-theme="pixel-light"] {
   --c-surface-inset: 221 217 199;
   --c-surface-strong: 213 208 189;
   --c-surface-active: 200 194 173;
-  --c-edge: 32 38 60;
-  --c-edge-strong: 18 23 40;
-  --c-edge-extra: 107 111 126;
+  --c-edge: 91 135 170;
+  --c-edge-strong: 32 79 120;
+  --c-edge-extra: 58 105 144;
   --c-fg: 26 32 51;
   --c-fg-soft: 42 49 71;
   --c-fg-muted: 63 71 96;
@@ -157,8 +157,8 @@ html[data-theme="pixel-light"] {
   --c-danger-soft: 251 228 232;
   --c-danger-edge: 239 180 191;
   --c-warning-ink: 138 90 0;
-  --c-pixel-edge: 18 23 40;
-  --pixel-frame: url("data:image/svg+xml,%3Csvg%20xmlns%3D%27http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%27%20width%3D%2712%27%20height%3D%2712%27%20viewBox%3D%270%200%2012%2012%27%3E%3Cpath%20fill%3D%27%23121728%27%20fill-rule%3D%27evenodd%27%20d%3D%27M4%200H8V2H10V4H12V8H10V10H8V12H4V10H2V8H0V4H2V2H4Z%20M4%204H8V8H4Z%27%2F%3E%3C%2Fsvg%3E");
+  --c-pixel-edge: 38 88 130;
+  --pixel-frame: url("data:image/svg+xml,%3Csvg%20xmlns%3D%27http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%27%20width%3D%2712%27%20height%3D%2712%27%20viewBox%3D%270%200%2012%2012%27%3E%3Cpath%20fill%3D%27%23265882%27%20fill-rule%3D%27evenodd%27%20d%3D%27M4%200H8V2H10V4H12V8H10V10H8V12H4V10H2V8H0V4H2V2H4Z%20M4%204H8V8H4Z%27%2F%3E%3C%2Fsvg%3E");
   --pixel-frame-accent: url("data:image/svg+xml,%3Csvg%20xmlns%3D%27http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%27%20width%3D%2712%27%20height%3D%2712%27%20viewBox%3D%270%200%2012%2012%27%3E%3Cpath%20fill%3D%27%23257d24%27%20fill-rule%3D%27evenodd%27%20d%3D%27M4%200H8V2H10V4H12V8H10V10H8V12H4V10H2V8H0V4H2V2H4Z%20M4%204H8V8H4Z%27%2F%3E%3C%2Fsvg%3E");
 }
 
