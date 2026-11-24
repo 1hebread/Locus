@@ -24,10 +24,11 @@ It combines a school-wide schedule and a single homework pool with individual pr
 - ✅ **Personal completion tracking**: each student has their own `TODO` / `DONE` status, stored in the isolated `homework_completions` table.
 - 👥 **Subgroup support**: split classes into subgroups (foreign languages, for example) across the schedule, homework and push notifications.
 - 🧹 **Duty roster**: who is on duty for each weekday, with optional binding to a user by login (`Ivan I. (ivan)`) and a highlight of your own line for today.
+- 🗓️ **Headman attendance**: a separate class roster and day-level marks (present, absent/unknown/left, late, excused, sick). Any authenticated user can view it; only the headman and administrators can edit. Student full names are encrypted at rest.
 - 🔔 **Web Push notifications**: background browser and PWA pushes (VAPID) on homework creation, update and deletion, filtered by subgroup and sent to every active user except the author of the change.
 - 📜 **Change history (audit log)**: a transparent trail of homework edits with the author, timestamp and changed fields (`homework_events`). The last editor is shown in the lesson modal, and the full feed is at `/admin/history`.
 - 💡 **Smart defaults**: when adding homework, the next date and the matching lesson are preselected.
-- 🧹 **Automatic cleanup**: old assignments are rotated out after a configurable retention period (`HOMEWORK_RETENTION_DAYS`).
+- 🧹 **Automatic cleanup**: old assignments, audit entries and attendance marks are rotated out after a configurable retention period (`HOMEWORK_RETENTION_DAYS`); archived students without remaining marks are removed automatically.
 - 📱 **PWA and themes**: Black theme by default, a light theme, two pixel-art themes and system-preference tracking, installable to the home screen, with a floating navigation dock and iOS standalone tweaks.
 - 🎨 **Settings**: choose the theme in `/settings` (dark, light, system, pixel dark or pixel light); it applies instantly and is stored in the user profile.
 - ⚡ **Reactive UI without an SPA**: instant feedback and partial DOM updates through HTMX, no heavy client-side framework.
@@ -69,7 +70,7 @@ Fill in `.env`:
 - `ADMIN_PASSWORD` — password of the initial administrator (at least 8 characters).
 - `PORT` — web server port (default `8010`).
 - `TIMEZONE` — diary timezone (default `Asia/Almaty`).
-- `HOMEWORK_RETENTION_DAYS` — how long old assignments are kept, in days (default `30`).
+- `HOMEWORK_RETENTION_DAYS` — how long old assignments, audit entries and attendance marks are kept, in days (default `30`).
 - `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT` — keys for Web Push notifications.
 
 > [!NOTE]

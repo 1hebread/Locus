@@ -139,3 +139,27 @@ async def get_current_admin_web(
             detail="Недостаточно прав",
         )
     return user
+
+
+async def get_current_headman(
+    user: User = Depends(get_current_user),
+) -> User:
+    """Dependency for headman-only REST API routes (admins included)."""
+    if not (user.is_headman or user.is_admin):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Недостаточно прав",
+        )
+    return user
+
+
+async def get_current_headman_web(
+    user: User = Depends(get_current_user_web),
+) -> User:
+    """Dependency for headman-only Web UI routes (admins included)."""
+    if not (user.is_headman or user.is_admin):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Недостаточно прав",
+        )
+    return user

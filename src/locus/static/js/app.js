@@ -847,7 +847,9 @@ window.addEventListener('click', (e) => {
 let isNavigatingPage = false;
 let lastPagePath = window.location.pathname;
 let lastPageUrl = window.location.pathname + window.location.search;
-const SECTION_PATHS = new Set(['/', '/homework', '/subjects', '/schedule', '/duty', '/settings', '/admin/users', '/admin/history', '/admin/api-keys']);
+const SECTION_PATHS = new Set(['/', '/homework', '/subjects', '/schedule', '/duty', '/attendance', '/settings', '/admin/users', '/admin/history', '/admin/api-keys']);
+// Attendance status filter: survives HTMX row swaps, reset on section navigation.
+let attendanceFilter = '';
 
 // Inline <script> tags inserted via innerHTML never run, so re-create them
 function runScripts(container) {
@@ -949,6 +951,25 @@ async function copyDayHomework(button) {
   const text = dayCopyText(button);
   if (!text) return;
   showCopyFeedback(button, await copyToClipboard(text));
+}
+
+// Attendance: the list header keeps a "name — reason" report for absentees.
+async function copyAttendanceAbsent(button) {
+  const text = button.dataset.copyText || '';
+  if (!text) return;
+  showCopyFeedback(button, await copyToClipboard(text));
+}
+
+// Saving an empty roster archives the whole class; ask before that.
+function confirmEmptyRoster(form) {
+  const text = form.querySelector('textarea[name="text"]');
+  if (text && !text.value.trim() && form.dataset.activeStudents === 'true') {
+    askConfirm('Очистить список класса? Ученики скроются из текущих дней.').then((confirmed) => {
+      if (confirmed) form.submit();
+    });
+    return false;
+  }
+  return true;
 }
 
 function showToast(message) {
@@ -1227,6 +1248,15 @@ function closeSplitMenus(except) {
   });
 }
 
+function positionSplitPanel(panel) {
+  // Reset first: the panel may still carry the previous open direction, which
+  // would make the measurement flip it back and forth on every open.
+  panel.classList.remove('split-menu-up');
+  if (panel.getBoundingClientRect().bottom > window.innerHeight - 8) {
+    panel.classList.add('split-menu-up');
+  }
+}
+
 document.addEventListener('click', (e) => {
   const toggle = e.target.closest ? e.target.closest('[data-split-toggle]') : null;
   if (toggle) {
@@ -1238,12 +1268,14 @@ document.addEventListener('click', (e) => {
       panel.classList.remove('split-menu-closing');
       panel.classList.remove('hidden');
       toggle.setAttribute('aria-expanded', 'true');
+      positionSplitPanel(panel);
       return;
     }
     closeSplitMenus(panel);
     if (panel.classList.contains('hidden')) {
       panel.classList.remove('hidden');
       toggle.setAttribute('aria-expanded', 'true');
+      positionSplitPanel(panel);
     } else {
       hideSplitPanel(panel, toggle);
     }
@@ -1436,6 +1468,7 @@ async function navigateToPage(targetUrl, push = true) {
 
   setDockActive(targetPath);
   hideOpenOverlays();
+  attendanceFilter = '';
 
   try {
     const fetchPromise = fetch(targetUrl, {
@@ -2726,4 +2759,57 @@ document.addEventListener('mouseup', (e) => {
   if (e.button === 0 && window.innerWidth < 768) {
     handleGestureEnd(e.clientX, e.clientY);
   }
+});
+
+// Track pointer vs keyboard so focus rings only appear for keyboard navigation.
+document.addEventListener('pointerdown', () => {
+  document.documentElement.dataset.input = 'pointer';
+}, true);
+document.addEventListener('keydown', (event) => {
+  if (event.key === 'Tab') document.documentElement.dataset.input = 'keyboard';
+}, true);
+
+// Attendance: count cards filter the student list by status.
+// The "Нет" card covers several statuses; the server renders that set into
+// #attendance-counts so a new absence variant does not need a JS edit.
+const ATTENDANCE_FILTER_STATUSES = {
+  present: ['PRESENT'],
+  late: ['LATE'],
+  excused: ['EXCUSED'],
+  sick: ['SICK'],
+  unmarked: [''],
+};
+
+function attendanceFilterAllowed() {
+  if (attendanceFilter === 'absent') {
+    const counts = document.getElementById('attendance-counts');
+    const raw = counts ? counts.dataset.absentStatuses : '';
+    return raw ? raw.split(',') : null;
+  }
+  return ATTENDANCE_FILTER_STATUSES[attendanceFilter] || null;
+}
+
+function applyAttendanceFilter() {
+  const allowed = attendanceFilterAllowed();
+  document.querySelectorAll('[data-attendance-filter]').forEach((card) => {
+    card.setAttribute('aria-pressed', card.dataset.attendanceFilter === attendanceFilter ? 'true' : 'false');
+  });
+  document.querySelectorAll('[data-attendance-row]').forEach((row) => {
+    const status = row.dataset.status || '';
+    row.classList.toggle('hidden', Boolean(allowed) && !allowed.includes(status));
+  });
+}
+
+document.addEventListener('click', (e) => {
+  const card = e.target.closest ? e.target.closest('[data-attendance-filter]') : null;
+  if (!card) return;
+  const filter = card.dataset.attendanceFilter || '';
+  // Read the pressed state from the DOM: the filter variable survives section
+  // navigation, while the cards are re-rendered unpressed.
+  attendanceFilter = card.getAttribute('aria-pressed') === 'true' ? '' : filter;
+  applyAttendanceFilter();
+});
+
+document.addEventListener('htmx:afterSwap', () => {
+  if (document.querySelector('[data-attendance-filter]')) applyAttendanceFilter();
 });

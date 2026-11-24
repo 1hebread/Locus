@@ -18,6 +18,45 @@ class HomeworkStatus(str, Enum):
     DONE = "DONE"
 
 
+class AttendanceStatus(str, Enum):
+    PRESENT = "PRESENT"
+    ABSENT = "ABSENT"
+    ABSENT_UNKNOWN = "ABSENT_UNKNOWN"
+    LEFT = "LEFT"
+    LATE = "LATE"
+    EXCUSED = "EXCUSED"
+    SICK = "SICK"
+
+
+# Absence variants share the "Нет" button and count in `counts.absent`.
+# shortcut: no separate unknown/left counters; add them when the UI needs them.
+ATTENDANCE_ABSENCE_STATUSES = (
+    AttendanceStatus.ABSENT,
+    AttendanceStatus.ABSENT_UNKNOWN,
+    AttendanceStatus.LEFT,
+)
+
+ATTENDANCE_STATUS_LABELS = {
+    AttendanceStatus.PRESENT.value: "Был",
+    AttendanceStatus.ABSENT.value: "Нет",
+    AttendanceStatus.ABSENT_UNKNOWN.value: "Неизвестно",
+    AttendanceStatus.LEFT.value: "Ушёл",
+    AttendanceStatus.LATE.value: "Опоздал",
+    AttendanceStatus.EXCUSED.value: "Уважительная",
+    AttendanceStatus.SICK.value: "Болезнь",
+}
+
+ATTENDANCE_STATUS_SHORT_LABELS = {
+    AttendanceStatus.PRESENT.value: "Был",
+    AttendanceStatus.ABSENT.value: "Нет",
+    AttendanceStatus.ABSENT_UNKNOWN.value: "Неиз.",
+    AttendanceStatus.LEFT.value: "Ушёл",
+    AttendanceStatus.LATE.value: "Опозд.",
+    AttendanceStatus.EXCUSED.value: "Уваж.",
+    AttendanceStatus.SICK.value: "Болезнь",
+}
+
+
 DEFAULT_THEME = "system"
 VALID_THEMES = ("dark", "light", "system", "pixel-dark", "pixel-light")
 

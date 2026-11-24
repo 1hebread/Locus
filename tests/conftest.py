@@ -13,6 +13,7 @@ from sqlalchemy import event
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
 import locus.database as db_module
+import locus.attendance_cleanup as attendance_cleanup_module
 import locus.homework_cleanup as cleanup_module
 import locus.main as main_module
 import locus.push as push_module
@@ -51,6 +52,7 @@ db_module.async_session_maker = TestAsyncSession
 push_module.async_session_maker = TestAsyncSession
 main_module.async_session_maker = TestAsyncSession
 cleanup_module.async_session_maker = TestAsyncSession
+attendance_cleanup_module.async_session_maker = TestAsyncSession
 
 
 @pytest_asyncio.fixture(scope="function")
@@ -149,6 +151,34 @@ def regular_token(regular_user: User) -> str:
 @pytest.fixture
 def regular_auth_headers(regular_token: str) -> dict:
     return {"Authorization": f"Bearer {regular_token}"}
+
+
+@pytest_asyncio.fixture(scope="function")
+async def headman_user(db_session: AsyncSession) -> User:
+    user = User(
+        username="headman",
+        hashed_password=hash_password("password123"),
+        is_active=True,
+        is_admin=False,
+        is_headman=True,
+    )
+    db_session.add(user)
+    await db_session.commit()
+    await db_session.refresh(user)
+    return user
+
+
+@pytest.fixture
+def headman_token(headman_user: User) -> str:
+    return create_access_token({
+        "sub": str(headman_user.id),
+        "pwd": get_password_fingerprint(headman_user.hashed_password),
+    })
+
+
+@pytest.fixture
+def headman_auth_headers(headman_token: str) -> dict:
+    return {"Authorization": f"Bearer {headman_token}"}
 
 
 @pytest_asyncio.fixture(scope="function")

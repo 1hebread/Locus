@@ -51,6 +51,9 @@ module.exports = {
         warning: {
           ink: 'rgb(var(--c-warning-ink) / <alpha-value>)',
         },
+        info: {
+          ink: 'rgb(var(--c-info-ink) / <alpha-value>)',
+        },
         // Fixed brand green (week ribbon, gradient headers, badges)
         brand: {
           50: '#f0fdf4',

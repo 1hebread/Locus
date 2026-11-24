@@ -10,6 +10,7 @@ from fastapi.staticfiles import StaticFiles
 from sqlalchemy import func, select
 
 from locus.api import api_router
+from locus.attendance_cleanup import run_attendance_cleanup
 from locus.config import get_settings
 from locus.database import Base, async_session_maker, engine
 from locus.homework_cleanup import run_homework_cleanup
@@ -52,10 +53,16 @@ async def lifespan(app: FastAPI):
     cleanup_task = asyncio.create_task(
         run_homework_cleanup(settings.HOMEWORK_RETENTION_DAYS)
     )
+    attendance_cleanup_task = asyncio.create_task(
+        run_attendance_cleanup(settings.HOMEWORK_RETENTION_DAYS)
+    )
     yield
     cleanup_task.cancel()
+    attendance_cleanup_task.cancel()
     with suppress(asyncio.CancelledError):
         await cleanup_task
+    with suppress(asyncio.CancelledError):
+        await attendance_cleanup_task
     await engine.dispose()
 
 

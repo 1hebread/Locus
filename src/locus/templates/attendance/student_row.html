@@ -1,0 +1,91 @@
+{% set active_styles = {
+  'PRESENT': 'border-accent-line/80 bg-accent/25 text-accent-ink',
+  'ABSENT': 'border-danger-ink/45 bg-danger/25 text-danger-ink',
+  'ABSENT_UNKNOWN': 'border-danger-ink/45 bg-danger/25 text-danger-ink',
+  'LEFT': 'border-warning-ink/55 bg-warning-ink/25 text-warning-ink',
+  'LATE': 'border-warning-ink/55 bg-warning-ink/25 text-warning-ink',
+  'EXCUSED': 'border-edge-extra bg-surface-strong text-fg-soft',
+  'SICK': 'border-info-ink/45 bg-info-ink/20 text-info-ink'
+} %}
+{% set menu_active_styles = {
+  'ABSENT': 'bg-danger-soft text-danger-ink',
+  'ABSENT_UNKNOWN': 'bg-danger-soft text-danger-ink',
+  'LEFT': 'bg-warning-ink/20 text-warning-ink'
+} %}
+<div id="attendance-student-{{ student.id }}" data-attendance-row data-status="{{ student.status or '' }}"
+     class="px-3 py-2.5 sm:px-4 sm:py-3">
+  <div class="flex {% if day.is_editable and student.is_active %}flex-col gap-2 sm:flex-row sm:items-center sm:gap-4{% else %}items-center gap-3{% endif %}">
+    <div class="flex min-w-0 items-center gap-2 {% if day.is_editable and student.is_active %}sm:flex-1{% else %}flex-1{% endif %}">
+      <span class="truncate text-sm font-semibold text-fg">{{ student.full_name }}</span>
+      {% if not student.is_active %}
+      <span class="shrink-0 rounded-full border border-edge bg-surface-strong px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-fg-faint">Архив</span>
+      {% endif %}
+    </div>
+
+    {% if day.is_editable and student.is_active %}
+    <div class="grid shrink-0 grid-cols-5 gap-1 sm:w-[21rem]">
+      {% for option in status_options %}
+      {% if option.get('children') %}
+      {% set selected = option.children | selectattr('value', 'equalto', student.status) | list | first %}
+      <div class="relative" data-split-menu>
+        <button type="button"
+                data-split-toggle
+                aria-haspopup="menu"
+                aria-expanded="false"
+                title="{{ option.label }} — выберите вариант"
+                class="inline-flex h-9 w-full items-center justify-center gap-0.5 rounded-lg border px-1 text-[10px] font-semibold transition focus:outline-none focus-visible:ring-2 focus-visible:ring-current sm:h-8 sm:text-[11px]
+                       {% if selected %}{{ active_styles[selected.value] }}{% else %}border-edge bg-surface-subtle/60 text-fg-subtle hover:border-edge-strong hover:bg-surface-strong hover:text-fg{% endif %}">
+          <span class="truncate">{{ selected.short if selected else option.short }}</span>
+          <svg class="h-2.5 w-2.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M19 9l-7 7-7-7" />
+          </svg>
+        </button>
+        <div data-split-menu-panel
+             role="menu"
+             class="hidden absolute left-0 top-full z-50 mt-1 w-32 divide-y divide-edge overflow-hidden rounded-xl border border-edge-strong bg-surface-raised shadow-2xl shadow-black/60">
+          {% for child in option.children %}
+          <button type="button"
+                  role="menuitemradio"
+                  aria-checked="{% if student.status == child.value %}true{% else %}false{% endif %}"
+                  title="{{ child.label }}{% if student.status == child.value %} — нажмите, чтобы снять{% endif %}"
+                  hx-post="/attendance/{{ student.id }}/mark?date={{ selected_iso }}&status={{ child.value }}"
+                  hx-target="closest [data-attendance-row]"
+                  hx-swap="outerHTML"
+                  hx-disabled-elt="this"
+                  class="block w-full px-3 py-2 text-left text-xs font-semibold transition hover:bg-surface-strong
+                         {% if student.status == child.value %}{{ menu_active_styles.get(child.value, 'bg-surface-strong text-accent-ink') }}{% else %}text-fg{% endif %}">
+            {{ child.label }}
+          </button>
+          {% endfor %}
+        </div>
+      </div>
+      {% else %}
+      <button type="button"
+              hx-post="/attendance/{{ student.id }}/mark?date={{ selected_iso }}&status={{ option.value }}"
+              hx-target="closest [data-attendance-row]"
+              hx-swap="outerHTML"
+              hx-disabled-elt="this"
+              aria-pressed="{% if student.status == option.value %}true{% else %}false{% endif %}"
+              title="{{ option.label }}{% if student.status == option.value %} — нажмите, чтобы снять{% endif %}"
+              class="h-9 rounded-lg border text-[10px] font-semibold transition focus:outline-none focus-visible:ring-2 focus-visible:ring-current sm:h-8 sm:text-[11px]
+                     {% if student.status == option.value %}{{ active_styles[option.value] }}{% else %}border-edge bg-surface-subtle/60 text-fg-subtle hover:border-edge-strong hover:bg-surface-strong hover:text-fg{% endif %}">
+        {{ option.short }}
+      </button>
+      {% endif %}
+      {% endfor %}
+    </div>
+    {% else %}
+    <div class="shrink-0">
+      {% if student.status %}
+      <span class="inline-flex items-center rounded-full border px-2.5 py-1 text-[11px] font-semibold
+                   {{ active_styles.get(student.status, 'border-edge-extra bg-surface-strong text-fg') }}">
+        {{ status_labels.get(student.status, student.status) }}
+      </span>
+      {% else %}
+      <span class="text-[11px] text-fg-faint">Не отмечен</span>
+      {% endif %}
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% if include_row_parts is defined and include_row_parts %}{% with oob_actions = true %}{% include "attendance/list_actions.html" %}{% endwith %}{% with oob_counts = true %}{% include "attendance/counts.html" %}{% endwith %}{% endif %}

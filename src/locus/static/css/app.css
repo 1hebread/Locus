@@ -41,6 +41,7 @@
   --c-danger-soft: 30 3 10;
   --c-danger-edge: 82 16 34;
   --c-warning-ink: 251 191 36;
+  --c-info-ink: 125 211 252;
   --shadow-card: 0 4px 16px rgba(0, 0, 0, 0.8);
   --shadow-glow: 0 0 20px rgba(16, 185, 129, 0.2);
   --shadow-glow-strong: 0 0 25px rgba(16, 185, 129, 0.35);
@@ -62,22 +63,23 @@ html[data-theme="light"] {
   --c-fg-soft: 39 39 42;
   --c-fg-muted: 63 63 70;
   --c-fg-subtle: 82 82 91;
-  --c-fg-faint: 113 113 122;
+  --c-fg-faint: 100 100 110;
   --c-fg-ghost: 161 161 170;
   --c-accent: 4 120 87;
   --c-accent-hover: 6 95 70;
   --c-accent-active: 6 78 59;
   --c-accent-line: 5 150 105;
-  --c-accent-ink: 4 120 87;
-  --c-accent-ink-hover: 6 95 70;
+  --c-accent-ink: 6 95 70;
+  --c-accent-ink-hover: 6 78 59;
   --c-accent-contrast: 255 255 255;
   --c-danger: 225 29 72;
   --c-danger-hover: 190 18 60;
-  --c-danger-ink: 190 18 60;
-  --c-danger-ink-soft: 159 18 57;
-  --c-danger-soft: 255 241 242;
-  --c-danger-edge: 254 205 211;
-  --c-warning-ink: 180 83 9;
+  --c-danger-ink: 159 18 57;
+  --c-danger-ink-soft: 136 19 55;
+  --c-danger-soft: 255 228 230;
+  --c-danger-edge: 253 164 175;
+  --c-warning-ink: 146 64 14;
+  --c-info-ink: 12 74 110;
   --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.04), 0 4px 16px rgba(0, 0, 0, 0.06);
   --shadow-glow: 0 0 20px rgba(5, 150, 105, 0.18);
   --shadow-glow-strong: 0 0 25px rgba(5, 150, 105, 0.3);
@@ -117,6 +119,7 @@ html[data-theme="pixel-dark"] {
   --c-danger-soft: 42 16 24;
   --c-danger-edge: 110 35 53;
   --c-warning-ink: 255 210 63;
+  --c-info-ink: 125 211 252;
   --c-pixel-edge: 92 103 143;
   /* 12x12 stepped frame: 4px border with two-step pixel corners */
   --pixel-frame: url("data:image/svg+xml,%3Csvg%20xmlns%3D%27http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%27%20width%3D%2712%27%20height%3D%2712%27%20viewBox%3D%270%200%2012%2012%27%3E%3Cpath%20fill%3D%27%235c678f%27%20fill-rule%3D%27evenodd%27%20d%3D%27M4%200H8V2H10V4H12V8H10V10H8V12H4V10H2V8H0V4H2V2H4Z%20M4%204H8V8H4Z%27%2F%3E%3C%2Fsvg%3E");
@@ -152,11 +155,12 @@ html[data-theme="pixel-light"] {
   --c-on-accent: 14 21 36;
   --c-danger: 201 47 74;
   --c-danger-hover: 168 36 60;
-  --c-danger-ink: 168 36 60;
-  --c-danger-ink-soft: 134 28 49;
-  --c-danger-soft: 251 228 232;
-  --c-danger-edge: 239 180 191;
-  --c-warning-ink: 138 90 0;
+  --c-danger-ink: 145 26 49;
+  --c-danger-ink-soft: 112 20 38;
+  --c-danger-soft: 248 220 226;
+  --c-danger-edge: 224 148 163;
+  --c-warning-ink: 118 74 0;
+  --c-info-ink: 14 78 98;
   --c-pixel-edge: 38 88 130;
   --pixel-frame: url("data:image/svg+xml,%3Csvg%20xmlns%3D%27http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%27%20width%3D%2712%27%20height%3D%2712%27%20viewBox%3D%270%200%2012%2012%27%3E%3Cpath%20fill%3D%27%23265882%27%20fill-rule%3D%27evenodd%27%20d%3D%27M4%200H8V2H10V4H12V8H10V10H8V12H4V10H2V8H0V4H2V2H4Z%20M4%204H8V8H4Z%27%2F%3E%3C%2Fsvg%3E");
   --pixel-frame-accent: url("data:image/svg+xml,%3Csvg%20xmlns%3D%27http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%27%20width%3D%2712%27%20height%3D%2712%27%20viewBox%3D%270%200%2012%2012%27%3E%3Cpath%20fill%3D%27%23257d24%27%20fill-rule%3D%27evenodd%27%20d%3D%27M4%200H8V2H10V4H12V8H10V10H8V12H4V10H2V8H0V4H2V2H4Z%20M4%204H8V8H4Z%27%2F%3E%3C%2Fsvg%3E");
@@ -750,6 +754,15 @@ html[data-theme^="pixel-"] body {
   transform-origin: bottom right;
 }
 
+/* Panels opened near the bottom edge flip above their toggle instead of
+   running under the mobile dock or off-screen. */
+[data-split-menu-panel].split-menu-up {
+  top: auto;
+  bottom: 100%;
+  margin-top: 0;
+  margin-bottom: 0.25rem;
+}
+
 /* Closing mirrors the opening before the panel gets `hidden` */
 @keyframes splitMenuOut {
   from {
@@ -774,6 +787,23 @@ html[data-theme^="pixel-"] body {
 
 [data-split-toggle][aria-expanded="true"] svg {
   transform: rotate(180deg);
+}
+
+/* Attendance count cards double as status filters */
+[data-attendance-filter][aria-pressed="true"] {
+  border-color: rgb(var(--c-edge-extra));
+  background-color: rgb(var(--c-surface-strong));
+  box-shadow: inset 0 0 0 1px rgb(var(--c-edge-extra)),
+    var(--tw-ring-offset-shadow, 0 0 #0000), var(--tw-ring-shadow, 0 0 #0000);
+}
+
+/* Touch and mouse taps should not leave a focus ring; keyboard users keep it */
+html[data-input="pointer"] [data-attendance-row] :focus-visible,
+html[data-input="pointer"] [data-attendance-filter]:focus-visible,
+html[data-input="pointer"] #attendance-list-actions :focus-visible {
+  outline: none;
+  --tw-ring-shadow: 0 0 #0000;
+  --tw-ring-offset-shadow: 0 0 #0000;
 }
 
 /* Copy button: emerald hover only for pointer devices. Touch browsers keep

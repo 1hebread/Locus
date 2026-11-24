@@ -1,0 +1,35 @@
+<div id="attendance-list-actions"{% if oob_actions is defined and oob_actions %} hx-swap-oob="outerHTML"{% endif %}
+     class="flex shrink-0 items-center gap-1.5">
+  {% if absent_report %}
+  <button type="button"
+          onclick="copyAttendanceAbsent(this)"
+          data-copy-text="{{ absent_report }}"
+          data-copy-label="Скопировать отсутствующих"
+          title="Скопировать отсутствующих"
+          aria-label="Скопировать отсутствующих"
+          class="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-edge bg-surface-raised text-fg-subtle transition hover:border-edge-strong hover:text-fg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-current">
+    <svg data-copy-icon class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 8V6a2 2 0 012-2h6a2 2 0 012 2v6a2 2 0 01-2 2h-2M6 8h6a2 2 0 012 2v6a2 2 0 01-2 2H6a2 2 0 01-2-2v-6a2 2 0 012-2z" />
+    </svg>
+    <svg data-copy-done class="hidden h-4 w-4 text-accent-ink" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7" />
+    </svg>
+  </button>
+  {% endif %}
+
+  {% if day.is_editable and count_values['unmarked'] %}
+  <form method="post" action="/attendance/fill-present"
+        hx-post="/attendance/fill-present"
+        hx-swap="none"
+        class="shrink-0">
+    <input type="hidden" name="date" value="{{ selected_iso }}">
+    <button type="submit"
+            class="inline-flex items-center gap-1.5 whitespace-nowrap rounded-xl border border-accent-line/40 bg-accent/10 px-3.5 py-2 text-xs font-semibold text-accent-ink transition hover:bg-accent/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-current">
+      <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7" />
+      </svg>
+      Остальные: Был
+    </button>
+  </form>
+  {% endif %}
+</div>

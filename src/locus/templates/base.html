@@ -116,8 +116,19 @@
         <span>Дежурные</span>
       </a>
 
+      <!-- 6. Посещаемость -->
+      <a href="/attendance"
+         class="flex items-center space-x-3 px-3.5 py-2.5 rounded-xl transition whitespace-nowrap
+                {% if active_page == 'attendance' %}bg-accent text-on-accent shadow-md shadow-accent/25 font-bold{% else %}text-fg-subtle hover:text-fg hover:bg-surface-strong/60{% endif %}">
+        <svg class="w-5 h-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 14l2 2 4-4" />
+        </svg>
+        <span>Посещаемость</span>
+      </a>
+
       {% if current_user.is_admin %}
-      <!-- 6. Пользователи -->
+      <!-- 7. Пользователи -->
       <a href="/admin/users"
          class="flex items-center space-x-3 px-3.5 py-2.5 rounded-xl transition whitespace-nowrap
                 {% if active_page == 'admin' %}bg-accent text-on-accent shadow-md shadow-accent/25 font-bold{% else %}text-fg-subtle hover:text-fg hover:bg-surface-strong/60{% endif %}">
@@ -127,7 +138,7 @@
         <span>Пользователи</span>
       </a>
 
-      <!-- 7. История изменений -->
+      <!-- 8. История изменений -->
       <a href="/admin/history"
          class="flex items-center space-x-3 px-3.5 py-2.5 rounded-xl transition whitespace-nowrap
                 {% if active_page == 'admin_history' %}bg-accent text-on-accent shadow-md shadow-accent/25 font-bold{% else %}text-fg-subtle hover:text-fg hover:bg-surface-strong/60{% endif %}">
@@ -137,7 +148,7 @@
         <span>История</span>
       </a>
 
-      <!-- 8. API-ключи -->
+      <!-- 9. API-ключи -->
       <a href="/admin/api-keys"
          class="flex items-center space-x-3 px-3.5 py-2.5 rounded-xl transition whitespace-nowrap
                 {% if active_page == 'admin_api_keys' %}bg-accent text-on-accent shadow-md shadow-accent/25 font-bold{% else %}text-fg-subtle hover:text-fg hover:bg-surface-strong/60{% endif %}">
@@ -148,7 +159,7 @@
       </a>
       {% endif %}
 
-      <!-- 9. Настройки (always last) -->
+      <!-- 10. Настройки (always last) -->
       <a href="/settings"
          class="flex items-center space-x-3 px-3.5 py-2.5 rounded-xl transition whitespace-nowrap
                 {% if active_page == 'settings' %}bg-accent text-on-accent shadow-md shadow-accent/25 font-bold{% else %}text-fg-subtle hover:text-fg hover:bg-surface-strong/60{% endif %}">
@@ -290,6 +301,14 @@
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
           </svg>
           <span>Дежурные</span>
+        </a>
+
+        <a href="/attendance" class="flex items-center space-x-3 px-3.5 py-2.5 rounded-xl text-fg-muted hover:bg-surface-strong transition">
+          <svg class="w-5 h-5 text-accent-ink" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 14l2 2 4-4" />
+          </svg>
+          <span>Посещаемость</span>
         </a>
 
         {% if current_user.is_admin %}

@@ -1,0 +1,14 @@
+<div id="attendance-counts"{% if oob_counts is defined and oob_counts %} hx-swap-oob="outerHTML"{% endif %}
+     data-absent-statuses="{{ absence_values | join(',') }}"
+     class="grid grid-cols-3 gap-1.5 sm:grid-cols-6 sm:gap-2">
+  {% for key, label, tone in count_items %}
+  <button type="button"
+          data-attendance-filter="{{ key }}"
+          aria-pressed="false"
+          title="Фильтр: {{ label }}"
+          class="flex w-full cursor-pointer flex-col items-start gap-0.5 rounded-xl border border-edge/90 bg-surface-raised px-2.5 py-2 text-left transition hover:border-edge-strong focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-current sm:px-3 sm:py-2.5">
+    <span class="text-base font-extrabold leading-none {{ tone }}">{{ count_values[key] }}</span>
+    <span class="break-words text-[10px] leading-tight text-fg-subtle">{{ label }}</span>
+  </button>
+  {% endfor %}
+</div>

@@ -8,6 +8,8 @@ from locus.models.api_key import ApiKey
 from locus.models.push_subscription import PushSubscription
 from locus.models.vacation import Vacation
 from locus.models.duty_day import DutyDay
+from locus.models.student import Student
+from locus.models.attendance import AttendanceRecord
 
 __all__ = [
     "User",
@@ -20,4 +22,6 @@ __all__ = [
     "PushSubscription",
     "Vacation",
     "DutyDay",
+    "Student",
+    "AttendanceRecord",
 ]
