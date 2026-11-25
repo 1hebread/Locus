@@ -25,7 +25,7 @@ async def test_old_attendance_is_purged(db_session):
     edge = AttendanceRecord(
         student_id=student.id,
         attendance_date=today - timedelta(days=30),
-        status="ABSENT",
+        status="TRUANT",
     )
     fresh = AttendanceRecord(
         student_id=student.id,
@@ -70,7 +70,7 @@ async def test_archived_students_without_marks_are_purged(db_session):
         AttendanceRecord(
             student_id=with_mark_id,
             attendance_date=get_current_date(),
-            status="ABSENT",
+            status="TRUANT",
         )
     )
     await db_session.commit()

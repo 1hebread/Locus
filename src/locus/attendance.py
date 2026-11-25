@@ -123,7 +123,7 @@ async def build_day(
 
     counts = {
         AttendanceStatus.PRESENT.value: 0,
-        AttendanceStatus.ABSENT.value: 0,
+        AttendanceStatus.TRUANT.value: 0,
         AttendanceStatus.LATE.value: 0,
         AttendanceStatus.EXCUSED.value: 0,
         AttendanceStatus.SICK.value: 0,
@@ -133,7 +133,7 @@ async def build_day(
     for student in students:
         status = statuses.get(student.id)
         if status in absence_values:
-            status = AttendanceStatus.ABSENT.value
+            status = AttendanceStatus.TRUANT.value
         if status in counts:
             counts[status] += 1
         else:
@@ -157,7 +157,7 @@ async def build_day(
         ],
         counts=AttendanceCounts(
             present=counts[AttendanceStatus.PRESENT.value],
-            absent=counts[AttendanceStatus.ABSENT.value],
+            absent=counts[AttendanceStatus.TRUANT.value],
             late=counts[AttendanceStatus.LATE.value],
             excused=counts[AttendanceStatus.EXCUSED.value],
             sick=counts[AttendanceStatus.SICK.value],

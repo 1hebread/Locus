@@ -50,17 +50,15 @@ def _status_option(item: AttendanceStatus) -> dict:
 ABSENCE_OPTIONS = [_status_option(item) for item in ATTENDANCE_ABSENCE_STATUSES]
 
 STATUS_OPTIONS = [
+    _status_option(AttendanceStatus.PRESENT),
     {
-        **_status_option(item),
-        **({"children": ABSENCE_OPTIONS} if item is AttendanceStatus.ABSENT else {}),
-    }
-    for item in (
-        AttendanceStatus.PRESENT,
-        AttendanceStatus.ABSENT,
-        AttendanceStatus.LATE,
-        AttendanceStatus.EXCUSED,
-        AttendanceStatus.SICK,
-    )
+        "label": "Нет",
+        "short": "Нет",
+        "children": ABSENCE_OPTIONS,
+    },
+    _status_option(AttendanceStatus.LATE),
+    _status_option(AttendanceStatus.EXCUSED),
+    _status_option(AttendanceStatus.SICK),
 ]
 
 ERROR_MESSAGES = {
@@ -93,7 +91,7 @@ def _count_values(day) -> dict[str, int]:
 
 
 ABSENT_REPORT_REASONS = {
-    AttendanceStatus.ABSENT.value: "отсутствует",
+    AttendanceStatus.TRUANT.value: "прогул",
     AttendanceStatus.ABSENT_UNKNOWN.value: "неизвестно",
     AttendanceStatus.LEFT.value: "ушёл",
     AttendanceStatus.EXCUSED.value: "уважительная причина",

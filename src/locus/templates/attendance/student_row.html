@@ -1,6 +1,6 @@
 {% set active_styles = {
   'PRESENT': 'border-accent-line/80 bg-accent/25 text-accent-ink',
-  'ABSENT': 'border-danger-ink/45 bg-danger/25 text-danger-ink',
+  'TRUANT': 'border-danger-ink/45 bg-danger/25 text-danger-ink',
   'ABSENT_UNKNOWN': 'border-danger-ink/45 bg-danger/25 text-danger-ink',
   'LEFT': 'border-warning-ink/55 bg-warning-ink/25 text-warning-ink',
   'LATE': 'border-warning-ink/55 bg-warning-ink/25 text-warning-ink',
@@ -8,7 +8,7 @@
   'SICK': 'border-info-ink/45 bg-info-ink/20 text-info-ink'
 } %}
 {% set menu_active_styles = {
-  'ABSENT': 'bg-danger-soft text-danger-ink',
+  'TRUANT': 'bg-danger-soft text-danger-ink',
   'ABSENT_UNKNOWN': 'bg-danger-soft text-danger-ink',
   'LEFT': 'bg-warning-ink/20 text-warning-ink'
 } %}
@@ -23,7 +23,7 @@
     </div>
 
     {% if day.is_editable and student.is_active %}
-    <div class="grid shrink-0 grid-cols-5 gap-1 sm:w-[21rem]">
+    <div class="grid shrink-0 grid-cols-5 gap-1 sm:w-[22.5rem]">
       {% for option in status_options %}
       {% if option.get('children') %}
       {% set selected = option.children | selectattr('value', 'equalto', student.status) | list | first %}
@@ -33,10 +33,10 @@
                 aria-haspopup="menu"
                 aria-expanded="false"
                 title="{{ option.label }} — выберите вариант"
-                class="inline-flex h-9 w-full items-center justify-center gap-0.5 rounded-lg border px-1 text-[10px] font-semibold transition focus:outline-none focus-visible:ring-2 focus-visible:ring-current sm:h-8 sm:text-[11px]
+                class="inline-flex h-9 w-full items-center justify-center gap-0.5 rounded-lg border px-0.5 text-[10px] font-semibold transition focus:outline-none focus-visible:ring-2 focus-visible:ring-current sm:h-8 sm:text-[11px]
                        {% if selected %}{{ active_styles[selected.value] }}{% else %}border-edge bg-surface-subtle/60 text-fg-subtle hover:border-edge-strong hover:bg-surface-strong hover:text-fg{% endif %}">
           <span class="truncate">{{ selected.short if selected else option.short }}</span>
-          <svg class="h-2.5 w-2.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+          <svg class="h-2 w-2 shrink-0 sm:h-2.5 sm:w-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M19 9l-7 7-7-7" />
           </svg>
         </button>

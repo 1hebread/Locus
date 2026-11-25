@@ -149,7 +149,7 @@ async def test_attendance_api_admin_can_mark(
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize("status", ["ABSENT_UNKNOWN", "LEFT"])
+@pytest.mark.parametrize("status", ["TRUANT", "ABSENT_UNKNOWN", "LEFT"])
 async def test_attendance_api_absence_variants_count_as_absent(
     client, db_session, headman_auth_headers, fixed_today, status
 ):
@@ -268,7 +268,7 @@ async def test_attendance_api_rejects_unknown_and_archived_students(
         json={
             "marks": [
                 {"student_id": active.id, "status": "PRESENT"},
-                {"student_id": archived.id, "status": "ABSENT"},
+                {"student_id": archived.id, "status": "TRUANT"},
             ]
         },
         headers=headman_auth_headers,
@@ -293,7 +293,7 @@ async def test_attendance_api_validation_errors(
         {
             "marks": [
                 {"student_id": student.id, "status": "PRESENT"},
-                {"student_id": student.id, "status": "ABSENT"},
+                {"student_id": student.id, "status": "TRUANT"},
             ]
         },
         {
@@ -429,12 +429,14 @@ async def test_attendance_web_headman_sees_controls(
     assert "Список класса" in res.text
     assert 'hx-disabled-elt="this"' in res.text
     assert 'hx-target="closest [data-attendance-row]"' in res.text
+    assert "Нет — выберите вариант" in res.text
+    assert "Прогул" in res.text
     assert "Неизвестно" in res.text
     assert "Ушёл" in res.text
     assert "data-split-menu" in res.text
     assert "Остальные: Был" in res.text
     assert 'data-attendance-filter="present"' in res.text
-    assert 'data-absent-statuses="ABSENT,ABSENT_UNKNOWN,LEFT"' in res.text
+    assert 'data-absent-statuses="TRUANT,ABSENT_UNKNOWN,LEFT"' in res.text
 
 
 @pytest.mark.asyncio
@@ -512,7 +514,7 @@ async def test_attendance_web_fill_present_htmx_updates_in_place(
         AttendanceRecord(
             student_id=absent_id,
             attendance_date=TODAY,
-            status="ABSENT",
+            status="TRUANT",
             marked_by_id=headman_user.id,
         )
     )
@@ -535,19 +537,20 @@ async def test_attendance_web_fill_present_htmx_updates_in_place(
     records = (await db_session.execute(select(AttendanceRecord))).scalars().all()
     statuses = {record.student_id: record.status for record in records}
     assert statuses[unmarked_id] == "PRESENT"
-    assert statuses[absent_id] == "ABSENT"
+    assert statuses[absent_id] == "TRUANT"
 
 
 @pytest.mark.asyncio
 async def test_attendance_web_absent_copy_report(
     client, db_session, headman_user, headman_token, fixed_today
 ):
-    sick, unknown, present = await add_students(
-        db_session, "Иванов Иван", "Петров Пётр", "Сидоров Сидор"
+    sick, unknown, truant, present = await add_students(
+        db_session, "Иванов Иван", "Петров Пётр", "Козлов Кирилл", "Сидоров Сидор"
     )
     for student, status in (
         (sick, "SICK"),
         (unknown, "ABSENT_UNKNOWN"),
+        (truant, "TRUANT"),
         (present, "PRESENT"),
     ):
         db_session.add(
@@ -565,7 +568,10 @@ async def test_attendance_web_absent_copy_report(
 
     report = re.search(r'data-copy-text="(.*?)"', res.text, re.S)
     assert report is not None
-    assert report.group(1) == "Иванов Иван — болеет\nПетров Пётр — неизвестно"
+    assert (
+        report.group(1)
+        == "Иванов Иван — болеет\nКозлов Кирилл — прогул\nПетров Пётр — неизвестно"
+    )
 
 
 @pytest.mark.asyncio

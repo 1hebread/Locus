@@ -20,7 +20,7 @@ class HomeworkStatus(str, Enum):
 
 class AttendanceStatus(str, Enum):
     PRESENT = "PRESENT"
-    ABSENT = "ABSENT"
+    TRUANT = "TRUANT"
     ABSENT_UNKNOWN = "ABSENT_UNKNOWN"
     LEFT = "LEFT"
     LATE = "LATE"
@@ -31,14 +31,14 @@ class AttendanceStatus(str, Enum):
 # Absence variants share the "Нет" button and count in `counts.absent`.
 # shortcut: no separate unknown/left counters; add them when the UI needs them.
 ATTENDANCE_ABSENCE_STATUSES = (
-    AttendanceStatus.ABSENT,
+    AttendanceStatus.TRUANT,
     AttendanceStatus.ABSENT_UNKNOWN,
     AttendanceStatus.LEFT,
 )
 
 ATTENDANCE_STATUS_LABELS = {
     AttendanceStatus.PRESENT.value: "Был",
-    AttendanceStatus.ABSENT.value: "Нет",
+    AttendanceStatus.TRUANT.value: "Прогул",
     AttendanceStatus.ABSENT_UNKNOWN.value: "Неизвестно",
     AttendanceStatus.LEFT.value: "Ушёл",
     AttendanceStatus.LATE.value: "Опоздал",
@@ -48,7 +48,7 @@ ATTENDANCE_STATUS_LABELS = {
 
 ATTENDANCE_STATUS_SHORT_LABELS = {
     AttendanceStatus.PRESENT.value: "Был",
-    AttendanceStatus.ABSENT.value: "Нет",
+    AttendanceStatus.TRUANT.value: "Прогул",
     AttendanceStatus.ABSENT_UNKNOWN.value: "Неиз.",
     AttendanceStatus.LEFT.value: "Ушёл",
     AttendanceStatus.LATE.value: "Опозд.",

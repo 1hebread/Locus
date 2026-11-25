@@ -271,7 +271,7 @@ curl -H "Authorization: Bearer $KEY" "https://example.com/api/v1/schedule?day_of
 }
 ```
 
-Статусы: `PRESENT` (был), `ABSENT` (нет), `ABSENT_UNKNOWN` (нет, причина неизвестна), `LEFT` (ушёл), `LATE` (опоздал), `EXCUSED` (уважительная), `SICK` (болезнь). `ABSENT_UNKNOWN` и `LEFT` входят в `counts.absent`. `null` — ученик не отмечен. Архивные ученики (`is_active: false`) видны только в тех прошлых датах, где у них есть отметки. ФИО хранятся в базе зашифрованными; API отдаёт открытый текст.
+Статусы: `PRESENT` (был), `TRUANT` (прогул), `ABSENT_UNKNOWN` (нет, причина неизвестна), `LEFT` (ушёл), `LATE` (опоздал), `EXCUSED` (уважительная), `SICK` (болезнь). `TRUANT`, `ABSENT_UNKNOWN` и `LEFT` входят в `counts.absent`. `null` — ученик не отмечен. Архивные ученики (`is_active: false`) видны только в тех прошлых датах, где у них есть отметки. ФИО хранятся в базе зашифрованными; API отдаёт открытый текст.
 
 `PUT /attendance/{date}` — применить отметки за дату (только староста и администратор). Тело:
 
