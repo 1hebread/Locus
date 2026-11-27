@@ -22,7 +22,7 @@ classifiers = [
     "Topic :: Education",
 ]
 dependencies = [
-    "fastapi>=0.163.1",
+    "fastapi>=0.165.0",
     "uvicorn[standard]>=0.54.0",
     "sqlalchemy[asyncio]>=2.1.9",
     "asyncpg>=0.29.0",
