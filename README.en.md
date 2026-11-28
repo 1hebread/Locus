@@ -203,4 +203,4 @@ What is stored, who can see it, for how long and how it is deleted is described 
 
 Distributed under the [MIT License](LICENSE). Details are available in the [LICENSE](LICENSE) file.
 
-Third-party components and their licenses are listed in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
+Third-party components and their licenses are listed in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md). Trademark and branding guidelines are in [TRADEMARKS.en.md](TRADEMARKS.en.md).

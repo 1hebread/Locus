@@ -194,4 +194,4 @@ Locus не содержит аналитики и не отправляет да
 
 Распространяется под лицензией [MIT](LICENSE). Подробности доступны в файле [LICENSE](LICENSE).
 
-Сторонние компоненты и их лицензии перечислены в [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
+Сторонние компоненты и их лицензии перечислены в [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md). Правила использования названия и символики проекта описаны в [TRADEMARKS.md](TRADEMARKS.md).
